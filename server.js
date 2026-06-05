@@ -94,7 +94,6 @@ app.post('/lottery/generate-vip', async (req, res) => {
 // 🧠 核心處理大腦：15道防線完全體 (100% 獨立，絕不巢狀交錯)
 async function runServerVipLogic(req, res) {
     try {
-        // 強制注入全域跨網域許可，徹底擊碎 OPPO 手機的 CORS 安全阻擋！
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET,POST');
         res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
