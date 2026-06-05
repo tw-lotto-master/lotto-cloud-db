@@ -74,6 +74,83 @@ app.post('/api/auth/login', async (req, res) => {
   });
 });
 
+// ========================================================
+// 【15大防線雲端超頻海選引擎】：高屏跳躍，兼顧 1 秒極速與公平隨機性 🏆
+// ========================================================
+app.post('/api/lottery/generate-vip', async (req, res) => {
+    try {
+        const { type, requiredCount, maxNumber, count, filters } = req.body;
+        const targetCount = Math.min(100, count || 100);
+        const maxCombinations = (requiredCount === 5) ? 575757 : 13983816;
+        
+        let resultsPool = [];
+        const startStartIndex = Math.floor(Math.random() * maxCombinations);
+        let step = Math.floor(Math.random() * 5) + 2; 
+
+        for (let countScanned = 0; countScanned < maxCombinations; countScanned += step) {
+            let i = (startStartIndex + countScanned) % maxCombinations;
+            let comb = serverGetCombinationByIndex(i, requiredCount, maxNumber);
+            let pass = true;
+            let a = comb;
+            let lastNum = comb[comb.length - 1];
+
+            // ---- 100% 完整移植您前端 PDF 的 15 大防線邏輯 ----
+            if (filters.historyCacheSet && new Set(filters.historyCacheSet).has(comb.join(','))) pass = false;
+            if (pass && filters.f1_on && comb.some(n => new Set(filters.f1_set).has(n))) pass = false;
+            if (pass && filters.f2_on && (a >= filters.f2_min || lastNum <= filters.f2_max)) pass = false;
+            if (pass && filters.f3_on) {
+                let zoneSet = new Set();
+                comb.forEach(n => {
+                    let s = (requiredCount === 5) ? 8 : 10;
+                    zoneSet.add(Math.min(5, Math.ceil(n / s)));
+                });
+                if (zoneSet.size !== filters.f3_req) pass = false;
+            }
+            if (pass && filters.f4_on) {
+                let tails = new Array(10).fill(0);
+                comb.forEach(n => tails[n % 10]++);
+                if (Math.max(...tails) > filters.f4_max) pass = false;
+            }
+            if (pass && filters.f5_on) {
+                let oddCount = comb.filter(n => n % 2 !== 0).length;
+                if (requiredCount === 6) {
+                    if (filters.f5_lotto_60 && (oddCount === 6 || oddCount === 0)) pass = false;
+                    if (filters.f5_lotto_51 && (oddCount === 5 || oddCount === 1)) pass = false;
+                } else {
+                    if (filters.f5_539_50 && (oddCount === 5 || oddCount === 0)) pass = false;
+                    if (filters.f5_539_41 && (oddCount === 4 || oddCount === 1)) pass = false;
+                }
+            }
+
+            if (pass) {
+                resultsPool.push(comb);
+                if (resultsPool.length >= targetCount) break; 
+            }
+        }
+
+        return res.json({ success: true, results: resultsPool });
+    } catch (error) {
+        console.error("後端超頻篩選異常:", error);
+        return res.json({ success: false, message: "伺服器運算超載，請稍後再試。" });
+    }
+});
+
+function serverGetCombinationByIndex(index, r, nMax) {
+    let res = []; let next = 1;
+    while (res.length < r) {
+        let count = serverCombinationCount(nMax - next, r - res.length - 1);
+        if (index < count) { res.push(next); } else { index -= count; }
+        next++;
+    }
+    return res;
+}
+function serverCombinationCount(n, k) {
+    if (k < 0 || k > n) return 0; if (k === 0 || k === n) return 1;
+    if (k > n / 2) k = n - k; let res = 1;
+    for (let i = 1; i <= k; i++) { res = res * (n - i + 1) / i; }
+    return Math.round(res);
+}
+
 // 💾 5. API：上傳與儲存明牌組合至雲端庫 (供智能對獎永久備份)
 app.post('/api/tickets/save', async (req, res) => {
   const token = req.headers['authorization'];
