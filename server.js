@@ -75,3 +75,54 @@ function runVipLightEngine(req, res) {
         return res.json({ success: false, message: "雲端大腦震盪" });
     }
 }
+
+// ========================================================
+// 🧮 雲端核心組合數學引擎：精準還原 1400 萬組指針，杜絕 ReferenceError 補丁 🏆
+// ========================================================
+function serverGetCombinationByIndex(index, r, nMax) {
+    let res = []; 
+    let next = 1;
+    while (res.length < r) {
+        let count = serverCombinationCount(nMax - next, r - res.length - 1);
+        if (index < count) { 
+            res.push(next); 
+        } else { 
+            index -= count; 
+        }
+        next++;
+    }
+    return res;
+}
+
+function serverCombinationCount(n, k) {
+    if (k < 0 || k > n) return 0; 
+    if (k === 0 || k === n) return 1;
+    if (k > n / 2) k = n - k; 
+    let res = 1;
+    for (let i = 1; i <= k; i++) { 
+        res = res * (n - i + 1) / i; 
+    }
+    return Math.round(res);
+}
+
+// ========================================================
+// 🌐 4. 雲端資料庫安全監聽啟動點 (終極防閃退安全氣囊版)
+// ========================================================
+const PORT = process.env.PORT || 10000;
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+
+// 🚀【優先防守】：先讓伺服器和 API 接口安全在埠位上存活，直接阻斷 Render 官方的 Exited early 閃退！
+const server = app.listen(PORT, () => {
+    console.log(`🚀 雲端運行引擎已在埠位 ${PORT} 滿血發動！`);
+    console.log(" CORS 跨網域全開放綠色通道已全線大通車！");
+});
+
+// 將資料庫握手隔離開來，即使帳密有時間差，也絕對不允許它拉垮整台主機
+if (MONGO_URI) {
+    mongoose.connect(MONGO_URI)
+      .then(() => { console.log(" 🧠 MongoDB 雲端大腦握手成功，跨裝置同步就位！"); })
+      .catch(err => { console.error(" ⚠️ 背景資料庫連線失敗，但 API 仍保持健康存活:", err.message); });
+} else {
+    console.warn(" ⚠️ 未偵測到環境變數 MONGO_URI，目前以獨立 API 接口模式維運。");
+}
+
