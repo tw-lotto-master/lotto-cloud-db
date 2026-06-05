@@ -6,9 +6,7 @@ const cors = require('cors');
 
 const app = express();
 
-// ========================================================
-// 🌟【終極跨網域解鎖補丁】：徹底擊碎 OPPO 手機 CORS 安全阻擋，實現秒級通車！
-// ========================================================
+// 🌟【跨網域解鎖補丁】：徹底擊碎 OPPO 手機 CORS 安全阻擋
 app.use(cors({ 
     origin: '*', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
@@ -16,103 +14,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// ========================================================
-// 💾 1. MongoDB 雲端資料庫定義 (請維持您原本健康的 schema 格式)
-// ========================================================
-const UserSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  isPaidMember: { type: Boolean, default: false },
-  savedTickets: { type: Array, default: [] }
-});
-const User = mongoose.models.User || mongoose.model('User', UserSchema);
-
-// ========================================================
-// 📡 2. API：會員註冊系統
-// ========================================================
-app.post('/api/auth/register', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ success: false, message: '請輸入帳號與密碼！' });
-    
-    const existingUser = await User.findOne({ username });
-    if (existingUser) return res.status(400).json({ success: false, message: '❌ 帳號已被註冊！' });
-    
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = new User({ username, password: hashedPassword, isPaidMember: false });
-    await newUser.save();
-    
-    res.json({ success: true, message: '🎉 註冊成功！請至下方登入系統。' });
-  } catch (err) {
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
-
-// ========================================================
-// 📡 3. API：傳統帳密登入系統 (原汁原味跨裝置同步權限通道)
-// ========================================================
-app.post('/api/auth/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    const user = await User.findOne({ username });
-    if (!user) return res.status(400).json({ success: false, message: '❌ 帳號或密碼錯誤' });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ success: false, message: '❌ 帳號或密碼錯誤' });
-
-    const token = jwt.sign(
-      { userId: user._id, isPaidMember: user.isPaidMember },
-      'FREE_LOTTO_SECRET_2026',
-      { expiresIn: '30d' }
-    );
-
-    res.json({
-      success: true,
-      token,
-      username: user.username,
-      isPaidMember: user.isPaidMember
-    });
-  } catch (err) {
-    res.status(500).json({ success: false, message: '伺服器錯誤' });
-  }
-});
-
-// ========================================================
-// 💾 4. API：上傳與儲存明牌組合至雲端庫 (供智能對獎永久備份)
-// ========================================================
-app.post('/api/tickets/save', async (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token) return res.status(401).json({ success: false, message: '請先登入' });
-
-  try {
-    const decoded = jwt.verify(token, 'FREE_LOTTO_SECRET_2026');
-    const { tickets } = req.body;
-    await User.findByIdAndUpdate(decoded.userId, { $set: { savedTickets: tickets } });
-    res.json({ success: true, message: '☁️ 明牌已成功雲端備份！' });
-  } catch (err) {
-    res.status(401).json({ success: false, message: '登入憑證失效' });
-  }
-});
-
-// ========================================================
-// 📡 5. API：拉取雲端明牌組合
-// ========================================================
-app.get('/api/tickets/list', async (req, res) => {
-  const token = req.headers['authorization'];
-  if (!token) return res.status(401).json({ success: false, message: '請先登入' });
-
-  try {
-    const decoded = jwt.verify(token, 'FREE_LOTTO_SECRET_2026');
-    const user = await User.findById(decoded.userId);
-    res.json({ success: true, tickets: user ? user.savedTickets : [] });
-  } catch (err) {
-    res.status(401).json({ success: false, message: '登入憑證失效' });
-  }
-});
-
-// ========================================================
 // 【Render 免費版伺服器專用】：15大防線極速超頻海選 API 接口 🏆
-// ========================================================
 app.post('/api/lottery/generate-vip', async (req, res) => {
     return await runServerVipLogic(req, res);
 });
@@ -205,10 +107,81 @@ function serverCombinationCount(n, k) {
 }
 
 // ========================================================
-// 🌐 6. 雲端資料庫安全監聽啟動點 (保持您原本的環境變數讀取)
+// 💾 1. MongoDB 雲端資料庫定義
 // ========================================================
+const UserSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  isPaidMember: { type: Boolean, default: false },
+  savedTickets: { type: Array, default: [] }
+});
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
+
+// 📡 2. API：會員註冊系統
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) return res.status(400).json({ success: false, message: '請輸入帳號與密碼！' });
+    const existingUser = await User.findOne({ username });
+    if (existingUser) return res.status(400).json({ success: false, message: '❌ 帳號已被註冊！' });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ username, password: hashedPassword, isPaidMember: false });
+    await newUser.save();
+    res.json({ success: true, message: '🎉 註冊成功！请至下方登入系統。' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+  }
+});
+
+// 📡 3. API：傳統帳密登入系統
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await User.findOne({ username });
+    if (!user) return res.status(400).json({ success: false, message: '❌ 帳號或密碼錯誤' });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ success: false, message: '❌ 帳號或密碼錯誤' });
+    const token = jwt.sign(
+      { userId: user._id, isPaidMember: user.isPaidMember },
+      'FREE_LOTTO_SECRET_2026',
+      { expiresIn: '30d' }
+    );
+    res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
+  } catch (err) {
+    res.status(500).json({ success: false, message: '伺服器錯誤' });
+  }
+});
+
+// 💾 4. API：上傳與儲存明牌組合至雲端庫
+app.post('/api/tickets/save', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(401).json({ success: false, message: '請先登入' });
+  try {
+    const decoded = jwt.verify(token, 'FREE_LOTTO_SECRET_2026');
+    const { tickets } = req.body;
+    await User.findByIdAndUpdate(decoded.userId, { $set: { savedTickets: tickets } });
+    res.json({ success: true, message: '☁️ 明牌已成功雲端備份！' });
+  } catch (err) {
+    res.status(401).json({ success: false, message: '登入憑證失效' });
+  }
+});
+
+// 📡 5. API：拉取雲端明牌組合
+app.get('/api/tickets/list', async (req, res) => {
+  const token = req.headers['authorization'];
+  if (!token) return res.status(401).json({ success: false, message: '請先登入' });
+  try {
+    const decoded = jwt.verify(token, 'FREE_LOTTO_SECRET_2026');
+    const user = await User.findById(decoded.userId);
+    res.json({ success: true, tickets: user ? user.savedTickets : [] });
+  } catch (err) {
+    res.status(401).json({ success: false, message: '登入憑證失效' });
+  }
+});
+
+// 🌐 6. 雲端資料庫安全監聽啟動點
 const PORT = process.env.PORT || 10000;
-const MONGO_URI = process.env.MONGO_URI || "您的預設字串";
+const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://admin:lotto123@cluster0.mongodb.net/lotto_db?retryWrites=true&w=majority";
 
 mongoose.connect(MONGO_URI)
   .then(() => {
