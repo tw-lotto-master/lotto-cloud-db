@@ -251,12 +251,16 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     if (totalScanned % 150000 === 0) {
                         let percent = Math.floor((totalScanned / 575757) * 100);
                         res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+                                                 }
+                            }
+                        }
                     }
                 }
             }
         }
     }
- } // 🎯 539 主軌道完全閉合（完美對齊您截圖第 242 行的結構！）
+ } // if (lottoType === "39_5")
+
 // ───【539 修正結束，下方緊接著您原本檔案中的大樂透 else 分流，前後接口嚴密扣死】───
 
 // ───【區塊 1-B 完全體結束，請儲存就位後對我下達「請給我區塊二」】───
