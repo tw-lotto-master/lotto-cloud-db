@@ -201,9 +201,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                         vipValidPool.push(comb);
                                         if (vipMode === 'smart') {
                                             usedBitmask |= (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5));
+                                            
+                                            // 【核心追補修復】：539 每滿 7 組（號碼抽乾），自動清空遮罩，開啟下一輪不同的互斥 7 組
+                                            if (vipValidPool.length % 7 === 0) {
+                                                usedBitmask = 0n;
+                                            }
                                         }
                                     }
                                 }
+
                                 if (totalScanned % 150000 === 0) {
                                     let percent = Math.floor((totalScanned / 575757) * 100);
                                     res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
@@ -363,6 +369,11 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                             vipValidPool.push(comb);
                             if (vipMode === 'smart') {
                                 usedBitmask |= (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5)) | (1n << BigInt(i6));
+                                
+                                // 【核心追補修復】：大樂透每滿 8 組（號碼抽乾），自動清空遮罩，開啟下一輪不同的互斥 8 組
+                                if (vipValidPool.length % 8 === 0) {
+                                    usedBitmask = 0n;
+                                }
                             }
                         }
                         if (vipValidPool.length >= targetCount) break;
