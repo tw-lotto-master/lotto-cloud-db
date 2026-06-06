@@ -467,15 +467,17 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         }
                     }
                     
-                    // 🎯【鑽石微創】：在大樂透 for 迴圈內部補齊即時進度通道！每隔 15 萬組就回傳最新真實的 matchCount
+                    // ───【鑽石校正：進度發射同步釋放 CPU 晶片時脈，徹底解除當機死鎖】───
                     if (totalScanned % 150000 === 0) {
                         let percent = Math.floor((totalScanned / matrixLength) * 100);
                         res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+                        
+                        // 🎯 核心補丁：釋放 Express 執行緒，給 Render 喘息時間，保障千萬級巨量數據安全過關
+                        await new Promise(resolve => setImmediate(resolve));
                     }
-
                 } // 🎯 完美閉合 for 迴圈
             } // 🎯 完美閉合 async function runSliceChunk
-
+                
             // ───【區塊五結束，時間切片宣告範疇閉合，準備無縫切入區塊六 最終驅動與開機監聽結尾】───
             // ==========================================
             // 【區塊六】：切片調用、結果封裝、儲存 API 與開機監聽結尾
