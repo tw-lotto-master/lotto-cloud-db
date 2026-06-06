@@ -1,6 +1,147 @@
 // ==========================================
-// 【區塊一】：VIP 超導大通道 API 路由開頭與動態快取
+// 【區塊一 完全體】：基礎引擎宣告與 VIP 超導大通道 API 路由開頭
 // ==========================================
+const express = require('express');
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const cors = require('cors');
+
+const app = express();
+
+app.use(cors({ 
+    origin: '*', 
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
+    allowedHeaders: ['Content-Type', 'Authorization'] 
+}));
+app.use(express.json({ limit: '100mb' })); 
+
+// 1. 資料庫與 15 大防線高速 API 接口 (基礎演算通道) 💾
+app.post('/api/lottery/generate-vip', (req, res) => { return runVipLightEngine(req, res); });
+app.post('/lottery/generate-vip', (req, res) => { return runVipLightEngine(req, res); });
+
+function runVipLightEngine(req, res) {
+    try {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        const { requiredCount, maxNumber, count } = req.body;
+        const targetCount = Math.min(100, count || 100);
+        let resultsPool = [];
+        for (let i = 0; i < targetCount * 2; i++) {
+            let pool = Array.from({ length: maxNumber }, (_, idx) => idx + 1);
+            for (let j = pool.length - 1; j > 0; j--) {
+                const k = Math.floor(Math.random() * (j + 1));
+                [pool[j], pool[k]] = [pool[k], pool[j]];
+            }
+            let comb = pool.slice(0, requiredCount).sort((a, b) => a - b);
+            resultsPool.push(comb);
+        }
+        return res.json({ success: true, results: resultsPool });
+    } catch (e) { 
+        return res.json({ success: false, results: [] }); 
+    }
+}
+
+const UserSchema = new mongoose.Schema({
+    username: { type: String, unique: true },
+    password: { type: String },
+    googleId: { type: String },
+    isPaidMember: { type: Boolean, default: false },
+    savedTickets: { type: mongoose.Schema.Types.Mixed, default: [] }
+}, { strict: false });
+
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
+
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await new User({ username, password: hashedPassword, isPaidMember: false }).save();
+        res.json({ success: true, message: ' 註冊成功！' });
+    } catch (err) { 
+        res.status(500).json({ success: false, message: '註冊失敗' }); 
+    }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const user = await User.findOne({ username });
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(400).json({ success: false, message: ' 帳密錯誤' });
+        }
+        const token = jwt.sign({ userId: user._id, isPaidMember: user.isPaidMember }, 'FREE_LOTTO_SECRET_2026', { expiresIn: '30d' });
+        res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
+    } catch (err) { 
+        res.status(500).json({ success: false, message: '登入驗證異常' }); 
+    }
+});
+
+app.post('/api/auth/google-sync', async (req, res) => {
+    try {
+        const { username, googleId } = req.body;
+        if (!googleId) return res.status(400).json({ success: false, message: '無效的 Google 憑證' });
+        let user = await User.findOne({ googleId });
+        if (!user) {
+            user = new User({ 
+                username: username || `Google操盤手_${Math.floor(1000 + Math.random() * 9000)}`, 
+                googleId: googleId, 
+                isPaidMember: false, 
+                savedTickets: [] 
+            });
+            await user.save();
+        }
+        const token = jwt.sign({ userId: user._id, isPaidMember: user.isPaidMember }, 'FREE_LOTTO_SECRET_2026', { expiresIn: '30d' });
+        res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
+    } catch (err) { 
+        res.status(500).json({ success: false, message: 'Google 雲端同步異常' }); 
+    }
+});
+
+// ========================================================
+// 2. 【核心終極完全體】：指針隨機化一維矩陣過濾引擎 (100% 死守原廠邏輯)
+// ========================================================
+let globalLotto49Matrix = null;
+let globalLotto49Indices = null; 
+
+function initLotto49Matrix() {
+    if (globalLotto49Matrix) return;
+    console.log(" 正在為大樂透 1,400 萬組全窮舉鋪設一維高速記憶體通道...");
+    globalLotto49Matrix = new Uint8Array(13983816 * 6);
+    globalLotto49Indices = new Int32Array(13983816);
+    
+    let idx = 0;
+    let countIdx = 0;
+    for (let i1 = 1; i1 <= 44; i1++) {
+        for (let i2 = i1 + 1; i2 <= 45; i2++) {
+            for (let i3 = i2 + 1; i3 <= 46; i3++) {
+                for (let i4 = i3 + 1; i4 <= 47; i4++) {
+                    for (let i5 = i4 + 1; i5 <= 48; i5++) {
+                        for (let i6 = i5 + 1; i6 <= 49; i6++) {
+                            globalLotto49Matrix[idx++] = i1;
+                            globalLotto49Matrix[idx++] = i2;
+                            globalLotto49Matrix[idx++] = i3;
+                            globalLotto49Matrix[idx++] = i4;
+                            globalLotto49Matrix[idx++] = i5;
+                            globalLotto49Matrix[idx++] = i6;
+                            globalLotto49Indices[countIdx] = countIdx;
+                            countIdx++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    console.log(" 正在對 1,400 萬組指針進行萬里長征級隨機大洗牌...");
+    for (let i = globalLotto49Indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = globalLotto49Indices[i];
+        globalLotto49Indices[i] = globalLotto49Indices[j];
+        globalLotto49Indices[j] = temp;
+    }
+    console.log(" 1,400 萬組打散指針與矩陣完全體鋪設完畢！");
+}
+setTimeout(initLotto49Matrix, 1000);
+
 app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -12,42 +153,36 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         if (!cfg) { 
             return res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n"); 
         }
-        
         const lottoType = cfg.lottoType || "39_5";
         const requiredCount = (lottoType === "49_6") ? 6 : 5;
         const maxNumber = (lottoType === "49_6") ? 49 : 39;
         const targetCount = Math.min(100, cfg.count || 5);
         const historyDB = globalHistoryDB || [];
-        
-        // 100% 精確對標原廠歷史快取 Set 
         const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
         
-        // 鑽石特權：開機與呼叫時一次性二進位歷史大數據轉換，解鎖第 15 防線
         const globalHistoryBigInts = historyDB.map(h => {
             let nums = h.slice(0, requiredCount).map(Number);
             let mask = 0n;
             nums.forEach(n => { mask |= (1n << BigInt(n)); });
             return mask;
         });
-        
         const f1_set = new Set(cfg.f1_set || []);
         const neighborSet = new Set();
         const lastPeriod = cfg.lastPeriod || [];
-        
         lastPeriod.forEach(val => {
             let range = parseInt(cfg.f9_range, 10) || 1;
             for (let d = -range; d <= range; d++) { 
                 if (d !== 0) neighborSet.add(val + d); 
             }
         });
-        
         let vipValidPool = [];
         let totalScanned = 0;
         let matchCount = 0;
-        let vipSmartMask = 0; // 追蹤 539 1-39 號碼使用的 32 位元高效整數遮罩
+        let vipSmartMask = 0; 
         const isSmartMode = (cfg.vipMode === 'smart');
 
-        // ───【區塊一結束，準備無縫切入區塊二 539 核心運算】───
+        // ───【區塊一完全體結束，下方完美對接您的區塊二開頭】───
+
         // ==========================================
         // 【區塊二】：539 軌道 100% 實體全窮舉與基礎防線
         // ==========================================
