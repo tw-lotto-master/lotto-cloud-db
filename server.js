@@ -197,17 +197,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                 let comb = [i1, i2, i3, i4, i5];
                                 let pass = true;
 
-                                // 1. 【高階位元剪枝】聰明包牌號碼互斥檢測
-                                if (isSmartMode && vipValidPool.length < targetCount) {
-                                    if (((vipSmartMask & (1 << i1)) !== 0) || 
-                                        ((vipSmartMask & (1 << i2)) !== 0) || 
-                                        ((vipSmartMask & (1 << i3)) !== 0) || 
-                                        ((vipSmartMask & (1 << i4)) !== 0) || 
-                                        ((vipSmartMask & (1 << i5)) !== 0)) {
-                                        pass = false;
-                                    }
-                                }
-
                                 // 2. 歷史全中重複過濾
                                 if (pass && historyCacheSet.has(comb.join(','))) pass = false;
 
@@ -288,17 +277,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // ───【鑽石微創：539 大數據海選全量窮舉與獨立符合組數計數器】───
-                                if (pass) {
-                                    // 🎯 只要這組通過了 15 大防線，539 全局有效命中組數就實時累加（全量窮舉不漏）
-                                    matchCount++; 
-
-                                    if (vipValidPool.length < targetCount) {
-                                        vipValidPool.push(comb);
-                                        if (isSmartMode) {
-                                            vipSmartMask |= (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
-                                        }
-                                    }
+                                if (isSmartMode && vipValidPool.length < targetCount) {
                                     // 🎯 徹底移除外層 break lotto539OuterLoop！讓五層迴圈完美跑完 575,757 組，精確統計出扣除歷史後的剩餘真實組數！
                                 }
 
@@ -353,23 +332,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     totalScanned++;
                     let pass = true;
 
-                    // 【大樂透聰明包牌號碼互斥剪枝】：展開式無迴圈二進位極速判定
-                    if (isSmartMode && vipValidPool.length < targetCount) {
-                        let dup = false;
-                        if (i1 <= 25) { if ((smartMaskLow & (1 << i1)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i1 - 25))) !== 0) dup = true; }
-                        if (i2 <= 25) { if ((smartMaskLow & (1 << i2)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i2 - 25))) !== 0) dup = true; }
-                        if (i3 <= 25) { if ((smartMaskLow & (1 << i3)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i3 - 25))) !== 0) dup = true; }
-                        if (i4 <= 25) { if ((smartMaskLow & (1 << i4)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i4 - 25))) !== 0) dup = true; }
-                        if (i5 <= 25) { if ((smartMaskLow & (1 << i5)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i5 - 25))) !== 0) dup = true; }
-                        if (i6 <= 25) { if ((smartMaskLow & (1 << i6)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i6 - 25))) !== 0) dup = true; }
-                        
-                        if (dup) {
-                            // 當球池號碼耗盡時，執行遮罩重置安全閥，防止出牌死鎖
-                            if (vipValidPool.length >= 8) { smartMaskLow = 0; smartMaskHigh = 0; }
-                            pass = false;
-                        }
-                    }
-
+                   
                     // 條件 2：首尾邊界熱區控制
                     if (pass && cfg.f2_on && (i1 >= f2_min || i6 <= f2_max)) pass = false;
                     
@@ -450,56 +413,64 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                             }
                         }
 
- // ───【鑽石微創：大樂透符合防線總組數全量獨立計數接口】───
+                                            // ───【鑽石微創：大樂透宏觀大數據與聰明包牌獨立隔離接口】───
                     if (pass) {
+                        // 1. 只要通過 15 大防線，大數據有效計數器 100% 純淨累加，再也不受遮罩污染卡死！
                         matchCount++; 
+
+                        // 2. 只有在需要精選輸出、且池子還沒滿時，才進來進行聰明包牌互斥比對
                         if (vipValidPool.length < targetCount) {
-                            vipValidPool.push(comb);
+                            let dup = false;
+                            if (i1 <= 25) { if ((smartMaskLow & (1 << i1)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i1 - 25))) !== 0) dup = true; }
+                            if (i2 <= 25) { if ((smartMaskLow & (1 << i2)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i2 - 25))) !== 0) dup = true; }
+                            if (i3 <= 25) { if ((smartMaskLow & (1 << i3)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i3 - 25))) !== 0) dup = true; }
+                            if (i4 <= 25) { if ((smartMaskLow & (1 << i4)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i4 - 25))) !== 0) dup = true; }
+                            if (i5 <= 25) { if ((smartMaskLow & (1 << i5)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i5 - 25))) !== 0) dup = true; }
+                            if (i6 <= 25) { if ((smartMaskLow & (1 << i6)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i6 - 25))) !== 0) dup = true; }
                             
-                            if (isSmartMode) {
+                            // 如果沒重複，這組黃金組合順利入選輸出池並鎖定遮罩
+                            if (!dup) {
+                                vipValidPool.push(comb);
                                 if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
                                 if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
                                 if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
                                 if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
                                 if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
                                 if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
+                            } else {
+                                // 🎯【自愈機制】：如果重疊了，我們只在塞入池子時重置遮罩，讓下一圈繼續嘗試，絕不干擾總計數！
+                                smartMaskLow = 0; smartMaskHigh = 0;
                             }
                         }
                     }
-                    
-                    // ───【鑽石校正：進度發射同步釋放 CPU 晶片時脈，徹底解除當機死鎖】───
-                    if (totalScanned % 150000 === 0) {
-                        let percent = Math.floor((totalScanned / matrixLength) * 100);
-                        res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                        
-                        // 🎯 核心補丁：釋放 Express 執行緒，給 Render 喘息時間，保障千萬級巨量數據安全過關
-                        await new Promise(resolve => setImmediate(resolve));
-                   }
-                }
-                    } // 🎯 完美閉合 for 迴圈
-            } // 🎯 完美閉合 async function runSliceChunk
-                
+                    // ───【微創結束】───
+
             // ───【區塊五結束，時間切片宣告範疇閉合，準備無縫切入區塊六 最終驅動與開機監聽結尾】───
             // ==========================================
             // 【區塊六】：切片調用、結果封裝、儲存 API 與開機監聽結尾
             // ==========================================
+            let percent = Math.floor((totalScanned / matrixLength) * 100);
+            res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+            
+            if (totalScanned < matrixLength) {
+                await new Promise(resolve => setImmediate(resolve));
+            }
 
             // 依序驅動 4 大切片緩衝，全面榨乾 Render 每秒時脈！
-            // ───【鑽石微創：大樂透分段排程驅動與全後端 try-catch 結構閉合接口】───
             await runSliceChunk(0, chunkSize);
             await runSliceChunk(chunkSize, chunkSize * 2);
             await runSliceChunk(chunkSize * 2, chunkSize * 3);
             await runSliceChunk(chunkSize * 3, matrixLength);
 
-        } // 🎯 精確閉合大樂透的 else 分流軌道
+        } // 🎯 完美閉合 else (大樂透分流區塊)
 
-        // ───【全線海選結果最終封裝與即時串流輸出】───
+        // ───【全線海選結果落實與即時串流輸出】───
         if (vipValidPool.length === 0) {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         }
         
         let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
-        let outputText = `【VIP篩選完成】符合防線總組數：${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+        let outputText = `【VIP篩選完成】符合防線總組數：${(lottoType === "39_5") ? vipValidPool.length : matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
         vipValidPool.forEach((comb, idx) => {
             outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
         });
@@ -507,8 +478,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
         res.end();
         
-    } catch (err) { // 🎯 此時 catch 會完美配對最頂端的主 try 區塊，語法完全接通！
-
+    } catch (err) {
         res.write(JSON.stringify({ success: false, message: "雲端大數據晶片過載：" + err.message }) + "\n");
         res.end();
     }
