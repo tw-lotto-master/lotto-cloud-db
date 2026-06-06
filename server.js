@@ -1,6 +1,51 @@
 // ==========================================
-// 【區塊 A】：VIP 超導大通道 API 路由起點與 539 全量穷舉獨立運算
+// 【區塊 A-1】：全域時脈提升、開機矩陣洗牌與 API 參數解構起點
 // ==========================================
+const matrixLength = 13983816;
+const chunkSize = 3495954; 
+
+let globalLotto49Matrix = null;
+let globalLotto49Indices = null; 
+
+function initLotto49Matrix() {
+    if (globalLotto49Matrix) return;
+    console.log(" 正在為大樂透 1,400 萬組全窮舉鋪設一維高速記憶體通道...");
+    globalLotto49Matrix = new Uint8Array(matrixLength * 6);
+    globalLotto49Indices = new Int32Array(matrixLength);
+    
+    let idx = 0;
+    let countIdx = 0;
+    for (let i1 = 1; i1 <= 44; i1++) {
+        for (let i2 = i1 + 1; i2 <= 45; i2++) {
+            for (let i3 = i2 + 1; i3 <= 46; i3++) {
+                for (let i4 = i3 + 1; i4 <= 47; i4++) {
+                    for (let i5 = i4 + 1; i5 <= 48; i5++) {
+                        for (let i6 = i5 + 1; i6 <= 49; i6++) {
+                            globalLotto49Matrix[idx++] = i1;
+                            globalLotto49Matrix[idx++] = i2;
+                            globalLotto49Matrix[idx++] = i3;
+                            globalLotto49Matrix[idx++] = i4;
+                            globalLotto49Matrix[idx++] = i5;
+                            globalLotto49Matrix[idx++] = i6;
+                            globalLotto49Indices[countIdx] = countIdx;
+                            countIdx++;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    console.log(" 正在對 1,400 萬組指針進行萬里長征級隨機大洗牌...");
+    for (let i = globalLotto49Indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = globalLotto49Indices[i];
+        globalLotto49Indices[i] = globalLotto49Indices[j];
+        globalLotto49Indices[j] = temp;
+    }
+    console.log(" 1,400 萬組打散指針與矩陣完全體鋪設完畢！");
+}
+setTimeout(initLotto49Matrix, 1000);
+
 app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -19,7 +64,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         const historyDB = globalHistoryDB || [];
         const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
         
-        // 條件 15 大數據歷史 BigInt 位元快速降維快取轉換
+        // 條件 15 大數據歷史 BigInt 快速降維轉換
         const globalHistoryBigInts = historyDB.map(h => {
             let nums = h.slice(0, requiredCount).map(Number);
             let mask = 0n;
@@ -38,11 +83,11 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         let vipValidPool = [];
         let totalScanned = 0;
         let matchCount = 0;
-        let vipSmartMask = 0; // 539 32位元高效號碼遮罩
+        let vipSmartMask = 0; 
         const isSmartMode = (cfg.vipMode === 'smart');
-
+// ───【區塊 A-1 結束，字數控制完畢，隨時呼叫區塊 A-2 注入 539 軌道】───
         // ==========================================
-        // 【539 軌道】：100% 實體全窮舉 575,757 組 🚀
+        // 【區塊 A-2】：539 軌道 100% 實體全窮舉與 15 大防線
         // ==========================================
         if (lottoType === "39_5") {
             for (let i1 = 1; i1 <= 35; i1++) {
@@ -81,15 +126,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     if (cfg.f6_on && (sumValue < cfg.f6_low || sumValue > cfg.f6_high)) pass = false;
                                 }
 
-                                // 539 條件 13：數字複雜度 (AC值) 獨立防線
+                                // 條件 13：539 數字複雜度 (AC值) 獨立防線
                                 if (pass && cfg.f13_on) {
                                     let diffs = new Set();
-                                    for(let m=0; m<5; m++) {
-                                        for(let n=m+1; n<5; n++) { diffs.add(Math.abs(comb[m] - comb[n])); }
+                                    for (let m = 0; m < 5; m++) {
+                                        for (let n = m + 1; n < 5; n++) { diffs.add(Math.abs(comb[m] - comb[n])); }
                                     }
                                     if ((diffs.size - 4) < cfg.f13_min) pass = false; 
                                 }
-                                // 539 條件 14：質數/合數比例過濾 (獨立封殺單組質數 >= 4 個)
+                                // 條件 14：539 質數/合數比例過濾 (獨立獵殺質數 >= 4 個)
                                 if (pass && cfg.f14_on) {
                                     const prime39Mask = (1n<<2n)|(1n<<3n)|(1n<<5n)|(1n<<7n)|(1n<<11n)|(1n<<13n)|(1n<<17n)|(1n<<19n)|(1n<<23n)|(1n<<29n)|(1n<<31n)|(1n<<37n);
                                     let primeCount = 0;
@@ -100,7 +145,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     if ((prime39Mask & (1n << BigInt(i5))) !== 0n) primeCount++;
                                     if (primeCount >= 4) pass = false;
                                 }
-                                // 539 條件 15：歷史大數據 4 碼疊合封殺牆
+                                // 條件 15：539 歷史大數據 4 碼疊合封殺牆
                                 if (pass && cfg.f15_on && typeof globalHistoryBigInts !== 'undefined') {
                                     let currentMask = (1n<<BigInt(i1))|(1n<<BigInt(i2))|(1n<<BigInt(i3))|(1n<<BigInt(i4))|(1n<<BigInt(i5));
                                     for (let h = 0; h < globalHistoryBigInts.length; h++) {
@@ -111,7 +156,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 539 宏觀獨立隔離落實點（100% 解除提前阻斷，大數據全量計數）
+                                // 539 宏觀獨立隔離落實點
                                 if (pass) {
                                     matchCount++; 
                                     if (vipValidPool.length < targetCount) {
@@ -142,8 +187,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     } // i3 閉合
                 } // i2 閉合
             } // i1 閉合
-        } // if (39_5) 主判斷閉合（第 321 行關鍵閉合，絕不死鎖錯位！）
-// ───【區塊 A 結束，請將此段覆蓋至您的 server.js 中，隨時呼叫區塊 B】───
+        } // if (39_5) 主判定閉合（第 321 行大括號歸位大圓滿！）
+// ───【區塊 A-2 完全體結束，隨時呼叫大樂透超導軌道：區塊 B】───
+
         // ==========================================
         // 【區塊 B】：大樂透隨機指針全窮舉與 15 大獨立防線核心
         // ==========================================
