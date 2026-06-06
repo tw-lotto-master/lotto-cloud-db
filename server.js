@@ -149,139 +149,215 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             for (let d = -range; d <= range; d++) { if (d !== 0) neighborSet.add(val + d); }
         });
 
-        let vipValidPool = [];
-        let totalScanned = 0;
-        let matchCount = 0;
-        
-        // 🚀【539 軌道】：100% 實體全窮舉 575,757 組 (3秒通車)
-        if (lottoType === "39_5") {
-            for (let i1 = 1; i1 <= 35; i1++) {
-                for (let i2 = i1 + 1; i2 <= 36; i2++) {
-                    for (let i3 = i2 + 1; i3 <= 37; i3++) {
-                        for (let i4 = i3 + 1; i4 <= 38; i4++) {
-                            for (let i5 = i4 + 1; i5 <= 39; i5++) {
-                                totalScanned++;
-                                let comb = [i1, i2, i3, i4, i5];
-                                let pass = true;
+         // ───【539 軌道完美覆蓋區塊：整塊替換，絕不留死鎖殘枝】───
+ let vipValidPool = [];
+ let totalScanned = 0;
+ let matchCount = 0;
+ let vipSmartMask = 0; // 追蹤 1-39 號碼使用的 32 位元高效整數遮罩
+ const isSmartMode = (cfg.vipMode === 'smart');
+ 
+ if (lottoType === "39_5") {
+ for (let i1 = 1; i1 <= 35; i1++) {
+ for (let i2 = i1 + 1; i2 <= 36; i2++) {
+ for (let i3 = i2 + 1; i3 <= 37; i3++) {
+ for (let i4 = i3 + 1; i4 <= 38; i4++) {
+ for (let i5 = i4 + 1; i5 <= 39; i5++) {
+ totalScanned++;
+ let comb = [i1, i2, i3, i4, i5];
+ let pass = true;
 
-                                if (historyCacheSet.has(comb.join(','))) pass = false;
-                                if (pass && cfg.f1_on && comb.some(n => f1_set.has(n))) pass = false;
-                                if (pass && cfg.f2_on && (i1 >= cfg.f2_min || i5 <= cfg.f2_max)) pass = false;
-                                if (pass && cfg.f3_on) {
-                                    let zoneSet = new Set();
-                                    zoneSet.add(Math.min(5, Math.ceil(i1 / 8))).add(Math.min(5, Math.ceil(i2 / 8))).add(Math.min(5, Math.ceil(i3 / 8))).add(Math.min(5, Math.ceil(i4 / 8))).add(Math.min(5, Math.ceil(i5 / 8)));
-                                    if (zoneSet.size !== cfg.f3_req) pass = false;
-                                }
-                                if (pass && cfg.f4_on) {
-                                    let tails = new Array(10).fill(0);
-                                    tails[i1%10]++; tails[i2%10]++; tails[i3%10]++; tails[i4%10]++; tails[i5%10]++;
-                                    if (Math.max(...tails) > cfg.f4_max) pass = false;
-                                }
-                                if (pass && cfg.f5_on) {
-                                    let oddCount = (i1%2) + (i2%2) + (i3%2) + (i4%2) + (i5%2);
-                                    if (cfg.f5_539_50 && (oddCount === 5 || oddCount === 0)) pass = false;
-                                    if (cfg.f5_539_41 && (oddCount === 4 || oddCount === 1)) pass = false;
-                                }
-                                if (pass) {
-                                    let sumValue = i1 + i2 + i3 + i4 + i5;
-                                    if (cfg.f6_on && (sumValue < cfg.f6_low || sumValue > cfg.f6_high)) pass = false;
-                                }
+ // 1. 【高階位元剪枝】聰明包牌互斥檢測：只要這 5 碼中任一號碼被儲存過，直接攔截跳過
+ if (isSmartMode && vipValidPool.length < targetCount) {
+ if (((vipSmartMask & (1 << i1)) !== 0) || 
+ ((vipSmartMask & (1 << i2)) !== 0) || 
+ ((vipSmartMask & (1 << i3)) !== 0) || 
+ ((vipSmartMask & (1 << i4)) !== 0) || 
+ ((vipSmartMask & (1 << i5)) !== 0)) {
+ pass = false;
+ }
+ }
 
-                                if (pass) {
-                                    matchCount++;
-                                    if (vipValidPool.length < targetCount) vipValidPool.push(comb);
-                                }
+ // 2. 歷史重複過濾
+ if (pass && historyCacheSet.has(comb.join(','))) pass = false;
+ 
+ // 3. 條件 1：地雷號過濾
+ if (pass && cfg.f1_on && comb.some(n => f1_set.has(n))) pass = false;
+ 
+ // 4. 條件 2：首尾邊界控制
+ if (pass && cfg.f2_on && (i1 >= cfg.f2_min || i5 <= cfg.f2_max)) pass = false;
+ 
+ // 5. 條件 3：物理落點區塊控制
+ if (pass && cfg.f3_on) {
+ let zoneSet = new Set();
+ zoneSet.add(Math.min(5, Math.ceil(i1 / 8)))
+ .add(Math.min(5, Math.ceil(i2 / 8)))
+ .add(Math.min(5, Math.ceil(i3 / 8)))
+ .add(Math.min(5, Math.ceil(i4 / 8)))
+ .add(Math.min(5, Math.ceil(i5 / 8)));
+ if (zoneSet.size !== cfg.f3_req) pass = false;
+ }
+ 
+ // 6. 條件 4：同尾數上限過濾
+ if (pass && cfg.f4_on) {
+ let tails = new Array(10).fill(0);
+ tails[i1%10]++; tails[i2%10]++; tails[i3%10]++; tails[i4%10]++; tails[i5%10]++;
+ if (Math.max(...tails) > cfg.f4_max) pass = false;
+ }
+ 
+ // 7. 條件 5：奇偶比例控制
+ if (pass && cfg.f5_on) {
+ let oddCount = (i1%2) + (i2%2) + (i3%2) + (i4%2) + (i5%2);
+ if (cfg.f5_539_50 && (oddCount === 5 || oddCount === 0)) pass = false;
+ if (cfg.f5_539_41 && (oddCount === 4 || oddCount === 1)) pass = false;
+ }
+ 
+ // 8. 條件 6：號碼總和區間過濾
+ if (pass) {
+ let sumValue = i1 + i2 + i3 + i4 + i5;
+ if (cfg.f6_on && (sumValue < cfg.f6_low || sumValue > cfg.f6_high)) pass = false;
+ }
+ 
+ // 9. 命中判定與遮罩聯集寫入
+ if (pass) {
+ matchCount++;
+ if (vipValidPool.length < targetCount) {
+ vipValidPool.push(comb);
+ // 鑽石會員特權：若開啟聰明包牌，選中後立即將 5 個號碼記錄至遮罩，下一圈徹底互斥！
+ if (isSmartMode) {
+ vipSmartMask |= (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
+ }
+ }
+ }
+ 
+ // 前端進度即時回傳通道
+ if (totalScanned % 150000 === 0) {
+ let percent = Math.floor((totalScanned / 575757) * 100);
+ res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+ }
+ 
+ } // i5 閉合
+ } // i4 閉合
+ } // i3 閉合
+ } // i2 閉合
+ } // i1 閉合
+ } // lottoType 判斷閉合
+ // ───【539 軌道完美覆蓋結束，下方緊接著大樂透 else 分流】───
 
-                                if (totalScanned % 150000 === 0) {
-                                    let percent = Math.floor((totalScanned / 575757) * 100);
-                                    res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            // 🚀【大樂透時間切片超導 B 軌道】：100% 隨機指針全窮舉，徹底打破大號碼與覆蓋偏向死鎖！
-            initLotto49Matrix(); 
-            
-            let f2_min = parseInt(cfg.f2_min, 10) || 15;
-            let f2_max = parseInt(cfg.f2_max, 10) || 30;
-            let f4_max = parseInt(cfg.f4_max, 10) || 2;
-            let f6_low = parseInt(cfg.f6_low, 10) || 100;
-            let f6_high = parseInt(cfg.f6_high, 10) || 185;
+         else {
+ // 【大樂透時間切片超導 B 軌道】：100% 隨機指針全窮舉（二進位剪枝完全體） 🚀
+ initLotto49Matrix(); 
+ 
+ let f2_min = parseInt(cfg.f2_min, 10) || 15;
+ let f2_max = parseInt(cfg.f2_max, 10) || 30;
+ let f4_max = parseInt(cfg.f4_max, 10) || 2;
+ let f6_low = parseInt(cfg.f6_low, 10) || 100;
+ let f6_high = parseInt(cfg.f6_high, 10) || 185;
+ const matrixLength = 13983816;
+ const chunkSize = 3495954; 
+ let currentPointerIdx = 0;
 
-            const matrixLength = 13983816;
-            const chunkSize = 3495954; 
-            let currentPointerIdx = 0;
+ // 鑽石優化：大樂透超 40 位元全局聰明包牌雙軌遮罩（記憶體負擔為 0）
+ let smartMaskLow = 0;  // 追蹤 1-25 號碼
+ let smartMaskHigh = 0; // 追蹤 26-49 號碼
+ const isSmartMode = (cfg.vipMode === 'smart');
 
-            async function runSliceChunk(startK, endK) {
-                for (let k = startK; k < endK; k++) {
-                    // 🎯 通過開機打散的指針，在 0 記憶體負擔下提取出 100% 隨機大小交錯的大樂透組合！
-                    let matrixId = globalLotto49Indices[currentPointerIdx++];
-                    let bytePos = matrixId * 6;
-                    
-                    let i1 = globalLotto49Matrix[bytePos];
-                    let i2 = globalLotto49Matrix[bytePos + 1];
-                    let i3 = globalLotto49Matrix[bytePos + 2];
-                    let i4 = globalLotto49Matrix[bytePos + 3];
-                    let i5 = globalLotto49Matrix[bytePos + 4];
-                    let i6 = globalLotto49Matrix[bytePos + 5];
-                    totalScanned++;
+ async function runSliceChunk(startK, endK) {
+ for (let k = startK; k < endK; k++) {
+ // 通過開機打散的指針，在 0 記憶體負擔下提取出 100% 隨機大小交錯的大樂透組合！
+ let matrixId = globalLotto49Indices[currentPointerIdx++];
+ let bytePos = matrixId * 6;
+ 
+ let i1 = globalLotto49Matrix[bytePos];
+ let i2 = globalLotto49Matrix[bytePos + 1];
+ let i3 = globalLotto49Matrix[bytePos + 2];
+ let i4 = globalLotto49Matrix[bytePos + 3];
+ let i5 = globalLotto49Matrix[bytePos + 4];
+ let i6 = globalLotto49Matrix[bytePos + 5];
+ totalScanned++;
+ let pass = true;
 
-                    let pass = true;
+ // 【大樂透聰明包牌號碼互斥剪枝】：展開式無迴圈二進位極速判定
+ if (isSmartMode && vipValidPool.length < targetCount) {
+ let dup = false;
+ if (i1 <= 25) { if ((smartMaskLow & (1 << i1)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i1 - 25))) !== 0) dup = true; }
+ if (i2 <= 25) { if ((smartMaskLow & (1 << i2)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i2 - 25))) !== 0) dup = true; }
+ if (i3 <= 25) { if ((smartMaskLow & (1 << i3)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i3 - 25))) !== 0) dup = true; }
+ if (i4 <= 25) { if ((smartMaskLow & (1 << i4)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i4 - 25))) !== 0) dup = true; }
+ if (i5 <= 25) { if ((smartMaskLow & (1 << i5)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i5 - 25))) !== 0) dup = true; }
+ if (i6 <= 25) { if ((smartMaskLow & (1 << i6)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i6 - 25))) !== 0) dup = true; }
+ 
+ if (dup) {
+ // 當球池接近耗盡時，執行遮罩重置安全閥，防止死鎖
+ if (vipValidPool.length >= 8) { smartMaskLow = 0; smartMaskHigh = 0; }
+ pass = false;
+ }
+ }
 
-                    if (cfg.f2_on && (i1 >= f2_min || i6 <= f2_max)) pass = false;
-                    
-                    if (pass) {
-                        let comb = [i1, i2, i3, i4, i5, i6];
-                        if (historyCacheSet.has(comb.join(','))) pass = false;
-                        if (pass && cfg.f1_on && (f1_set.has(i1) || f1_set.has(i2) || f1_set.has(i3) || f1_set.has(i4) || f1_set.has(i5) || f1_set.has(i6))) pass = false;
-                        
-                        if (pass && cfg.f3_on) {
-                            let zoneSet = new Set();
-                            zoneSet.add(Math.min(5, Math.ceil(i1 / 10))).add(Math.min(5, Math.ceil(i2 / 10))).add(Math.min(5, Math.ceil(i3 / 10))).add(Math.min(5, Math.ceil(i4 / 10))).add(Math.min(5, Math.ceil(i5 / 10))).add(Math.min(5, Math.ceil(i6 / 10)));
-                            if (zoneSet.size !== cfg.f3_req) pass = false;
-                        }
-                        if (pass && cfg.f4_on) {
-                            let tails = new Array(10).fill(0);
-                            tails[i1%10]++; tails[i2%10]++; tails[i3%10]++; tails[i4%10]++; tails[i5%10]++; tails[i6%10]++;
-                            if (Math.max(...tails) > f4_max) pass = false;
-                        }
-                        if (pass && cfg.f5_on) {
-                            let oddCount = (i1%2) + (i2%2) + (i3%2) + (i4%2) + (i5%2) + (i6%2);
-                            if (cfg.f5_lotto_60 && (oddCount === 6 || oddCount === 0)) pass = false;
-                            if (cfg.f5_lotto_51 && (oddCount === 5 || oddCount === 1)) pass = false;
-                        }
-                        if (pass) {
-                            let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
-                            if (cfg.f6_on && (sumValue < f6_low || sumValue > f6_high)) pass = false;
-                        }
+ // 條件 2：首尾邊界控制
+ if (pass && cfg.f2_on && (i1 >= f2_min || i6 <= f2_max)) pass = false;
+ 
+ if (pass) {
+ let comb = [i1, i2, i3, i4, i5, i6];
+ // 歷史重複過濾
+ if (historyCacheSet.has(comb.join(','))) pass = false;
+ // 條件 1：地雷號過濾
+ if (pass && cfg.f1_on && (f1_set.has(i1) || f1_set.has(i2) || f1_set.has(i3) || f1_set.has(i4) || f1_set.has(i5) || f1_set.has(i6))) pass = false;
+ 
+ // 條件 3：物理落點區塊控制
+ if (pass && cfg.f3_on) {
+ let zoneSet = new Set();
+ zoneSet.add(Math.min(5, Math.ceil(i1 / 10))).add(Math.min(5, Math.ceil(i2 / 10))).add(Math.min(5, Math.ceil(i3 / 10))).add(Math.min(5, Math.ceil(i4 / 10))).add(Math.min(5, Math.ceil(i5 / 10))).add(Math.min(5, Math.ceil(i6 / 10)));
+ if (zoneSet.size !== cfg.f3_req) pass = false;
+ }
+ // 條件 4：同尾數上限過濾
+ if (pass && cfg.f4_on) {
+ let tails = new Array(10).fill(0);
+ tails[i1%10]++; tails[i2%10]++; tails[i3%10]++; tails[i4%10]++; tails[i5%10]++; tails[i6%10]++;
+ if (Math.max(...tails) > f4_max) pass = false;
+ }
+ // 條件 5：奇偶比例控制
+ if (pass && cfg.f5_on) {
+ let oddCount = (i1%2) + (i2%2) + (i3%2) + (i4%2) + (i5%2) + (i6%2);
+ if (cfg.f5_lotto_60 && (oddCount === 6 || oddCount === 0)) pass = false;
+ if (cfg.f5_lotto_51 && (oddCount === 5 || oddCount === 1)) pass = false;
+ }
+ // 條件 6：號碼總和區間過濾
+ if (pass) {
+ let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
+ if (cfg.f6_on && (sumValue < f6_low || sumValue > f6_high)) pass = false;
+ }
+ // 雙軌聯集扣除：命中判定與遮罩寫入
+ if (pass) {
+ matchCount++;
+ if (vipValidPool.length < targetCount) {
+ vipValidPool.push(comb);
+ // 鑽石會員特權：若開啟聰明包牌，選中後立即將 6 個號碼寫入 Low/High 遮罩，下一圈徹底互斥！
+ if (isSmartMode) {
+ if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
+ if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
+ if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
+ if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
+ if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
+ if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
+ }
+ }
+ }
+ }
+ }
+ let percent = Math.floor((totalScanned / matrixLength) * 100);
+ res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+ 
+ if (totalScanned < matrixLength) {
+ await new Promise(resolve => setImmediate(resolve));
+ }
+ }
 
-                        if (pass) {
-                            matchCount++;
-                            // 🌟 核心突破：由於指針本身已打散，小號碼跟大號碼是同時被抽到的，滿水位直接攔截即可！
-                            if (vipValidPool.length < targetCount) {
-                                vipValidPool.push(comb);
-                            }
-                        }
-                    }
-                }
+ await runSliceChunk(0, chunkSize);
+ await runSliceChunk(chunkSize, chunkSize * 2);
+ await runSliceChunk(chunkSize * 2, chunkSize * 3);
+ await runSliceChunk(chunkSize * 3, matrixLength);
+ }
 
-                let percent = Math.floor((totalScanned / matrixLength) * 100);
-                res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                
-                if (totalScanned < matrixLength) {
-                    await new Promise(resolve => setImmediate(resolve));
-                }
-            }
-
-            await runSliceChunk(0, chunkSize);
-            await runSliceChunk(chunkSize, chunkSize * 2);
-            await runSliceChunk(chunkSize * 2, chunkSize * 3);
-            await runSliceChunk(chunkSize * 3, matrixLength);
-        }
         if (vipValidPool.length === 0) {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         }
