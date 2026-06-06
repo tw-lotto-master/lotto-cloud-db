@@ -76,16 +76,19 @@ app.post('/api/auth/google-sync', async (req, res) => {
 });
 
 // ========================================================
-// ⚡ 💎 2. 【核心終極大腦】：一維陣列查表索引高速過濾引擎 (100% 死守原廠邏輯，永久免超時)
+// ⚡ 💎 2. 【核心終極完全體】：指針隨機化一維矩陣過濾引擎 (100% 死守原廠邏輯，消除覆蓋誤差)
 // ========================================================
 let globalLotto49Matrix = null;
+let globalLotto49Indices = null; // 🚀 全新引進：1400萬組爆速隨機指針陣列
 
-// 🧠 核心高速優化：在伺服器開機時，預先在記憶體中鋪設一維快速通道
 function initLotto49Matrix() {
     if (globalLotto49Matrix) return;
     console.log("⚡ 正在為大樂透 1,400 萬組全窮舉鋪設一維高速記憶體通道...");
     globalLotto49Matrix = new Uint8Array(13983816 * 6);
+    globalLotto49Indices = new Int32Array(13983816);
+    
     let idx = 0;
+    let countIdx = 0;
     for (let i1 = 1; i1 <= 44; i1++) {
         for (let i2 = i1 + 1; i2 <= 45; i2++) {
             for (let i3 = i2 + 1; i3 <= 46; i3++) {
@@ -98,16 +101,26 @@ function initLotto49Matrix() {
                             globalLotto49Matrix[idx++] = i4;
                             globalLotto49Matrix[idx++] = i5;
                             globalLotto49Matrix[idx++] = i6;
+                            globalLotto49Indices[countIdx] = countIdx;
+                            countIdx++;
                         }
                     }
                 }
             }
         }
     }
-    console.log("🟢 1,400 萬組一維查表矩陣鋪設完畢！已具備 0.5 秒擊穿超時的算力！");
+
+    // 🔄 Fisher-Yates 開機時將 1400 萬個指針徹底打散！打破排序覆蓋地獄！
+    console.log("🔄 正在對 1,400 萬組指針進行萬里長征級隨機大洗牌...");
+    for (let i = globalLotto49Indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = globalLotto49Indices[i];
+        globalLotto49Indices[i] = globalLotto49Indices[j];
+        globalLotto49Indices[j] = temp;
+    }
+    console.log("🟢 1,400 萬組打散指針與矩陣完全體鋪設完畢！");
 }
 
-// 觸發開機自動載入
 setTimeout(initLotto49Matrix, 1000);
 
 app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
@@ -174,11 +187,14 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     if (cfg.f6_on && (sumValue < cfg.f6_low || sumValue > cfg.f6_high)) pass = false;
                                 }
 
-                                if (pass) vipValidPool.push(comb);
+                                if (pass) {
+                                    matchCount++;
+                                    if (vipValidPool.length < targetCount) vipValidPool.push(comb);
+                                }
 
                                 if (totalScanned % 150000 === 0) {
                                     let percent = Math.floor((totalScanned / 575757) * 100);
-                                    res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: vipValidPool.length }) + "\n");
+                                    res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
                                 }
                             }
                         }
@@ -187,8 +203,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             }
         }
         else {
-            // 🚀 大樂透 1,400 萬組「真．時間切片超導引擎」 (100% 死守窮舉，定時分流，永久免超時)
-            initLotto49Matrix(); // 確保一維矩陣就位
+            // 🚀【大樂透時間切片超導 B 軌道】：100% 隨機指針全窮舉，徹底打破大號碼與覆蓋偏向死鎖！
+            initLotto49Matrix(); 
             
             let f2_min = parseInt(cfg.f2_min, 10) || 15;
             let f2_max = parseInt(cfg.f2_max, 10) || 30;
@@ -197,23 +213,25 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             let f6_high = parseInt(cfg.f6_high, 10) || 185;
 
             const matrixLength = 13983816;
-            let pointer = 0;
-            const chunkSize = 3495954; // 🎯 精準拆解：將 1400 萬次對撞平分為 4 個切片區段（各 350 萬次）
+            const chunkSize = 3495954; 
+            let currentPointerIdx = 0;
 
-            // 🧠 核心異步切片調度函數
             async function runSliceChunk(startK, endK) {
                 for (let k = startK; k < endK; k++) {
-                    let i1 = globalLotto49Matrix[pointer++];
-                    let i2 = globalLotto49Matrix[pointer++];
-                    let i3 = globalLotto49Matrix[pointer++];
-                    let i4 = globalLotto49Matrix[pointer++];
-                    let i5 = globalLotto49Matrix[pointer++];
-                    let i6 = globalLotto49Matrix[pointer++];
+                    // 🎯 通過開機打散的指針，在 0 記憶體負擔下提取出 100% 隨機大小交錯的大樂透組合！
+                    let matrixId = globalLotto49Indices[currentPointerIdx++];
+                    let bytePos = matrixId * 6;
+                    
+                    let i1 = globalLotto49Matrix[bytePos];
+                    let i2 = globalLotto49Matrix[bytePos + 1];
+                    let i3 = globalLotto49Matrix[bytePos + 2];
+                    let i4 = globalLotto49Matrix[bytePos + 3];
+                    let i5 = globalLotto49Matrix[bytePos + 4];
+                    let i6 = globalLotto49Matrix[bytePos + 5];
                     totalScanned++;
 
                     let pass = true;
 
-                    // 🛡️ 15 大原廠防線，真槍實彈硬核比對
                     if (cfg.f2_on && (i1 >= f2_min || i6 <= f2_max)) pass = false;
                     
                     if (pass) {
@@ -243,32 +261,27 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
 
                         if (pass) {
                             matchCount++;
+                            // 🌟 核心突破：由於指針本身已打散，小號碼跟大號碼是同時被抽到的，滿水位直接攔截即可！
                             if (vipValidPool.length < targetCount) {
                                 vipValidPool.push(comb);
-                            } else if (Math.random() < 0.05) {
-                                vipValidPool[Math.floor(Math.random() * targetCount)] = comb;
                             }
                         }
                     }
                 }
 
-                // 📡 一個切片算完（350萬組），即時向手機噴發真實進度，並強制釋放執行緒 1 毫秒，打通網路管道！
                 let percent = Math.floor((totalScanned / matrixLength) * 100);
                 res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
                 
                 if (totalScanned < matrixLength) {
-                    // 🌟 核心保活鎖：強制釋放 CPU，給網路封包通行的時間
                     await new Promise(resolve => setImmediate(resolve));
                 }
             }
 
-            // 🔄 依序分段執行 4 大區段切片對撞，永久免死鎖超時
             await runSliceChunk(0, chunkSize);
             await runSliceChunk(chunkSize, chunkSize * 2);
             await runSliceChunk(chunkSize * 2, chunkSize * 3);
             await runSliceChunk(chunkSize * 3, matrixLength);
         }
-
         if (vipValidPool.length === 0) {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         }
