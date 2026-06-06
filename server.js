@@ -305,13 +305,16 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                 // ───【微創結束】───
 
 
-                                // 539 異步進度推送通道
+                                                                // // 539 異步進度推送通道
                                 if (totalScanned % 150000 === 0) {
                                     let percent = Math.floor((totalScanned / 575757) * 100);
                                     res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
                                 }
 
-                            } // 🎯 完美閉合 i5 for 迴圈
+                            } // 🎯【鑽石補丁】：精確閉合我們剛剛新塞入的 if (pass) 主邏輯
+                            
+                        } // // 完美閉合 i5 for 迴圈
+
                         } // 🎯 完美閉合 i4 for 迴圈
                     } // 🎯 完美閉合 i3 for 迴圈
                 } // 🎯 完美閉合 i2 for 迴圈
