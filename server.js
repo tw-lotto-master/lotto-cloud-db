@@ -374,7 +374,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     } // runSliceChunk 函式閉合
     // ───【區塊 D 結束，完全體大樂透核心精確閉合】───
 
-    // ───【區塊 E 開始：切片超導驅動、自選明牌同步與結尾開機監聽】───
+    // ───【區塊 E 開始：切片超導驅動、全線海選結果落實與流閉合通道】───
     let percent = Math.floor((totalScanned / matrixLength) * 100);
     res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
     
@@ -387,9 +387,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     await runSliceChunk(chunkSize, chunkSize * 2);
     await runSliceChunk(chunkSize * 2, chunkSize * 3);
     await runSliceChunk(chunkSize * 3, matrixLength);
- } // else (大樂透分流) 閉合
+ } // 🎯 完美閉合 else (大樂透分流)
 
- // ───【全線海選結果落實與流閉合通道】───
+ // ───【海選結果最終封裝與即時輸出通道】───
  if (vipValidPool.length === 0) {
     return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
  }
@@ -441,6 +441,13 @@ const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
 app.listen(PORT, () => { 
     console.log(` 雲端運行引擎已在埠位 ${PORT} 滿血發動！`); 
 });
+
+if (MONGO_URI) {
+ mongoose.connect(MONGO_URI)
+ .then(() => { console.log(" MongoDB 雲端大腦握手成功！"); })
+ .catch(err => { console.error(" 資料庫連線跳過:", err.message); });
+}
+// ───【區塊 E 結束，2026 終極原廠完全體 server.js 全線大融合通車！】───
 
 if (MONGO_URI) {
  mongoose.connect(MONGO_URI)
