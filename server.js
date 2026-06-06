@@ -378,72 +378,87 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         }
 
                                                // ───【區塊 2-B 頂端微創：大樂透全量海選與滿水安全斷路接口】───
+                        // ───【最終結尾區塊：黃金海選池與二次精選絕對互斥演算法】───
                         if (pass) {
-                            // 🎯 核心隔離：只要通過 15 大防線，matchCount 100% 純淨累加，全量對撞絕不漏掉一組！
-                            matchCount++; 
-
-                            // 🎯 聰明包牌出牌通道：只有在精選池尚未全滿時，才進來篩選不重複明牌
-                            if (vipValidPool.length < targetCount) {
-                                let dup = false;
-                                if (isSmartMode) {
-                                    if (i1 <= 25) { if ((smartMaskLow & (1 << i1)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i1 - 25))) !== 0) dup = true; }
-                                    if (i2 <= 25) { if ((smartMaskLow & (1 << i2)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i2 - 25))) !== 0) dup = true; }
-                                    if (i3 <= 25) { if ((smartMaskLow & (1 << i3)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i3 - 25))) !== 0) dup = true; }
-                                    if (i4 <= 25) { if ((smartMaskLow & (1 << i4)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i4 - 25))) !== 0) dup = true; }
-                                    if (i5 <= 25) { if ((smartMaskLow & (1 << i5)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i5 - 25))) !== 0) dup = true; }
-                                    if (i6 <= 25) { if ((smartMaskLow & (1 << i6)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i6 - 25))) !== 0) dup = true; }
-                                }
-                                
-                                if (!dup) {
-                                    vipValidPool.push(comb);
-                                    if (isSmartMode) {
-                                        if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
-                                        if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
-                                        if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
-                                        if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
-                                        if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
-                                        if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
-                                    }
-                                } else {
-                                    // 🎯【安全斷路閥】：如果在大數據海選中，剩餘可用號碼被抽乾，
-                                    // 自動重置號碼遮罩，讓後續符合防線的號碼能繼續嘗試選出，徹底打碎 7 組死鎖！
-                                    smartMaskLow = 0; smartMaskHigh = 0;
-                                }
-                            }
+                            matchCount++; // 🎯 1. 總組數純淨累加，全不勾是千萬級，勾越多隨防線逐步減少！
+                            vipValidPool.push(comb); // 🎯 2. 先塞入臨時海選大底池（一秒通車，零污染）
                         }
-                    }            
-                        // ───【微創結束】───
-
+                    }
                     
                     if (totalScanned % 150000 === 0) {
                         let percent = Math.floor((totalScanned / matrixLength) * 100);
                         res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
                         await new Promise(resolve => setImmediate(resolve));
                     }
-                }
-            }
+                } // for 迴圈閉合
+            } // async function runSliceChunk 閉合
+
+            // 依序驅動 4 大切片緩衝，在非同步時脈保護下，完美海選完全台灣千萬級組合！
             await runSliceChunk(0, chunkSize);
             await runSliceChunk(chunkSize, chunkSize * 2);
             await runSliceChunk(chunkSize * 2, chunkSize * 3);
             await runSliceChunk(chunkSize * 3, matrixLength);
-        }
 
+            // 🎯【核心大變革：池內二次精選】千萬數據全量海選跑完後，我們才從剛剛撈到的黃金海選池中挑選出不重複明牌
+            let rawFilterPool = vipValidPool; // 複製出海選黃金大底
+            vipValidPool = []; // 清空精選池，準備接收最終不重複成果
+            
+            for (let x = 0; x < rawFilterPool.length; x++) {
+                if (vipValidPool.length >= targetCount) break; // 拿滿您要求的目標組數（如 100 組）立刻完美收工！
+                
+                let currentComb = rawFilterPool[x];
+                let dup = false;
+                
+                if (isSmartMode) {
+                    let c1 = currentComb[0], c2 = currentComb[1], c3 = currentComb[2], c4 = currentComb[3], c5 = currentComb[4], c6 = currentComb[5];
+                    if (c1 <= 25) { if ((smartMaskLow & (1 << c1)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (c1 - 25))) !== 0) dup = true; }
+                    if (c2 <= 25) { if ((smartMaskLow & (1 << c2)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (c2 - 25))) !== 0) dup = true; }
+                    if (c3 <= 25) { if ((smartMaskLow & (1 << c3)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (c3 - 25))) !== 0) dup = true; }
+                    if (c4 <= 25) { if ((smartMaskLow & (1 << c4)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (c4 - 25))) !== 0) dup = true; }
+                    if (c5 <= 25) { if ((smartMaskLow & (1 << c5)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (c5 - 25))) !== 0) dup = true; }
+                    if (c6 <= 25) { if ((smartMaskLow & (1 << i6)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (c6 - 25))) !== 0) dup = true; }
+                    
+                    if (!dup) {
+                        vipValidPool.push(currentComb);
+                        if (c1 <= 25) smartMaskLow |= (1 << c1); else smartMaskHigh |= (1 << (c1 - 25));
+                        if (c2 <= 25) smartMaskLow |= (1 << c2); else smartMaskHigh |= (1 << (c2 - 25));
+                        if (c3 <= 25) smartMaskLow |= (1 << c3); else smartMaskHigh |= (1 << (c3 - 25));
+                        if (c4 <= 25) smartMaskLow |= (1 << c4); else smartMaskHigh |= (1 << (c4 - 25));
+                        if (c5 <= 25) smartMaskLow |= (1 << c5); else smartMaskHigh |= (1 << (c5 - 25));
+                        if (c6 <= 25) smartMaskLow |= (1 << c6); else smartMaskHigh |= (1 << (c6 - 25));
+                    } else {
+                        // 自癒閥：池內精選時如果發生 42 碼重疊抽乾，隨時解鎖重置遮罩，輕鬆突破 7 組死鎖！
+                        smartMaskLow = 0; smartMaskHigh = 0;
+                    }
+                } else {
+                    vipValidPool.push(currentComb); // 一般隨機模式直接塞入
+                }
+            }
+        }
+    } // 🎯 完美閉合大樂透 else 分流軌道的主括號，絕不與 539 錯位！
+
+        // ───【全線海選結果最終收網落實與流閉合通道】───
         if (vipValidPool.length === 0) {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         }
+        
         let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
         let outputText = `【VIP篩選完成】符合防線總組數：${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
         vipValidPool.forEach((comb, idx) => {
             outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
         });
+        
+        // 🎯 同時發射 results 原始二維陣列欄位與 outputText 文字串流，100% 徹底殺死前端 UNDEFINED 破圖！
         res.write(JSON.stringify({ success: true, results: vipValidPool, outputText: outputText }) + "\n");
         res.end();
+        
     } catch (err) {
         res.write(JSON.stringify({ success: false, message: "雲端大數據晶片過載：" + err.message }) + "\n");
         res.end();
     }
-});
+}); // 完美閉合 generate-vip-turbo 核心主 API 路由！
 
+// 3. 操盤手明牌雲端大數據儲存/備份 API 接口
 app.post('/api/tickets/save', async (req, res) => {
     try {
         const token = req.headers['authorization'];
@@ -454,6 +469,7 @@ app.post('/api/tickets/save', async (req, res) => {
     } catch (err) { return res.json({ success: true }); }
 });
 
+// 4. 智能兌獎雲端數據同步列表 API 接口
 app.get('/api/tickets/list', async (req, res) => {
     try {
         const token = req.headers['authorization'];
@@ -462,6 +478,7 @@ app.get('/api/tickets/list', async (req, res) => {
         res.json({ success: true, savedTickets: (user && user.savedTickets) ? user.savedTickets : [] });
     } catch (err) { res.status(401).json({ success: false, savedTickets: [] }); }
 });
+
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => { 
