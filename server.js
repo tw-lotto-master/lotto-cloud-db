@@ -217,20 +217,23 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  if (cfg.f6_on && (sumValue < cfg.f6_low || sumValue > cfg.f6_high)) pass = false;
  }
  
- // 9. 命中判定與遮罩聯集寫入
+ // ───【鑽石修正：539 有效組數與目標組數實時同步阻断接口】───
  if (pass) {
- matchCount++;
  if (vipValidPool.length < targetCount) {
  vipValidPool.push(comb);
- // 鑽石會員特權：若開啟聰明包牌，選中後立即將 5 個號碼記錄至遮罩，下一圈徹底互斥！
+ matchCount = vipValidPool.length; // 有效組數與池子大小絕對同步，排除名稱與計算偏向
+
  if (isSmartMode) {
  vipSmartMask |= (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
  }
+ } else {
+ // 【算力滿血優化】：539 聰明組合一到目標組數，直接切斷五層深淵巢狀迴圈，秒通車！
+ break;
  }
  }
- 
- // 前端進度即時回傳通道
+ // ───【修正結束】───
  if (totalScanned % 150000 === 0) {
+
  let percent = Math.floor((totalScanned / 575757) * 100);
  res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
  }
@@ -326,12 +329,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
  if (cfg.f6_on && (sumValue < f6_low || sumValue > f6_high)) pass = false;
  }
- // 雙軌聯集扣除：命中判定與遮罩寫入
+ 
+ // ───【鑽石修正：大樂透有效組數與目標組數實時同步扣除接口】───
  if (pass) {
- matchCount++;
+ // 只有在池子尚未全滿，或者非聰明包牌模式下，才算入真正的有效命中組數
  if (vipValidPool.length < targetCount) {
  vipValidPool.push(comb);
- // 鑽石會員特權：若開啟聰明包牌，選中後立即將 6 個號碼寫入 Low/High 遮罩，下一圈徹底互斥！
+ matchCount = vipValidPool.length; // 強制將符合防線的有效組數與實際產出精確綁定，絕不虛胖！
+
+ // 若為聰明包牌，同步更新 40 位元雙軌極速互斥遮罩
  if (isSmartMode) {
  if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
  if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
@@ -340,11 +346,16 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
  if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
  }
+ } else {
+ // 【核心算力榨乾】：一旦池子滿足用戶要求的目標組數，直接中斷目前切片，不再做無用的人工掃描！
+ break; 
  }
  }
- }
- }
+ } // for 迴圈閉合
+ } // runSliceChunk 閉合
+ // ───【修正結束】───
  let percent = Math.floor((totalScanned / matrixLength) * 100);
+
  res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
  
  if (totalScanned < matrixLength) {
