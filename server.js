@@ -248,22 +248,19 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         }
                     }
                     
-                    if (totalScanned % 150000 === 0) {
-                        let percent = Math.floor((totalScanned / 575757) * 100);
-                        res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                                                 }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
- } // if (lottoType === "39_5")
+                  // ───【鑽石微創：539 五層深淵巢狀迴圈精確閉合接口】───
+                                if (totalScanned % 150000 === 0) {
+                                    let percent = Math.floor((totalScanned / 575757) * 100);
+                                    res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+                                }
 
-// ───【539 修正結束，下方緊接著您原本檔案中的大樂透 else 分流，前後接口嚴密扣死】───
-
-// ───【區塊 1-B 完全體結束，請儲存就位後對我下達「請給我區塊二」】───
+                            } // 🎯 1. 完美閉合 i5 for 迴圈
+                        } // 🎯 2. 完美閉合 i4 for 迴圈
+                    } // 🎯 3. 完美閉合 i3 for 迴圈
+                } // 🎯 4. 完美閉合 i2 for 迴圈
+            } // 🎯 5. 完美閉合 i1 for 迴圈
+        } // 🎯 6. 百分之百完全閉合 539 的 if (lottoType === "39_5") 主判斷！
+        // ───【539 軌道完美收口，下方緊接您沒動過的大樂透 else 分流起點】───
         // ========================================================
         // 【區塊 2-A 完全體】：大樂透分流起點與基礎 1~6 大獨立防線
         // ========================================================
