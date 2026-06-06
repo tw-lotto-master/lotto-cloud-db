@@ -223,7 +223,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     vipValidPool.push(currentComb); // 一般隨機模式直接入網
                 }
             }
-        } // 🎯 完美閉合大樂透 else 分流軌道的主大括號
+         // 🎯 完美閉合大樂透 else 分流軌道的主大括號
 
         // ───【全線海選結果最終收網落實與流閉合通道】───
         if (vipValidPool.length === 0) {
