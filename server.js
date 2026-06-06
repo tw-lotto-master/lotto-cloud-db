@@ -450,25 +450,26 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                             }
                         }
 
-                        // ───【鑽石微創：大數據海選全量對撞與獨立符合組數計數器】───
-                        if (pass) {
-                            // 🎯 只要這組號碼通過了 15 大防線，全局符合防線的總組數就實時累加（全量對撞不漏）
-                            matchCount++; 
+ // ───【鑽石微創：大樂透符合防線總組數全量獨立計數接口】───
+ if (pass) {
+     // 100% 獨立隔離：只要通過 15 大防線，matchCount 照常無限累加到 1,400 萬組結束，絕不回頭覆蓋！
+     matchCount++; 
+     
+     if (vipValidPool.length < targetCount) {
+         vipValidPool.push(comb);
+         
+         if (isSmartMode) {
+             if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
+             if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
+             if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
+             if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
+             if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
+             if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
+         }
+     }
+ }
+ // ───【微創結束】───
 
-                            if (vipValidPool.length < targetCount) {
-                                vipValidPool.push(comb);
-                                
-                                if (isSmartMode) {
-                                    if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
-                                    if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
-                                    if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
-                                    if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
-                                    if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
-                                    if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
-                                }
-                            }
-                            // 🎯 移除原本的 break！讓迴圈完整跑完四大時間切片，精確統計出 1,398 萬組扣除歷史大數據後的剩餘真實組數！
-                        }
 
                     } // 🎯 完美閉合 if (pass)
                 } // 🎯 完美閉合 for 迴圈
@@ -497,8 +498,12 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         }
         
-        let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
-        let outputText = `【VIP篩選完成】符合防線總組數：${(lottoType === "39_5") ? vipValidPool.length : matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+ // ───【鑽石微創：修復 539 與大樂透海選總組數輸出錯位接口】───
+ let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
+ // 100% 導回正軌：不論 539 或大樂透，符合防線總組數一律回傳迴圈全量累加出來的真實 matchCount 大數據！
+ let outputText = `【VIP篩選完成】符合防線總組數：${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+ // ───【微創結束】───
+
         vipValidPool.forEach((comb, idx) => {
             outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
         });
