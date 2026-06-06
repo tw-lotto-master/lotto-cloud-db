@@ -451,39 +451,35 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         }
 
  // ───【鑽石微創：大樂透符合防線總組數全量獨立計數接口】───
- if (pass) {
-     // 100% 獨立隔離：只要通過 15 大防線，matchCount 照常無限累加到 1,400 萬組結束，絕不回頭覆蓋！
-     matchCount++; 
-     
-     if (vipValidPool.length < targetCount) {
-         vipValidPool.push(comb);
-         
-         if (isSmartMode) {
-             if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
-             if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
-             if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
-             if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
-             if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
-             if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
-         }
-     }
- }
- // ───【微創結束】───
+                    if (pass) {
+                        matchCount++; 
+                        if (vipValidPool.length < targetCount) {
+                            vipValidPool.push(comb);
+                            
+                            if (isSmartMode) {
+                                if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
+                                if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
+                                if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
+                                if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
+                                if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
+                                if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
+                            }
+                        }
+                    }
+                    
+                    // 🎯【鑽石微創】：在大樂透 for 迴圈內部補齊即時進度通道！每隔 15 萬組就回傳最新真實的 matchCount
+                    if (totalScanned % 150000 === 0) {
+                        let percent = Math.floor((totalScanned / matrixLength) * 100);
+                        res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+                    }
 
-
-                    } // 🎯 完美閉合 if (pass)
                 } // 🎯 完美閉合 for 迴圈
             } // 🎯 完美閉合 async function runSliceChunk
+
             // ───【區塊五結束，時間切片宣告範疇閉合，準備無縫切入區塊六 最終驅動與開機監聽結尾】───
             // ==========================================
             // 【區塊六】：切片調用、結果封裝、儲存 API 與開機監聽結尾
             // ==========================================
-            let percent = Math.floor((totalScanned / matrixLength) * 100);
-            res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-            
-            if (totalScanned < matrixLength) {
-                await new Promise(resolve => setImmediate(resolve));
-            }
 
             // 依序驅動 4 大切片緩衝，全面榨乾 Render 每秒時脈！
             await runSliceChunk(0, chunkSize);
