@@ -140,6 +140,14 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         const historyDB = globalHistoryDB || [];
 
         const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
+
+ const globalHistoryBigInts = historyDB.map(h => {
+     let nums = h.slice(0, requiredCount).map(Number);
+     let mask = 0n;
+     nums.forEach(n => { mask |= (1n << BigInt(n)); });
+     return mask;
+ });
+
         const f1_set = new Set(cfg.f1_set || []);
         const neighborSet = new Set();
         const lastPeriod = cfg.lastPeriod || [];
@@ -149,7 +157,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             for (let d = -range; d <= range; d++) { if (d !== 0) neighborSet.add(val + d); }
         });
 
-         // ───【539 軌道完美覆蓋區塊：整塊替換，絕不留死鎖殘枝】───
+  // ───【539 軌道完美覆蓋區塊：整塊替換，絕不留死鎖殘枝】───
  let vipValidPool = [];
  let totalScanned = 0;
  let matchCount = 0;
@@ -157,6 +165,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  const isSmartMode = (cfg.vipMode === 'smart');
  
  if (lottoType === "39_5") {
+ // 🎯 鑽石融合修正：注入全局迴圈標籤，確保能直接跳出五層嵌套，全面釋放算力
+ lotto539OuterLoop:
  for (let i1 = 1; i1 <= 35; i1++) {
  for (let i2 = i1 + 1; i2 <= 36; i2++) {
  for (let i3 = i2 + 1; i3 <= 37; i3++) {
@@ -166,21 +176,21 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  let comb = [i1, i2, i3, i4, i5];
  let pass = true;
 
- // 1. 【高階位元剪枝】聰明包牌互斥檢測：只要這 5 碼中任一號碼被儲存過，直接攔截跳過
+ // 1. 【高階位元剪枝】聰明包牌號碼互斥檢測：組與組之間號碼絕對不重複
  if (isSmartMode && vipValidPool.length < targetCount) {
  if (((vipSmartMask & (1 << i1)) !== 0) || 
- ((vipSmartMask & (1 << i2)) !== 0) || 
- ((vipSmartMask & (1 << i3)) !== 0) || 
- ((vipSmartMask & (1 << i4)) !== 0) || 
- ((vipSmartMask & (1 << i5)) !== 0)) {
+     ((vipSmartMask & (1 << i2)) !== 0) || 
+     ((vipSmartMask & (1 << i3)) !== 0) || 
+     ((vipSmartMask & (1 << i4)) !== 0) || 
+     ((vipSmartMask & (1 << i5)) !== 0)) {
  pass = false;
  }
  }
 
- // 2. 歷史重複過濾
+ // 2. 歷史全中重複過濾
  if (pass && historyCacheSet.has(comb.join(','))) pass = false;
  
- // 3. 條件 1：地雷號過濾
+ // 3. 條件 1：地雷號過濾 (f1_set)
  if (pass && cfg.f1_on && comb.some(n => f1_set.has(n))) pass = false;
  
  // 4. 條件 2：首尾邊界控制
@@ -216,24 +226,57 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  let sumValue = i1 + i2 + i3 + i4 + i5;
  if (cfg.f6_on && (sumValue < cfg.f6_low || sumValue > cfg.f6_high)) pass = false;
  }
+
+ // ───【539 獨立融合接口：注入條件 13、14、15 高階防線】───
+ // 9. 條件 13：539 數字複雜度 (AC值) 獨立過濾
+ if (pass && cfg.f13_on) {
+ let diffs = new Set();
+ for(let m=0; m<5; m++) {
+ for(let n=m+1; n<5; n++) { diffs.add(Math.abs(comb[m] - comb[n])); }
+ }
+ if ((diffs.size - 4) < cfg.f13_min) pass = false; 
+ }
+
+ // 10. 條件 14：539 質數/合數比例過濾（獨立封殺單組質數 >= 4 個）
+ if (pass && cfg.f14_on) {
+ const prime39Mask = (1n<<2n)|(1n<<3n)|(1n<<5n)|(1n<<7n)|(1n<<11n)|(1n<<13n)|(1n<<17n)|(1n<<19n)|(1n<<23n)|(1n<<29n)|(1n<<31n)|(1n<<37n);
+ let primeCount = 0;
+ if ((prime39Mask & (1n << BigInt(i1))) !== 0n) primeCount++;
+ if ((prime39Mask & (1n << BigInt(i2))) !== 0n) primeCount++;
+ if ((prime39Mask & (1n << BigInt(i3))) !== 0n) primeCount++;
+ if ((prime39Mask & (1n << BigInt(i4))) !== 0n) primeCount++;
+ if ((prime39Mask & (1n << BigInt(i5))) !== 0n) primeCount++;
+ if (primeCount >= 4) pass = false;
+ }
+
+ // 11. 條件 15：539 歷史大數據重疊防禦（獨立判定：5 碼中重疊達 4 碼即封殺）
+ if (pass && cfg.f15_on && typeof globalHistoryBigInts !== 'undefined') {
+ let currentMask = (1n<<BigInt(i1))|(1n<<BigInt(i2))|(1n<<BigInt(i3))|(1n<<BigInt(i4))|(1n<<BigInt(i5));
+ for (let h = 0; h < globalHistoryBigInts.length; h++) {
+ let intersect = currentMask & globalHistoryBigInts[h];
+ let matchOverlap = 0;
+ while (intersect > 0n) { if (intersect & 1n) matchOverlap++; intersect >>= 1n; }
+ if (matchOverlap >= 4) { pass = false; break; } 
+ }
+ }
+ // ───【539 獨立融合結束】───
  
- // ───【鑽石修正：539 有效組數與目標組數實時同步阻断接口】───
+ // ───【有效組數實時同步與目標剪枝阻斷接口】───
  if (pass) {
  if (vipValidPool.length < targetCount) {
  vipValidPool.push(comb);
- matchCount = vipValidPool.length; // 有效組數與池子大小絕對同步，排除名稱與計算偏向
+ matchCount = vipValidPool.length; // 有效組數與池子大小絕對同步
 
  if (isSmartMode) {
  vipSmartMask |= (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
  }
  } else {
- // 【算力滿血優化】：539 聰明組合一到目標組數，直接切斷五層深淵巢狀迴圈，秒通車！
- break;
+ // 🎯 滿水位時一槍擊穿並完全切斷五層迴圈，有效組數不再虛胖
+ break lotto539OuterLoop;
  }
  }
- // ───【修正結束】───
+ 
  if (totalScanned % 150000 === 0) {
-
  let percent = Math.floor((totalScanned / 575757) * 100);
  res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
  }
@@ -244,7 +287,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  } // i2 閉合
  } // i1 閉合
  } // lottoType 判斷閉合
- // ───【539 軌道完美覆蓋結束，下方緊接著大樂透 else 分流】───
+ // ───【539 完美融合結束，下方緊接著大樂透 else 分流】───
+
 
          else {
  // 【大樂透時間切片超導 B 軌道】：100% 隨機指針全窮舉（二進位剪枝完全體） 🚀
@@ -296,13 +340,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  }
  }
 
- // 條件 2：首尾邊界控制
+  // 條件 2：首尾邊界控制
  if (pass && cfg.f2_on && (i1 >= f2_min || i6 <= f2_max)) pass = false;
  
  if (pass) {
  let comb = [i1, i2, i3, i4, i5, i6];
- // 歷史重複過濾
+ 
+ // 歷史全中重複過濾
  if (historyCacheSet.has(comb.join(','))) pass = false;
+ 
  // 條件 1：地雷號過濾
  if (pass && cfg.f1_on && (f1_set.has(i1) || f1_set.has(i2) || f1_set.has(i3) || f1_set.has(i4) || f1_set.has(i5) || f1_set.has(i6))) pass = false;
  
@@ -312,32 +358,68 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  zoneSet.add(Math.min(5, Math.ceil(i1 / 10))).add(Math.min(5, Math.ceil(i2 / 10))).add(Math.min(5, Math.ceil(i3 / 10))).add(Math.min(5, Math.ceil(i4 / 10))).add(Math.min(5, Math.ceil(i5 / 10))).add(Math.min(5, Math.ceil(i6 / 10)));
  if (zoneSet.size !== cfg.f3_req) pass = false;
  }
+ 
  // 條件 4：同尾數上限過濾
  if (pass && cfg.f4_on) {
  let tails = new Array(10).fill(0);
  tails[i1%10]++; tails[i2%10]++; tails[i3%10]++; tails[i4%10]++; tails[i5%10]++; tails[i6%10]++;
  if (Math.max(...tails) > f4_max) pass = false;
  }
+ 
  // 條件 5：奇偶比例控制
  if (pass && cfg.f5_on) {
  let oddCount = (i1%2) + (i2%2) + (i3%2) + (i4%2) + (i5%2) + (i6%2);
  if (cfg.f5_lotto_60 && (oddCount === 6 || oddCount === 0)) pass = false;
  if (cfg.f5_lotto_51 && (oddCount === 5 || oddCount === 1)) pass = false;
  }
+ 
  // 條件 6：號碼總和區間過濾
  if (pass) {
  let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
  if (cfg.f6_on && (sumValue < f6_low || sumValue > f6_high)) pass = false;
  }
- 
- // ───【鑽石修正：大樂透有效組數與目標組數實時同步扣除接口】───
+
+ // ─── / 大樂透獨立融合接口：注入條件 13、14、15 高階防線 ───
+ // 12. 條件 13：大樂透數字複雜度 (AC值) 獨立過濾
+ if (pass && cfg.f13_on) {
+ let diffs = new Set();
+ for(let m=0; m<6; m++) {
+ for(let n=m+1; n<6; n++) { diffs.add(Math.abs(comb[m] - comb[n])); }
+ }
+ if ((diffs.size - 5) < cfg.f13_min) pass = false; 
+ }
+
+ // 13. 條件 14：大樂透質數/合數比例過濾（獨立封殺單組質數 >= 4 個）
+ if (pass && cfg.f14_on) {
+ const prime49Mask = (1n<<2n)|(1n<<3n)|(1n<<5n)|(1n<<7n)|(1n<<11n)|(1n<<13n)|(1n<<17n)|(1n<<19n)|(1n<<23n)|(1n<<29n)|(1n<<31n)|(1n<<37n)|(1n<<41n)|(1n<<43n)|(1n<<47n);
+ let primeCount = 0;
+ if ((prime49Mask & (1n << BigInt(i1))) !== 0n) primeCount++;
+ if ((prime49Mask & (1n << BigInt(i2))) !== 0n) primeCount++;
+ if ((prime49Mask & (1n << BigInt(i3))) !== 0n) primeCount++;
+ if ((prime49Mask & (1n << BigInt(i4))) !== 0n) primeCount++;
+ if ((prime49Mask & (1n << BigInt(i5))) !== 0n) primeCount++;
+ if ((prime49Mask & (1n << BigInt(i6))) !== 0n) primeCount++;
+ if (primeCount >= 4) pass = false; 
+ }
+
+ // 14. 條件 15：大樂透歷史大數據重疊防禦（獨立判定：6 碼中重疊達 5 碼即封殺）
+ if (pass && cfg.f15_on && typeof globalHistoryBigInts !== 'undefined') {
+ let currentMask = (1n<<BigInt(i1))|(1n<<BigInt(i2))|(1n<<BigInt(i3))|(1n<<BigInt(i4))|(1n<<BigInt(i5))|(1n<<BigInt(i6));
+ for (let h = 0; h < globalHistoryBigInts.length; h++) {
+ let intersect = currentMask & globalHistoryBigInts[h];
+ let matchOverlap = 0;
+ while (intersect > 0n) { if (intersect & 1n) matchOverlap++; intersect >>= 1n; }
+ if (matchOverlap >= 5) { pass = false; break; }
+ }
+ }
+ // ───【大樂透獨立融合結束】───
+
+ // ───【大樂透有效組數實時同步與目標剪枝阻斷接口】───
  if (pass) {
- // 只有在池子尚未全滿，或者非聰明包牌模式下，才算入真正的有效命中組數
  if (vipValidPool.length < targetCount) {
  vipValidPool.push(comb);
- matchCount = vipValidPool.length; // 強制將符合防線的有效組數與實際產出精確綁定，絕不虛胖！
+ matchCount = vipValidPool.length; // 強制與產出精確綁定
 
- // 若為聰明包牌，同步更新 40 位元雙軌極速互斥遮罩
  if (isSmartMode) {
  if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
  if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
@@ -347,12 +429,12 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
  }
  } else {
- // 【核心算力榨乾】：一旦池子滿足用戶要求的目標組數，直接中斷目前切片，不再做無用的人工掃描！
+ // 【千萬級算力深層剪枝】：滿足目標組數，直接擊穿並切斷時間切片
  break; 
  }
  }
- } // for 迴圈閉合
- } // runSliceChunk 閉合
+ }
+ 
  // ───【修正結束】───
  let percent = Math.floor((totalScanned / matrixLength) * 100);
 
