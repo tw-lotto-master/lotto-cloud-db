@@ -305,15 +305,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                 // ───【微創結束】───
 
 
-                                                                // // 539 異步進度推送通道
+                                // // 539 異步進度推送通道
                                 if (totalScanned % 150000 === 0) {
                                     let percent = Math.floor((totalScanned / 575757) * 100);
                                     res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
                                 }
 
                             } // 🎯【鑽石補丁】：精確閉合我們剛剛新塞入的 if (pass) 主邏輯
-                            
-                        } // // 完美閉合 i5 for 迴圈
+                        } // 🎯【必補核心】：精確多補這個大括號！用來閉合最外層的 if (lottoType === "39_5") 主範圍！
+                    } // // 完美閉合 i5 for 迴圈
 
                         } // 🎯 完美閉合 i4 for 迴圈
                     } // 🎯 完美閉合 i3 for 迴圈
@@ -464,24 +464,28 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                 if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
                                 if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
                             } else {
-                                // 🎯【自愈機制】：如果重疊了，我們只在塞入池子時重置遮罩，讓下一圈繼續嘗試，絕不干擾總計數！
+                                // 【自愈機制】：如果重疊了，我們只在塞入池子時重置遮罩，讓下一圈繼續嘗試，絕不干擾總計數！
                                 smartMaskLow = 0; smartMaskHigh = 0;
                             }
                         }
+                    } // 🎯 完美閉合 if (pass)
+                    
+                    // ───【鑽石微創：大樂透 for 迴圈內部補齊即時進度通道與 CPU 晶片時脈釋放】───
+                    if (totalScanned % 150000 === 0) {
+                        let percent = Math.floor((totalScanned / matrixLength) * 100);
+                        res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+                        
+                        // 🎯 核心補丁：釋放 Express 執行緒，給 Render 喘息時間，保障千萬級大數據永不超時死當
+                        await new Promise(resolve => setImmediate(resolve));
                     }
                     // ───【微創結束】───
 
-            // ───【區塊五結束，時間切片宣告範疇閉合，準備無縫切入區塊六 最終驅動與開機監聽結尾】───
+                } // 🎯 完美閉合 for 迴圈
+            } // 🎯 完美閉合 async function runSliceChunk
+
             // ==========================================
             // 【區塊六】：切片調用、結果封裝、儲存 API 與開機監聽結尾
             // ==========================================
-            let percent = Math.floor((totalScanned / matrixLength) * 100);
-            res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-            
-            if (totalScanned < matrixLength) {
-                await new Promise(resolve => setImmediate(resolve));
-            }
-
             // 依序驅動 4 大切片緩衝，全面榨乾 Render 每秒時脈！
             await runSliceChunk(0, chunkSize);
             await runSliceChunk(chunkSize, chunkSize * 2);
@@ -495,8 +499,11 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         }
         
+                // ───【鑽石微創：修復 539 與大樂透海選總組數最終字串輸出接口】───
         let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
-        let outputText = `【VIP篩選完成】符合防線總組數：${(lottoType === "39_5") ? vipValidPool.length : matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+        let outputText = `【VIP篩選完成】符合防線總組數：${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+        // ───【微創結束】───
+
         vipValidPool.forEach((comb, idx) => {
             outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
         });
