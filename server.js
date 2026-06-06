@@ -377,9 +377,12 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                             }
                         }
 
-                        // 大樂透終極落實點：宏觀大數據與不重複精選完全隔離
+                                               // ───【區塊 2-B 頂端微創：大樂透全量海選與滿水安全斷路接口】───
                         if (pass) {
-                            matchCount++; // 100% 純淨統計全量，隨條件增加逐步正常遞減
+                            // 🎯 核心隔離：只要通過 15 大防線，matchCount 100% 純淨累加，全量對撞絕不漏掉一組！
+                            matchCount++; 
+
+                            // 🎯 聰明包牌出牌通道：只有在精選池尚未全滿時，才進來篩選不重複明牌
                             if (vipValidPool.length < targetCount) {
                                 let dup = false;
                                 if (isSmartMode) {
@@ -390,6 +393,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     if (i5 <= 25) { if ((smartMaskLow & (1 << i5)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i5 - 25))) !== 0) dup = true; }
                                     if (i6 <= 25) { if ((smartMaskLow & (1 << i6)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i6 - 25))) !== 0) dup = true; }
                                 }
+                                
                                 if (!dup) {
                                     vipValidPool.push(comb);
                                     if (isSmartMode) {
@@ -400,10 +404,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                         if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
                                         if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
                                     }
+                                } else {
+                                    // 🎯【安全斷路閥】：如果在大數據海選中，剩餘可用號碼被抽乾，
+                                    // 自動重置號碼遮罩，讓後續符合防線的號碼能繼續嘗試選出，徹底打碎 7 組死鎖！
+                                    smartMaskLow = 0; smartMaskHigh = 0;
                                 }
                             }
                         }
-                    }
+                        // ───【微創結束】───
+
                     
                     if (totalScanned % 150000 === 0) {
                         let percent = Math.floor((totalScanned / matrixLength) * 100);
