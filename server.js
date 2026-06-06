@@ -1,109 +1,6 @@
-// ==========================================
-// 【區塊 0 完全體】：基礎引擎、註冊登入驗證與全域時脈提升
-// ==========================================
-const express = require('express');
-const mongoose = require('mongoose');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const cors = require('cors');
-
-const app = express();
-
-app.use(cors({ 
-    origin: '*', 
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
-    allowedHeaders: ['Content-Type', 'Authorization'] 
-}));
-app.use(express.json({ limit: '100mb' })); 
-
-// 1. 基礎演算隨機分流通道接口
-app.post('/api/lottery/generate-vip', (req, res) => { return runVipLightEngine(req, res); });
-app.post('/lottery/generate-vip', (req, res) => { return runVipLightEngine(req, res); });
-
-function runVipLightEngine(req, res) {
-    try {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        const { requiredCount, maxNumber, count } = req.body;
-        const targetCount = Math.min(100, count || 100);
-        let resultsPool = [];
-        for (let i = 0; i < targetCount * 2; i++) {
-            let pool = Array.from({ length: maxNumber }, (_, idx) => idx + 1);
-            for (let j = pool.length - 1; j > 0; j--) {
-                const k = Math.floor(Math.random() * (j + 1));
-                [pool[j], pool[k]] = [pool[k], pool[j]];
-            }
-            let comb = pool.slice(0, requiredCount).sort((a, b) => a - b);
-            resultsPool.push(comb);
-        }
-        return res.json({ success: true, results: resultsPool });
-    } catch (e) { 
-        return res.json({ success: false, results: [] }); 
-    }
-} // 🎯 確保此處原廠 function 100% 嚴密閉合！
-
-const UserSchema = new mongoose.Schema({
-    username: { type: String, unique: true },
-    password: { type: String },
-    googleId: { type: String },
-    isPaidMember: { type: Boolean, default: false },
-    savedTickets: { type: mongoose.Schema.Types.Mixed, default: [] }
-}, { strict: false });
-
-const User = mongoose.models.User || mongoose.model('User', UserSchema);
-
-app.post('/api/auth/register', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const hashedPassword = await bcrypt.hash(password, 10);
-        await new User({ username, password: hashedPassword, isPaidMember: false }).save();
-        res.json({ success: true, message: ' 註冊成功！' });
-    } catch (err) { 
-        res.status(500).json({ success: false, message: '註冊失敗' }); 
-    }
-});
-
-app.post('/api/auth/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const user = await User.findOne({ username });
-        if (!user || !(await bcrypt.compare(password, user.password))) {
-            return res.status(400).json({ success: false, message: ' 帳密錯誤' });
-        }
-        const token = jwt.sign({ userId: user._id, isPaidMember: user.isPaidMember }, 'FREE_LOTTO_SECRET_2026', { expiresIn: '30d' });
-        res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
-    } catch (err) { 
-        res.status(500).json({ success: false, message: '登入驗證異常' }); 
-    }
-});
-
-app.post('/api/auth/google-sync', async (req, res) => {
-    try {
-        const { username, googleId } = req.body;
-        if (!googleId) return res.status(400).json({ success: false, message: '無效的 Google 憑證' });
-        let user = await User.findOne({ googleId });
-        if (!user) {
-            user = new User({ 
-                username: username || `Google操盤手_${Math.floor(1000 + Math.random() * 9000)}`, 
-                googleId: googleId, 
-                isPaidMember: false, 
-                savedTickets: [] 
-            });
-            await user.save();
-        }
-        const token = jwt.sign({ userId: user._id, isPaidMember: user.isPaidMember }, 'FREE_LOTTO_SECRET_2026', { expiresIn: '30d' });
-        res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
-    } catch (err) { 
-        res.status(500).json({ success: false, message: 'Google 雲端同步異常' }); 
-    }
-});
-
-// 🎯 全域環境配置歸位，徹底解除開機洗牌 ReferenceError 死鎖！
-const matrixLength = 13983816;
-const chunkSize = 3495954; 
-
-let globalLotto49Matrix = null;
-let globalLotto49Indices = null; 
-// ───【區塊 0 完全體結束，下方將完美、順暢地對接您的 app.post('/api/lottery/generate-vip-turbo')】───
+// ========================================================
+// 【區塊 A-1 完全體】：VIP 超導大通道 API 路由起點與全域時脈快取
+// ========================================================
 app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -122,7 +19,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         const historyDB = globalHistoryDB || [];
         const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
         
-        // 條件 15 大數據歷史 BigInt 快速降維轉換
+        // 條件 15 大數據歷史 BigInt 位元快速降維快取轉換
         const globalHistoryBigInts = historyDB.map(h => {
             let nums = h.slice(0, requiredCount).map(Number);
             let mask = 0n;
@@ -141,9 +38,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         let vipValidPool = [];
         let totalScanned = 0;
         let matchCount = 0;
-        let vipSmartMask = 0; 
+        let vipSmartMask = 0; // 539 32位元高效號碼遮罩
         const isSmartMode = (cfg.vipMode === 'smart');
-// ───【區塊 A-1 結束，字數控制完畢，隨時呼叫區塊 A-2 注入 539 軌道】───
+// ───【區塊 A-1 完工，長度嚴格控制，請就位後對我下達「請給我區塊 A-2」】───
         // ==========================================
         // 【區塊 A-2】：539 軌道 100% 實體全窮舉與 15 大防線
         // ==========================================
@@ -214,9 +111,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 539 宏觀獨立隔離落實點
+                                // 🎯 539 終極解鎖：宏觀大數據與不重複精選完全隔離落實點
                                 if (pass) {
-                                    matchCount++; 
+                                    matchCount++; // 100% 純淨統計全量，隨條件增加逐步正常遞減
                                     if (vipValidPool.length < targetCount) {
                                         let dup = false;
                                         if (((vipSmartMask & (1 << i1)) !== 0) || 
@@ -230,7 +127,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                             vipValidPool.push(comb);
                                             vipSmartMask |= (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
                                         } else {
-                                            vipSmartMask = 0;
+                                            vipSmartMask = 0; // 自愈機制：防球池扣乾死鎖
                                         }
                                     }
                                 }
@@ -245,12 +142,11 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     } // i3 閉合
                 } // i2 閉合
             } // i1 閉合
-        } // if (39_5) 主判定閉合（第 321 行大括號歸位大圓滿！）
-// ───【區塊 A-2 完全體結束，隨時呼叫大樂透超導軌道：區塊 B】───
-
-        // ==========================================
-        // 【區塊 B】：大樂透隨機指針全窮舉與 15 大獨立防線核心
-        // ==========================================
+        } // lottoType === "39_5" 區區塊精確閉合（第 321 行括號完美歸位！）
+// ───【區塊 A-2 完工，請儲存就位後對我下達「請給我區塊 B」】───
+        // ========================================================
+        // 【區塊 B-1 完全體】：大樂透分流起點與基礎 1~6 大防線
+        // ========================================================
         else {
             initLotto49Matrix(); 
             let f2_min = parseInt(cfg.f2_min, 10) || 15;
@@ -258,9 +154,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             let f4_max = parseInt(cfg.f4_max, 10) || 2;
             let f6_low = parseInt(cfg.f6_low, 10) || 100;
             let f6_high = parseInt(cfg.f6_high, 10) || 185;
-            const matrixLength = 13983816;
-            const chunkSize = 3495954; 
-            let currentPointerIdx = 0;
 
             let smartMaskLow = 0;
             let smartMaskHigh = 0;
@@ -278,37 +171,58 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     totalScanned++;
                     let pass = true;
 
+                    // 1. 條件 2：首尾邊界熱區控制
                     if (pass && cfg.f2_on && (i1 >= f2_min || i6 <= f2_max)) pass = false;
+                    
                     if (pass) {
                         let comb = [i1, i2, i3, i4, i5, i6];
+                        
+                        // 2. 歷史全中重複過濾
                         if (historyCacheSet.has(comb.join(','))) pass = false;
+                        
+                        // 3. 條件 1：地雷號碼過濾
                         if (pass && cfg.f1_on && (f1_set.has(i1) || f1_set.has(i2) || f1_set.has(i3) || f1_set.has(i4) || f1_set.has(i5) || f1_set.has(i6))) pass = false;
+                        
+                        // 4. 條件 3：五大物理區塊落點控制
                         if (pass && cfg.f3_on) {
                             let zoneSet = new Set();
                             zoneSet.add(Math.min(5, Math.ceil(i1 / 10))).add(Math.min(5, Math.ceil(i2 / 10))).add(Math.min(5, Math.ceil(i3 / 10))).add(Math.min(5, Math.ceil(i4 / 10))).add(Math.min(5, Math.ceil(i5 / 10))).add(Math.min(5, Math.ceil(i6 / 10)));
                             if (zoneSet.size !== cfg.f3_req) pass = false;
                         }
+                        
+                        // 5. 條件 4：同尾數上限過濾
                         if (pass && cfg.f4_on) {
                             let tails = new Array(10).fill(0);
                             tails[i1%10]++; tails[i2%10]++; tails[i3%10]++; tails[i4%10]++; tails[i5%10]++; tails[i6%10]++;
                             if (Math.max(...tails) > f4_max) pass = false;
                         }
+                        
+                        // 6. 條件 5：奇偶比例動態防禦牆
                         if (pass && cfg.f5_on) {
                             let oddCount = (i1%2) + (i2%2) + (i3%2) + (i4%2) + (i5%2) + (i6%2);
                             if (cfg.f5_lotto_60 && (oddCount === 6 || oddCount === 0)) pass = false;
                             if (cfg.f5_lotto_51 && (oddCount === 5 || oddCount === 1)) pass = false;
                         }
+                        
+                        // 7. 條件 6：號碼總和區間過濾
                         if (pass) {
                             let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
                             if (cfg.f6_on && (sumValue < f6_low || sumValue > f6_high)) pass = false;
                         }
+// ───【區塊 B-1 完工，字數與基礎防線完全找回！請就位後對我下達「請給我區塊 B-2」】───
+                        // ========================================================
+                        // 【區塊 B-2 完全體】：大樂透 13、14、15 高階防線與大數據計數
+                        // ========================================================
+                        // 8. 條件 13：大樂透數字複雜度 (AC值) 獨立過濾
                         if (pass && cfg.f13_on) {
                             let diffs = new Set();
-                            for(let m=0; m<6; m++) {
-                                for(let n=m+1; n<6; n++) { diffs.add(Math.abs(comb[m] - comb[n])); }
+                            for (let m = 0; m < 6; m++) {
+                                for (let n = m + 1; n < 6; n++) { diffs.add(Math.abs(comb[m] - comb[n])); }
                             }
                             if ((diffs.size - 5) < cfg.f13_min) pass = false; 
                         }
+
+                        // 9. 條件 14：大樂透質數/合數比例過濾 (獨立獵殺質數 >= 4 個)
                         if (pass && cfg.f14_on) {
                             const prime49Mask = (1n<<2n)|(1n<<3n)|(1n<<5n)|(1n<<7n)|(1n<<11n)|(1n<<13n)|(1n<<17n)|(1n<<19n)|(1n<<23n)|(1n<<29n)|(1n<<31n)|(1n<<37n)|(1n<<41n)|(1n<<43n)|(1n<<47n);
                             let primeCount = 0;
@@ -320,6 +234,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                             if ((prime49Mask & (1n << BigInt(i6))) !== 0n) primeCount++;
                             if (primeCount >= 4) pass = false; 
                         }
+
+                        // 10. 條件 15：大樂透歷史大數據 5 碼疊合防禦牆
                         if (pass && cfg.f15_on && typeof globalHistoryBigInts !== 'undefined') {
                             let currentMask = (1n<<BigInt(i1))|(1n<<BigInt(i2))|(1n<<BigInt(i3))|(1n<<BigInt(i4))|(1n<<BigInt(i5))|(1n<<BigInt(i6));
                             for (let h = 0; h < globalHistoryBigInts.length; h++) {
@@ -330,9 +246,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                             }
                         }
 
-                        // 大樂透獨立隔離隔離落實點（全量對撞，呈現真實條件波動）
+                        // 🎯 大樂透終極落實點：宏觀大數據與不重複精選完全隔離隔離
                         if (pass) {
-                            matchCount++; 
+                            matchCount++; // 100% 純淨統計全量，隨條件增加逐步正常遞減
                             if (vipValidPool.length < targetCount) {
                                 let dup = false;
                                 if (i1 <= 25) { if ((smartMaskLow & (1 << i1)) !== 0) dup = true; } else { if ((smartMaskHigh & (1 << (i1 - 25))) !== 0) dup = true; }
@@ -350,13 +266,13 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
                                     if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
                                 } else {
-                                    smartMaskLow = 0; smartMaskHigh = 0;
+                                    smartMaskLow = 0; smartMaskHigh = 0; // 自愈機制：防球池扣乾死鎖
                                 }
                             }
                         }
                     } // if (pass) 閉合
                     
-                    // 🎯 核心補丁：大樂透 for 迴圈內部補齊即時進度通道與 CPU 晶片時脈釋放，徹底解除當機
+                    // 每隔 15 萬組即時回傳最真實的 matchCount 進度，並釋放 CPU 時脈防止過載死鎖
                     if (totalScanned % 150000 === 0) {
                         let percent = Math.floor((totalScanned / matrixLength) * 100);
                         res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
@@ -364,11 +280,11 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     }
                 } // for 迴圈閉合
             } // async function runSliceChunk 閉合
-// ───【區塊 B 結束，請將此段覆蓋至您的 server.js 中，隨時呼叫最終區塊 C】───
-            // ==========================================
-            // 【區塊 C】：切片調用、結果封裝、儲存 API 與開機監聽結尾
-            // ==========================================
-            // 依序驅動 4 大切片緩衝，全面榨乾 Render 每秒時脈！
+// ───【區塊 B-2 完全體結束，請儲存就位後對我下達「請給我區塊 C」】───
+            // ========================================================
+            // 【區塊 C 完全體】：切片調用、結果最終封裝、儲存 API 與常駐監聽
+            // ========================================================
+            // 依序驅動 4 大切片緩衝，在異步時脈釋放保護下，全面榨乾 Render 每秒時脈！
             await runSliceChunk(0, chunkSize);
             await runSliceChunk(chunkSize, chunkSize * 2);
             await runSliceChunk(chunkSize * 2, chunkSize * 3);
@@ -376,7 +292,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
 
         } // 🎯 完美閉合 else (大樂透分流區塊)
 
-        // ───【全線海選結果落實與即時串流輸出】───
+        // ───【全線海選結果最終收網落實與流閉合通道】───
         if (vipValidPool.length === 0) {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         }
@@ -427,6 +343,6 @@ app.listen(PORT, () => {
     console.log(` 雲端運行引擎已在埠位 ${PORT} 滿血發動！`); 
     console.log(" 🟢 獨立實體窮舉與隨機指針引擎已就緒，歷史大數據常駐記憶體通道通電成功！");
 });
-// ==========================================
-// ───【2026 終極原廠融合完全體 server.js 全線大通車！】───
-// ==========================================
+// ========================================================
+// ───【2026 終極原廠融合完全體 server.js 全線大通車完工！】───
+// ========================================================
