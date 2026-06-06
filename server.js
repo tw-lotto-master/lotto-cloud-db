@@ -1,51 +1,109 @@
 // ==========================================
-// 【區塊 A-1】：全域時脈提升、開機矩陣洗牌與 API 參數解構起點
+// 【區塊 0 完全體】：基礎引擎、註冊登入驗證與全域時脈提升
 // ==========================================
+const express = require('express');
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const cors = require('cors');
+
+const app = express();
+
+app.use(cors({ 
+    origin: '*', 
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
+    allowedHeaders: ['Content-Type', 'Authorization'] 
+}));
+app.use(express.json({ limit: '100mb' })); 
+
+// 1. 基礎演算隨機分流通道接口
+app.post('/api/lottery/generate-vip', (req, res) => { return runVipLightEngine(req, res); });
+app.post('/lottery/generate-vip', (req, res) => { return runVipLightEngine(req, res); });
+
+function runVipLightEngine(req, res) {
+    try {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        const { requiredCount, maxNumber, count } = req.body;
+        const targetCount = Math.min(100, count || 100);
+        let resultsPool = [];
+        for (let i = 0; i < targetCount * 2; i++) {
+            let pool = Array.from({ length: maxNumber }, (_, idx) => idx + 1);
+            for (let j = pool.length - 1; j > 0; j--) {
+                const k = Math.floor(Math.random() * (j + 1));
+                [pool[j], pool[k]] = [pool[k], pool[j]];
+            }
+            let comb = pool.slice(0, requiredCount).sort((a, b) => a - b);
+            resultsPool.push(comb);
+        }
+        return res.json({ success: true, results: resultsPool });
+    } catch (e) { 
+        return res.json({ success: false, results: [] }); 
+    }
+} // 🎯 確保此處原廠 function 100% 嚴密閉合！
+
+const UserSchema = new mongoose.Schema({
+    username: { type: String, unique: true },
+    password: { type: String },
+    googleId: { type: String },
+    isPaidMember: { type: Boolean, default: false },
+    savedTickets: { type: mongoose.Schema.Types.Mixed, default: [] }
+}, { strict: false });
+
+const User = mongoose.models.User || mongoose.model('User', UserSchema);
+
+app.post('/api/auth/register', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        await new User({ username, password: hashedPassword, isPaidMember: false }).save();
+        res.json({ success: true, message: ' 註冊成功！' });
+    } catch (err) { 
+        res.status(500).json({ success: false, message: '註冊失敗' }); 
+    }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+    try {
+        const { username, password } = req.body;
+        const user = await User.findOne({ username });
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(400).json({ success: false, message: ' 帳密錯誤' });
+        }
+        const token = jwt.sign({ userId: user._id, isPaidMember: user.isPaidMember }, 'FREE_LOTTO_SECRET_2026', { expiresIn: '30d' });
+        res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
+    } catch (err) { 
+        res.status(500).json({ success: false, message: '登入驗證異常' }); 
+    }
+});
+
+app.post('/api/auth/google-sync', async (req, res) => {
+    try {
+        const { username, googleId } = req.body;
+        if (!googleId) return res.status(400).json({ success: false, message: '無效的 Google 憑證' });
+        let user = await User.findOne({ googleId });
+        if (!user) {
+            user = new User({ 
+                username: username || `Google操盤手_${Math.floor(1000 + Math.random() * 9000)}`, 
+                googleId: googleId, 
+                isPaidMember: false, 
+                savedTickets: [] 
+            });
+            await user.save();
+        }
+        const token = jwt.sign({ userId: user._id, isPaidMember: user.isPaidMember }, 'FREE_LOTTO_SECRET_2026', { expiresIn: '30d' });
+        res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
+    } catch (err) { 
+        res.status(500).json({ success: false, message: 'Google 雲端同步異常' }); 
+    }
+});
+
+// 🎯 全域環境配置歸位，徹底解除開機洗牌 ReferenceError 死鎖！
 const matrixLength = 13983816;
 const chunkSize = 3495954; 
 
 let globalLotto49Matrix = null;
 let globalLotto49Indices = null; 
-
-function initLotto49Matrix() {
-    if (globalLotto49Matrix) return;
-    console.log(" 正在為大樂透 1,400 萬組全窮舉鋪設一維高速記憶體通道...");
-    globalLotto49Matrix = new Uint8Array(matrixLength * 6);
-    globalLotto49Indices = new Int32Array(matrixLength);
-    
-    let idx = 0;
-    let countIdx = 0;
-    for (let i1 = 1; i1 <= 44; i1++) {
-        for (let i2 = i1 + 1; i2 <= 45; i2++) {
-            for (let i3 = i2 + 1; i3 <= 46; i3++) {
-                for (let i4 = i3 + 1; i4 <= 47; i4++) {
-                    for (let i5 = i4 + 1; i5 <= 48; i5++) {
-                        for (let i6 = i5 + 1; i6 <= 49; i6++) {
-                            globalLotto49Matrix[idx++] = i1;
-                            globalLotto49Matrix[idx++] = i2;
-                            globalLotto49Matrix[idx++] = i3;
-                            globalLotto49Matrix[idx++] = i4;
-                            globalLotto49Matrix[idx++] = i5;
-                            globalLotto49Matrix[idx++] = i6;
-                            globalLotto49Indices[countIdx] = countIdx;
-                            countIdx++;
-                        }
-                    }
-                }
-            }
-        }
-    }
-    console.log(" 正在對 1,400 萬組指針進行萬里長征級隨機大洗牌...");
-    for (let i = globalLotto49Indices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const temp = globalLotto49Indices[i];
-        globalLotto49Indices[i] = globalLotto49Indices[j];
-        globalLotto49Indices[j] = temp;
-    }
-    console.log(" 1,400 萬組打散指針與矩陣完全體鋪設完畢！");
-}
-setTimeout(initLotto49Matrix, 1000);
-
+// ───【區塊 0 完全體結束，下方將完美、順暢地對接您的 app.post('/api/lottery/generate-vip-turbo')】───
 app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
