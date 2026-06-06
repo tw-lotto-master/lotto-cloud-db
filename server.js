@@ -474,8 +474,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         
                         // 🎯 核心補丁：釋放 Express 執行緒，給 Render 喘息時間，保障千萬級巨量數據安全過關
                         await new Promise(resolve => setImmediate(resolve));
-                    }
-                } // 🎯 完美閉合 for 迴圈
+                   }
+                }
+                    } // 🎯 完美閉合 for 迴圈
             } // 🎯 完美閉合 async function runSliceChunk
                 
             // ───【區塊五結束，時間切片宣告範疇閉合，準備無縫切入區塊六 最終驅動與開機監聽結尾】───
@@ -484,24 +485,21 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             // ==========================================
 
             // 依序驅動 4 大切片緩衝，全面榨乾 Render 每秒時脈！
+            // ───【鑽石微創：大樂透分段排程驅動與全後端 try-catch 結構閉合接口】───
             await runSliceChunk(0, chunkSize);
             await runSliceChunk(chunkSize, chunkSize * 2);
             await runSliceChunk(chunkSize * 2, chunkSize * 3);
             await runSliceChunk(chunkSize * 3, matrixLength);
 
-        } // 🎯 完美閉合 else (大樂透分流區塊)
+        } // 🎯 精確閉合大樂透的 else 分流軌道
 
-        // ───【全線海選結果落實與即時串流輸出】───
+        // ───【全線海選結果最終封裝與即時串流輸出】───
         if (vipValidPool.length === 0) {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         }
         
- // ───【鑽石微創：修復 539 與大樂透海選總組數輸出錯位接口】───
- let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
- // 100% 導回正軌：不論 539 或大樂透，符合防線總組數一律回傳迴圈全量累加出來的真實 matchCount 大數據！
- let outputText = `【VIP篩選完成】符合防線總組數：${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
- // ───【微創結束】───
-
+        let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
+        let outputText = `【VIP篩選完成】符合防線總組數：${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
         vipValidPool.forEach((comb, idx) => {
             outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
         });
@@ -509,7 +507,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
         res.end();
         
-    } catch (err) {
+    } catch (err) { // 🎯 此時 catch 會完美配對最頂端的主 try 區塊，語法完全接通！
+
         res.write(JSON.stringify({ success: false, message: "雲端大數據晶片過載：" + err.message }) + "\n");
         res.end();
     }
