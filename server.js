@@ -288,19 +288,20 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // ───【539 有效組數與目標組數實時同步阻斷】───
+                                // ───【鑽石微創：539 大數據海選全量窮舉與獨立符合組數計數器】───
                                 if (pass) {
+                                    // 🎯 只要這組通過了 15 大防線，539 全局有效命中組數就實時累加（全量窮舉不漏）
+                                    matchCount++; 
+
                                     if (vipValidPool.length < targetCount) {
                                         vipValidPool.push(comb);
-                                        matchCount = vipValidPool.length; // 有效組數與池子大小絕對同步，排除計算偏向
                                         if (isSmartMode) {
                                             vipSmartMask |= (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
                                         }
-                                    } else {
-                                        // 🎯 鑽石算力滿血優化：539 滿足目標，一槍擊穿五層嵌套，秒速通車！
-                                        break lotto539OuterLoop;
                                     }
+                                    // 🎯 徹底移除外層 break lotto539OuterLoop！讓五層迴圈完美跑完 575,757 組，精確統計出扣除歷史後的剩餘真實組數！
                                 }
+
 
                                 // 539 異步進度推送通道
                                 if (totalScanned % 150000 === 0) {
@@ -449,11 +450,13 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                             }
                         }
 
-                        // ───【雙軌命中判定、不重複遮罩聯集與極速 Early Exit】───
+                        // ───【鑽石微創：大數據海選全量對撞與獨立符合組數計數器】───
                         if (pass) {
+                            // 🎯 只要這組號碼通過了 15 大防線，全局符合防線的總組數就實時累加（全量對撞不漏）
+                            matchCount++; 
+
                             if (vipValidPool.length < targetCount) {
                                 vipValidPool.push(comb);
-                                matchCount = vipValidPool.length; // 實際符合有效組數與池大小精確綁定
                                 
                                 if (isSmartMode) {
                                     if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
@@ -463,10 +466,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
                                     if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
                                 }
-                            } else {
-                                // 🎯 榨乾 Render 算力深層剪枝：滿足目標組數，直接擊穿並切斷目前分流時間切片
-                                break; 
                             }
+                            // 🎯 移除原本的 break！讓迴圈完整跑完四大時間切片，精確統計出 1,398 萬組扣除歷史大數據後的剩餘真實組數！
                         }
 
                     } // 🎯 完美閉合 if (pass)
