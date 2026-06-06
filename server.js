@@ -277,9 +277,32 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                if (isSmartMode && vipValidPool.length < targetCount) {
-                                    // 🎯 徹底移除外層 break lotto539OuterLoop！讓五層迴圈完美跑完 575,757 組，精確統計出扣除歷史後的剩餘真實組數！
+                                                                // ───【今彩 539 宏觀大數據與聰明包牌獨立隔離接口】───
+                                if (pass) {
+                                    // 1. 只要通過防線，539 大數據有效計數器 100% 獨立累加，呈現真實條件波動
+                                    matchCount++; 
+
+                                    // 2. 只有在需要精選輸出、且池子還沒滿時，才執行聰明包牌互斥
+                                    if (vipValidPool.length < targetCount) {
+                                        let dup = false;
+                                        if (((vipSmartMask & (1 << i1)) !== 0) || 
+                                            ((vipSmartMask & (1 << i2)) !== 0) || 
+                                            ((vipSmartMask & (1 << i3)) !== 0) || 
+                                            ((vipSmartMask & (1 << i4)) !== 0) || 
+                                            ((vipSmartMask & (1 << i5)) !== 0)) {
+                                            dup = true;
+                                        }
+                                        
+                                        if (!dup) {
+                                            vipValidPool.push(comb);
+                                            vipSmartMask |= (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
+                                        } else {
+                                            // 🎯【自愈機制】：539 發生重疊時，當場解鎖遮罩，讓下一圈繼續嘗試，絕不干擾總計數！
+                                            vipSmartMask = 0;
+                                        }
+                                    }
                                 }
+                                // ───【微創結束】───
 
 
                                 // 539 異步進度推送通道
