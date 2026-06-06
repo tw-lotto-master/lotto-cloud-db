@@ -377,6 +377,9 @@ app.listen(PORT, () => {
         // ========================================================
         // 【區塊 4-A 完全體】：大樂透分流起點與基礎 1~6 大獨立防線
         // ========================================================
+                // ========================================================
+        // 【大樂透滿血修復版】：0 記憶體海選與隨機指針不重複自癒核心
+        // ========================================================
         else {
             let f2_min = parseInt(cfg.f2_min, 10) || 15;
             let f2_max = parseInt(cfg.f2_max, 10) || 30;
@@ -424,10 +427,6 @@ app.listen(PORT, () => {
                             let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
                             if (cfg.f6_on && (sumValue < f6_low || sumValue > f6_high)) pass = false;
                         }
-// ───【區塊 4-A 完工，長度安全控制，請儲存就位後下達「請給我區塊 4-B」】───
-// ========================================================
-// 【區塊 4-B 完全體】：高階過濾、0 記憶體海選與不重複自癒核心
-// ========================================================
                         if (pass && cfg.f13_on) {
                             let diffs = new Set();
                             for (let m = 0; m < 6; m++) {
@@ -481,12 +480,11 @@ app.listen(PORT, () => {
                                         if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
                                     }
                                 } else {
-                                    smartMaskLow = 0; smartMaskHigh = 0; // 自癒閥防死鎖
+                                    smartMaskLow = 0; smartMaskHigh = 0; // 自癒閥防出牌死鎖
                                 }
                             }
                         }
-                    }
-
+                    } // 🎯 if (pass) 完美閉合
                     if (totalScanned % 150000 === 0) {
                         let percent = Math.floor((totalScanned / matrixLength) * 100);
                         res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
