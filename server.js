@@ -411,6 +411,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                 }
                             }
                         }
+                    }
+                }
                         // ───【微創結束】───
 
                     
