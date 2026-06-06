@@ -178,7 +178,7 @@ app.post('/api/lottery/generate-vip-turbo', (req, res) => {
             } else {
                 // 🛡️ 玩家勾選防線時，啟動「真．動態隨機收縮矩陣」
                 let matchCount = 0;
-                let scanLimit = 5000; // 完全在免費主機硬體安全容許值內的實體對撞次數
+                let scanLimit = 5000; 
 
                 for (let safetyCounter = 0; safetyCounter < scanLimit; safetyCounter++) {
                     let shuffled = [...basePool].sort(() => Math.random() - 0.5);
@@ -190,7 +190,7 @@ app.post('/api/lottery/generate-vip-turbo', (req, res) => {
                     
                     let f2_min = parseInt(cfg.f2_min, 10) || 15;
                     let f2_max = parseInt(cfg.f2_max, 10) || 30;
-                    if (pass && cfg.f2_on && (comb >= f2_min || comb <= f2_max)) pass = false;
+                    if (pass && cfg.f2_on && (comb[0] >= f2_min || comb[5] <= f2_max)) pass = false;
                     
                     if (pass && cfg.f3_on) {
                         let zoneSet = new Set();
@@ -234,6 +234,7 @@ app.post('/api/lottery/generate-vip-turbo', (req, res) => {
                 if (vipValidPool.length > 0 && displayTotalCount === 0) displayTotalCount = Math.floor(13983816 * 0.012); 
             }
         }
+
 
         // 執行模式 B 聰明包牌與隨機打散輸出
         let finalCombs = [];
