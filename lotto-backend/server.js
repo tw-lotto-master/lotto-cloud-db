@@ -1,5 +1,5 @@
 // =========================================================================
-// 【零件 1/15 完全體】：基礎引擎宣告與環境變數靜態空間配置
+// 【零件 1/15 完全體】：基礎引擎宣告與環境變數特徵快取空間宣告
 // =========================================================================
 const express = require('express');
 const mongoose = require('mongoose');
@@ -9,7 +9,7 @@ const cors = require('cors');
 
 const app = express();
 
-// 擊穿行動端 WebView 跨域安全鎖 (100% 嚴格原廠設定還原)
+// 擊穿跨域 WebView 安全鎖 (100% 嚴格原廠設定還原)
 app.use(cors({ 
     origin: '*', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
@@ -21,7 +21,9 @@ app.use(express.urlencoded({ limit: '100mb', extended: true }));
 // 全局高時脈靜態大數據內存緩衝區
 let globalLotto49Matrix = null;
 let globalLotto49Indices = null; 
-let globalLotto49PrecomputedMask = null; // 4大不可進階死條件硬體遮罩
+
+// 💡 核心黑科技升級：改為存放「特徵位元遮罩(Feature Mask)」，開機時不預扣，只記錄物理特徵！
+let globalLotto49FeatureMask = null; 
 // =========================================================================
 // 【零件 2/15 完全體】：Mongoose 操盤手數據庫結構模型定義
 // =========================================================================
@@ -34,7 +36,7 @@ const UserSchema = new mongoose.Schema({
     savedTickets: { type: mongoose.Schema.Types.Mixed, default: [] }
 }, { strict: false, timestamps: true });
 
-// 雙層自癒保險：防止在熱重載(Hot Reload)時發生模型重複編譯崩潰
+// 雙層自癒保險：防止在熱重載時發生模型重複編譯崩潰
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 // =========================================================================
 // 【零件 3/15 完全體】：會員註冊與傳統/Google 安全登入雙軌驗證接口
@@ -86,7 +88,7 @@ app.post('/api/auth/google-sync', async (req, res) => {
     }
 });
 // =========================================================================
-// 【零件 4/15 完全體】：大樂透 1400 萬組一維高速通道鋪設與 4 大死條件預編譯物理牆
+// 【零件 4/15 完全體】：大樂透 1400 萬組一維通道與 4 大死條件預編位元特徵矩陣
 // =========================================================================
 
 function initLotto49Matrix() {
@@ -94,8 +96,8 @@ function initLotto49Matrix() {
     console.log("⚡ 正在為大樂透 1,400 萬組全窮舉鋪設一維高速記憶體通道..."); 
     globalLotto49Matrix = new Uint8Array(13983816 * 6);
     globalLotto49Indices = new Int32Array(13983816);
-    // 💡 核心優化：分配 13.9MB 空間存儲預編譯生死遮罩，實現晶片級瞬間海選
-    globalLotto49PrecomputedMask = new Uint8Array(13983816);
+    // 💡 核心升級：分配 13.9MB 空間存儲特徵位元組，只做特徵記錄，絕對不預扣！
+    globalLotto49FeatureMask = new Uint8Array(13983816);
     
     let idx = 0;
     let countIdx = 0;
@@ -119,11 +121,10 @@ function initLotto49Matrix() {
                             globalLotto49Matrix[bp+5] = i6;
                             globalLotto49Indices[countIdx] = countIdx;
 
-                            // ───【核心生路：在源頭對 4 大不可進階的死條件進行預先海選】───
-                            let isDead = false;
+                            // ───【核心生路：狀態位元元化，用 4 個 Bit 分別記錄 4 大固定特徵】───
+                            let featureByte = 0;
 
-                            // 【死條件 A / 條件 8 & 13 基底】：數字組構 AC 值基礎過濾 [INDEX: 0.1.45, 0.1.46]
-                            // 大樂透全隨機 AC 值通常需大於等於 4
+                            // Bit 0: 【條件 8】：數字組構 AC 值基礎過濾 (大樂透全隨機 AC 值通常需 >= 4) [INDEX: 0.1.45, 0.1.46]
                             let diffs = new Set();
                             diffs.add(Math.abs(i1-i2)).add(Math.abs(i1-i3)).add(Math.abs(i1-i4)).add(Math.abs(i1-i5)).add(Math.abs(i1-i6))
                                  .add(Math.abs(i2-i3)).add(Math.abs(i2-i4)).add(Math.abs(i2-i5)).add(Math.abs(i2-i6))
@@ -131,16 +132,18 @@ function initLotto49Matrix() {
                                  .add(Math.abs(i4-i5)).add(Math.abs(i4-i6))
                                  .add(Math.abs(i5-i6));
                             let acVal = diffs.size - 5; 
-                            if (acVal < 4) isDead = true;
+                            if (acVal >= 4) featureByte |= (1 << 0); // 記錄符合 AC 基礎限制
 
-                            // 【死條件 B / 條件 11】：大小數比例動態分流 (大樂透以 25 為界，封殺全全或極端比) [INDEX: 0.1.46]
+                            // Bit 1: 【條件 11】：大小數比例動態分流 (大樂透以 25 為界，排除全全或極端比) [INDEX: 0.1.46]
                             let highCount = 0;
                             if (i1 >= 25) highCount++; if (i2 >= 25) highCount++;
                             if (i3 >= 25) highCount++; if (i4 >= 25) highCount++;
                             if (i5 >= 25) highCount++; if (i6 >= 25) highCount++;
-                            if (highCount === 6 || highCount === 0 || highCount === 5 || highCount === 1) isDead = true;
+                            if (highCount !== 6 && highCount !== 0 && highCount !== 5 && highCount !== 1) {
+                                featureByte |= (1 << 1); // 記錄大小比常態合格
+                            }
 
-                            // 【死條件 C / 條件 12】：除三餘數（012路）分佈控制 (封殺完全斷路組合) [INDEX: 0.1.46]
+                            // Bit 2: 【條件 12】：除三餘數（012路）分佈控制 (排除完全斷路組合) [INDEX: 0.1.46]
                             let r0 = 0, r1 = 0, r2 = 0;
                             let m1 = i1 % 3; if (m1 === 0) r0++; else if (m1 === 1) r1++; else r2++;
                             let m2 = i2 % 3; if (m2 === 0) r0++; else if (m2 === 1) r1++; else r2++;
@@ -148,9 +151,9 @@ function initLotto49Matrix() {
                             let m4 = i4 % 3; if (m4 === 0) r0++; else if (m4 === 1) r1++; else r2++;
                             let m5 = i5 % 3; if (m5 === 0) r0++; else if (m5 === 1) r1++; else r2++;
                             let m6 = i6 % 3; if (m6 === 0) r0++; else if (m6 === 1) r1++; else r2++;
-                            if (r0 === 0 || r1 === 0 || r2 === 0) isDead = true;
+                            if (r0 !== 0 && r1 !== 0 && r2 !== 0) featureByte |= (1 << 2); // 記錄無斷路
 
-                            // 【死條件 D / 條件 14】：大樂透質數比例過濾 (獨立封殺單組質數 >= 4 個) [INDEX: 0.1.46]
+                            // Bit 3: 【條件 14】：大樂透質數比例過濾 (排除單組質數 >= 4 個) [INDEX: 0.1.46]
                             let pCnt = 0;
                             if ((prime49Mask & (1n << BigInt(i1))) !== 0n) pCnt++;
                             if ((prime49Mask & (1n << BigInt(i2))) !== 0n) pCnt++;
@@ -158,10 +161,10 @@ function initLotto49Matrix() {
                             if ((prime49Mask & (1n << BigInt(i4))) !== 0n) pCnt++;
                             if ((prime49Mask & (1n << BigInt(i5))) !== 0n) pCnt++;
                             if ((prime49Mask & (1n << BigInt(i6))) !== 0n) pCnt++;
-                            if (pCnt >= 4) isDead = true;
+                            if (pCnt < 4) featureByte |= (1 << 3); // 記錄質數比常態合格
 
-                            // 將運算命運直接儲存在位元遮罩中：1 代表合格，0 代表被四大死條件封殺
-                            globalLotto49PrecomputedMask[countIdx] = isDead ? 0 : 1;
+                            // 100% 完整存儲特徵位元組，開機時絕不預扣！
+                            globalLotto49FeatureMask[countIdx] = featureByte;
                             countIdx++;
                         }
                     }
@@ -176,7 +179,7 @@ function initLotto49Matrix() {
         globalLotto49Indices[i] = globalLotto49Indices[j];
         globalLotto49Indices[j] = temp;
     }
-    console.log("🟢 1,400 萬組打散指針與預編譯靜態物理牆完全體鋪設完畢！"); 
+    console.log("🟢 1,400 萬組打散指針與預編位元特徵矩陣完全體鋪設完畢！"); 
 }
 setTimeout(initLotto49Matrix, 1000);
 // =========================================================================
@@ -251,9 +254,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         let totalScanned = 0;
         let matchCount = 0;
         
-        // 🚀 【徹底排除誤殺的核心補丁】：
-        // 聰明包牌模式使用獨立的大組遮罩鎖，當放滿35顆球(539)或48顆球(大樂透)時平滑重置，
-        // 且隔離鎖只在「挑選輸出結果」時才執行，絕不干涉海選大池 matchCount 的真實計數！
+        // 🚀 【真海選與抽取完全解耦機制】：
+        // 遮罩防線只在通過 15 大防線海選後的「最終精確抽取」階段執行，
+        // 且此遮罩由大組飽和自癒鎖智控，絕不對大池 matchCount 的計數進行任何提前攔截！
         let smartMaskLow = 0;
         let smartMaskHigh = 0;
         const isSmartMode = (cfg.vipMode === 'smart');
@@ -275,28 +278,28 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
 
                                 // ───【539 條件 1 至條件 5 完全獨立平行閘門（全沒勾選時 100% 放行）】───
 
-                                // 【條件 1】：排除特定地雷號碼 (100% 獨立，組合內含地雷球則淘汰) [PDF: 0.1.4]
+                                // 【條件 1】：排除特定地雷號碼 (100% 獨立，組合內含地雷球則淘汰) [INDEX: 0.1.4]
                                 if (cfg.f1_on) {
                                     if (f1_set.has(i1) || f1_set.has(i2) || f1_set.has(i3) || f1_set.has(i4) || f1_set.has(i5)) {
                                         isCombValid = false;
                                     }
                                 }
 
-                                // 【條件 2】：首尾邊界熱區過濾 (100% 獨立，頭碼或尾碼超出指定安全區則淘汰) [PDF: 0.1.4]
+                                // 【條件 2】：首尾邊界熱區過濾 (100% 獨立平行閘門，頭尾精確夾擊，不再錯置於迴圈外！) [INDEX: 0.1.4]
                                 if (isCombValid && cfg.f2_on) {
                                     if (i1 >= cfg.f2_min || i5 <= cfg.f2_max) {
                                         isCombValid = false;
                                     }
                                 }
 
-                                // 【物理防線 2 / 歷史全中排除】：與歷史開獎大數據進行完全重疊對撞 [PDF: 0.1.4]
+                                // 【物理防線 2 / 歷史全中排除】：與歷史開獎大數據進行完全重疊對撞 [INDEX: 0.1.4]
                                 if (isCombValid) {
                                     if (historyCacheSet.has(comb.join(','))) {
                                         isCombValid = false;
                                     }
                                 }
 
-                                // 【條件 3】：五大物理區塊落點控制 (100% 嚴格還原原廠除以 8 分區與 zoneSet 結構) [PDF: 0.1.4]
+                                // 【條件 3】：五大物理區塊落點控制 (100% 嚴格還原原廠除以 8 分區與 zoneSet 結構) [INDEX: 0.1.4]
                                 if (isCombValid && cfg.f3_on) {
                                     let zoneSet = new Set();
                                     zoneSet.add(Math.min(5, Math.ceil(i1 / 8)))
@@ -326,7 +329,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                 }
                                 // ───【539 條件 6 至條件 10 完全獨立平行閘門（全沒勾選時 100% 放行）】───
 
-                                // 【條件 6】：號碼總和區間動態過濾 [PDF: 0.1.5]
+                                // 【條件 6】：號碼總和區間動態過濾 [INDEX: 0.1.5]
                                 if (isCombValid && cfg.f6_on) {
                                     let sumValue = i1 + i2 + i3 + i4 + i5;
                                     if (sumValue < cfg.f6_low || sumValue > cfg.f6_high) {
@@ -334,7 +337,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 7】：連續號碼長度限制牆 (100% 獨立判定連續號碼的最大長度上限) [PDF: 0.1.31]
+                                // 【條件 7】：連續號碼長度限制牆 (100% 獨立判定連續號碼的最大長度上限) [INDEX: 0.1.31]
                                 if (isCombValid && cfg.f7_on) {
                                     let maxConsecutive = 1, currentConsecutive = 1;
                                     for (let m = 0; m < comb.length - 1; m++) {
@@ -351,7 +354,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 8】：數字組構 (AC值) 邏輯封鎖 (100% 獨立判定，排除完全規律的人工低智號)
+                                // 【條件 8】：數字組構 (AC值) 邏輯封鎖 (100% 獨立判定，不共用或混淆其他開關)
                                 if (isCombValid && cfg.f8_on) {
                                     let diffs = new Set();
                                     for (let m = 0; m < 4; m++) {
@@ -364,7 +367,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 9】：鄰號夾擊防線控制 (100% 還原原廠鄰號落點顆數範圍) [PDF: 0.1.31]
+                                // 【條件 9】：鄰號夾擊防線控制 (100% 還原原廠鄰號落點顆數範圍) [INDEX: 0.1.31]
                                 if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
                                     let nCnt = 0;
                                     comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
@@ -373,7 +376,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 10】：上期獎號連莊封殺牆 (100% 嚴格對齊原廠 f10_max 限制變數) [PDF: 0.1.31]
+                                // 【條件 10】：上期獎號連莊封殺牆 (100% 嚴格對齊原廠 f10_max 限制變數) [INDEX: 0.1.31]
                                 if (isCombValid && cfg.f10_on && cfg.lastPeriod && cfg.lastPeriod.length > 0) {
                                     let repeatCount = 0;
                                     comb.forEach(num => { if (cfg.lastPeriod.includes(num)) repeatCount++; });
@@ -401,7 +404,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 13】：數字複雜度 (AC值) 飄移精準過濾 (100% 獨立平鋪判定，不與條件 8 混用) [PDF: 0.1.5]
+                                // 【條件 13】：數字複雜度 (AC值) 飄移精準過濾 (100% 獨立平鋪判定，不與條件 8 混用) [INDEX: 0.1.5]
                                 if (isCombValid && cfg.f13_on) {
                                     let diffs = new Set();
                                     for (let m = 0; m < 4; m++) {
@@ -415,7 +418,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 14】：質數/合數比例過濾 (獨立封殺單組質數 >= 4 個，位元遮罩極速處理) [PDF: 0.1.5]
+                                // 【條件 14】：質數/合數比例過濾 (獨立封殺單組質數 >= 4 個，位元遮罩極速處理) [INDEX: 0.1.5]
                                 if (isCombValid && cfg.f14_on && cfg.f14_kill) {
                                     const prime39Mask = (1n<<2n)|(1n<<3n)|(1n<<5n)|(1n<<7n)|(1n<<11n)|(1n<<13n)|(1n<<17n)|(1n<<19n)|(1n<<23n)|(1n<<29n)|(1n<<31n)|(1n<<37n);
                                     let pCnt = 0;
@@ -425,7 +428,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 15】：539 歷史大數據 4 碼重疊位元級防禦封殺 (對撞重疊 >= 4 碼直接淘汰) [PDF: 0.1.5]
+                                // 【條件 15】：539 歷史大數據 4 碼重疊位元級防禦封殺 (對撞重疊 >= 4 碼直接淘汰) [INDEX: 0.1.5]
                                 if (isCombValid && cfg.f15_on && cfg.f15_kill && typeof globalHistoryBigInts !== 'undefined') {
                                     let currentMask = (1n<<BigInt(i1))|(1n<<BigInt(i2))|(1n<<BigInt(i3))|(1n<<BigInt(i4))|(1n<<BigInt(i5));
                                     let isOverlapLimit = false;
@@ -442,12 +445,12 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
 
                                 // ───【核心生路：大海選池真實計數與輸出隔離鎖物理抽離】───
                                 if (isCombValid) {
-                                    matchCount++; // 100% 真實海選大池計數，全沒勾選時此處必定累積到 575757 組！ 🟢
+                                    matchCount++; // 100% 真實海選大池計數，全沒勾選時此處必定精準累積到 575757 組！ 🟢
 
-                                    // 挑選最終要流式噴回手機前端的指定組數結果（預設最多 100 組）
+                                    // 自真實生還組內，精確抽取玩家指定的輸出組數結果
                                     if (vipValidPool.length < targetCount) {
                                         if (isSmartMode) {
-                                            // 聰明包牌模式：執行不重複數字疊加
+                                            // 聰明包牌模式：執行大組不重複數字疊加
                                             let hasDupNumber = (((vipSmartMask & (1 << i1)) !== 0) || ((vipSmartMask & (1 << i2)) !== 0) || 
                                                                 ((vipSmartMask & (1 << i3)) !== 0) || ((vipSmartMask & (1 << i4)) !== 0) || 
                                                                 ((vipSmartMask & (1 << i5)) !== 0));
@@ -456,7 +459,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                                 vipValidPool.push(comb);
                                                 vipSmartMask |= (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
                                             } else {
-                                                // 判定當前大組內的號碼球已趨近飽和（539共39球，放滿35球即自動解鎖，平滑重置，絕不誤殺有效組）
+                                                // 判定當前大組內的號碼球已趨近飽和（539共39球，放滿35球即自動平滑解鎖，重開全新大組，絕不誤殺合格組）
                                                 let usedCount = 0, tempMask = vipSmartMask;
                                                 while (tempMask > 0) { if (tempMask & 1) usedCount++; tempMask >>= 1; }
                                                 if (usedCount >= 35) {
@@ -465,13 +468,13 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                                 }
                                             }
                                         } else {
-                                            // 一般隨機模式：不執行任何遮罩攔截，100% 原始放行！
+                                            // 一般隨機模式：不執行任何遮罩攔截，100% 真實生還組放行！
                                             vipValidPool.push(comb);
                                         }
                                     }
                                 }
 
-                                // 539 異步串流進度每 15 萬組實時透過 HTTP SSE 噴回手機前端，不囤積於內存中 [PDF: 0.1.44]
+                                // 539 異步串流進度每 15 萬組實時透過 HTTP SSE 噴回手機前端 [INDEX: 0.1.44]
                                 if (totalScanned % 150000 === 0) {
                                     let percent = Math.floor((totalScanned / 575757) * 100);
                                     res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
@@ -487,9 +490,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                 }
             }
         } // 閉合 539 主軌道 🎯
-        // =========================================================================
-        // 【零件 9/15 完全體】：大樂透超導切片起點、靜態遮罩核對與條件 1 至條件 4 獨立防線
-        // =========================================================================
+// =========================================================================
+// 【零件 9/15 完全體】：大樂透超導切片起點、動態特徵位元比對與 1 至 4 獨立防線
+// =========================================================================
         else {
             // 自動驅動【零件 4/15】在開機時完美預載的一維物理矩陣大腦 [PDF: 0.1.44]
             initLotto49Matrix(); 
@@ -503,8 +506,17 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             const matrixLength = 13983816;
             const chunkSize = 3495954; 
             let currentPointerIdx = 0;
+
+            // 🚀 【動態開關對齊矩陣】：根據玩家「當下有勾選的防線」動態編譯出 CPU 比對遮罩
+            let requiredFeatureMask = 0;
+            let activeFilterBits = 0;
+
+            if (cfg.f8_on)  { requiredFeatureMask |= (1 << 0); activeFilterBits |= (1 << 0); }
+            if (cfg.f11_on) { requiredFeatureMask |= (1 << 1); activeFilterBits |= (1 << 1); }
+            if (cfg.f12_on) { requiredFeatureMask |= (1 << 2); activeFilterBits |= (1 << 2); }
+            if (cfg.f14_on) { requiredFeatureMask |= (1 << 3); activeFilterBits |= (1 << 3); }
             
-            // 🚀 大樂透非同步時間切片 Chunking 核心處理器 [PDF: 0.1.47]
+            // 大樂透非同步時間切片 Chunking 核心處理器 [PDF: 0.1.47]
             async function runSliceChunk(startK, endK) {
                 for (let k = startK; k < endK; k++) {
                     if (vipValidPool.length >= targetCount && currentPointerIdx >= matrixLength) break;
@@ -512,9 +524,11 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     // 在 0 記憶體負擔下精確擊穿時脈限制，直接自一維通道解壓數據 [PDF: 0.1.44]
                     let matrixId = globalLotto49Indices[currentPointerIdx++];
                     
-                    // ───【最高指導天條：第一時間攔截並核對 4 大死條件預編譯物理牆】───
-                    if (globalLotto49PrecomputedMask[matrixId] === 0) {
-                        continue; // 被靜態死條件過濾，直接槍斃
+                    // ───【核心生路：晶片級特徵比對，當下沒勾選的開關 100% 動態放行】───
+                    let currentFeature = globalLotto49FeatureMask[matrixId];
+                    // 利用位元運算 (Bitwise)，只對玩家有開啟的 Bit 進行比對，沒開啟的條件直接放行
+                    if ((currentFeature & activeFilterBits) !== requiredFeatureMask) {
+                        continue; // 只有當開啟的條件與特徵不符時，才進行攔截汰殺！
                     }
 
                     let bytePos = matrixId * 6;
@@ -572,14 +586,14 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     }
                     // ───【大樂透 條件 5 至條件 9 完全獨立平行閘門（全沒勾選時 100% 放行）】───
 
-                    // 【條件 5】：奇偶比例動態防禦牆 (100% 嚴格對齊大樂透專屬比值變數) [PDF: 0.1.45]
+                    // 【條件 5】：奇偶比例動態防禦牆 (100% 嚴格對齊大樂透專屬比值變數) [INDEX: 0.1.45]
                     if (isCombValid && cfg.f5_on) {
                         let oddCount = (i1%2) + (i2%2) + (i3%2) + (i4%2) + (i5%2) + (i6%2);
                         if (cfg.f5_lotto_60 && (oddCount === 6 || oddCount === 0)) isCombValid = false;
                         if (cfg.f5_lotto_51 && (oddCount === 5 || oddCount === 1)) isCombValid = false;
                     }
 
-                    // 【條件 6】：號碼總和區間動態過濾 [PDF: 0.1.45]
+                    // 【條件 6】：號碼總和區間動態過濾 [INDEX: 0.1.45]
                     if (isCombValid && cfg.f6_on) {
                         let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
                         if (sumValue < f6_low || sumValue > f6_high) {
@@ -587,7 +601,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         }
                     }
 
-                    // 【條件 7】：連續號碼長度限制牆 (100% 獨立判定連續號碼的最大長度上限) [PDF: 0.1.45]
+                    // 【條件 7】：連續號碼長度限制牆 (100% 獨立判定連續號碼的最大長度上限) [INDEX: 0.1.45]
                     if (isCombValid && cfg.f7_on) {
                         let maxConsecutive = 1, currentConsecutive = 1;
                         for (let m = 0; m < comb.length - 1; m++) {
@@ -604,7 +618,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         }
                     }
 
-                    // 【條件 8】：數字組構 (AC值) 邏輯封鎖 (動態二次加固，不干涉基礎海選大池)
+                    // 【條件 8】：數字組構 (AC值) 邏輯封鎖 (100% 獨立判定，動態進階比對)
                     if (isCombValid && cfg.f8_on) {
                         let diffs = new Set();
                         for (let m = 0; m < 5; m++) {
@@ -618,7 +632,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         }
                     }
 
-                    // 【條件 9】：鄰號夾擊防線控制 (100% 獨立判定上期獎號之正負鄰號顆數範圍) [PDF: 0.1.45]
+                    // 【條件 9】：鄰號夾擊防線控制 (100% 獨立判定上期獎號之正負鄰號顆數範圍) [INDEX: 0.1.45]
                     if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
                         let nCnt = 0;
                         comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
@@ -703,7 +717,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     if (isCombValid) {
                         matchCount++; // 100% 真實海選大池計數，全沒勾選時此處必定精準累積！ 🟢
 
-                        // 挑選最終要流式噴回手機前端的結果
+                        // 自真實生還組內，精確抽取玩家指定的輸出組數結果
                         if (vipValidPool.length < targetCount) {
                             if (isSmartMode) {
                                 // 聰明包牌模式：執行大樂透雙軌互斥數字疊加 [PDF: 0.1.46]
@@ -724,7 +738,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
                                     vipValidPool.push(comb);
                                 } else {
-                                    // 判定當前大組內的號碼球是否趨近飽和 (大樂透共49球，放滿48球即平滑自動重置，不誤殺合格組) [PDF: 0.1.47]
+                                    // 判定當前大組內的號碼球是否趨近飽和 (大樂透共49球，放滿48球即平滑自動重置，開闢全新大組) [PDF: 0.1.47]
                                     let usedCount = 0;
                                     let tLow = smartMaskLow, tHigh = smartMaskHigh;
                                     while (tLow > 0) { if (tLow & 1) usedCount++; tLow >>= 1; }
@@ -741,24 +755,24 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
                             } else {
-                                // 一般隨機模式：直接無損放行
+                                // 一般隨機模式：直接自海選生還組內無損放行
                                 vipValidPool.push(comb);
                             }
                         }
                     }
                 } // 閉合單個 Chunk 的 for 迴圈 🎯
 
-                // 大樂透即時進度％數隨時間切片，不間斷透過 HTTP SSE 管道噴回手機螢幕 🌊 🌊 [PDF: 0.1.47]
+                // 大樂透即時進度％數隨時間切片，不間斷透過 HTTP SSE 管道噴回手機螢幕 🌊 🌊 [INDEX: 0.1.47]
                 let percent = Math.floor((totalScanned / matrixLength) * 100);
                 res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
 
-                // 【時間切片關鍵點】：精確交還 Node.js 執行緒控制權，阻斷晶片硬體超時與當機 🚀 [PDF: 0.1.47]
+                // 【時間切片關鍵點】：精確交還 Node.js 執行緒控制權，阻斷晶片硬體超時與當機 🚀 [INDEX: 0.1.47]
                 if (totalScanned < matrixLength) {
                     await new Promise(resolve => setImmediate(resolve));
                 }
             }
 
-            // 依序驅動 4 大切片快取，搾乾雲端核心時脈，完成 100% 真實海選！ [PDF: 0.1.47]
+            // 依序驅動 4 大切片快取，搾乾雲端核心時脈，完成 100% 真實海選！ [INDEX: 0.1.47]
             await runSliceChunk(0, chunkSize);
             await runSliceChunk(chunkSize, chunkSize * 2);
             await runSliceChunk(chunkSize * 2, chunkSize * 3);
@@ -826,7 +840,7 @@ const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb+s
 
 // 驅動服務器對外監聽
 app.listen(PORT, () => { 
-    console.log(`🚀 2026 真海選完全體引擎已在埠位 ${PORT} 滿血發動！`); 
+    console.log(`🚀 2026 真海選二進位特徵引擎已在埠位 ${PORT} 滿血發動！`); 
 });
 
 // 點火對接 MongoDB 雲端大腦
