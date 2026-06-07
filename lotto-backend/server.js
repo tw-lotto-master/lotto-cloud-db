@@ -514,10 +514,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         }
                     }
                     
-                    // 優化加速：如果已經順利集結到所需的精銳明牌組數，直接安全彈出
-                    if (vipValidPool.length >= targetCount) {
-                        break;
-                    }
                 } // 🎯 閉合單個 Chunk 的 for 迴圈
                 
                 // 大樂透即時進度％數隨時間切片，不間斷透過 HTTP 管道噴回手機螢幕 🌊 🌊
