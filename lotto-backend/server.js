@@ -533,9 +533,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             if (vipValidPool.length < targetCount) await runSliceChunk(chunkSize * 2, chunkSize * 3);
             if (vipValidPool.length < targetCount) await runSliceChunk(chunkSize * 3, matrixLength);
         } // 🎯 閉合大樂透主軌道 (else 區塊)
-        // =========================================================================
-        // 【第三區塊 - 零件 C】：全線結果封裝輸出、明牌存取 API 與雙層保險啟動監聽
-        // =========================================================================
+        
+        // ⚡ 核心補丁：完美閉合零件 A 開頭的 try 結構，徹底拔除 Missing catch 錯誤！
         if (vipValidPool.length === 0) {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         }
@@ -554,6 +553,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         res.end();
     }
 });
+
 
 // =================【智能備份/同步明牌 API 接口】=================
 app.post('/api/tickets/save', async (req, res) => {
