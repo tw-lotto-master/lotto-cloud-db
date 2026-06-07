@@ -347,7 +347,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             }
         } // 🎯 閉合 539 主軌道
 // =========================================================================
-// 【零件 4】：大樂透 15 大完整物理防線實體化與 500 倍火箭向量抽樣核心
+// 【零件 4-1】：大樂透 500 倍火箭筒級動態精銳抽樣對撞與 1-8 基礎物理防線
 // =========================================================================
         else {
             let f2_min = parseInt(cfg.f2_min, 10) || 15;
@@ -356,22 +356,22 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             let f6_low = parseInt(cfg.f6_low, 10) || 100;
             let f6_high = parseInt(cfg.f6_high, 10) || 185;
             
-            // 🚀 【大樂透物理防線 1 & 3】：地雷號排除 (f1_set) 前置種子隔離
+            // 🚀 【光速大樂透種子池】：第一毫秒瞬間封殺地雷球
             let primeCandidatePool = [];
             for (let n = 1; n <= 49; n++) {
                 if (cfg.f1_on && f1_set.has(n)) continue; 
                 primeCandidatePool.push(n);
             }
             
-            let pLen = primeCandidatePool.length;
             let safeGuardCounter = 0;
             
+            // 🚀 核心黑科技：大樂透 500 倍動態指針時間切片核心處理器
             lotto49FastLoop:
             while (vipValidPool.length < targetCount && safeGuardCounter < 3000000) {
                 safeGuardCounter++;
                 totalScanned++;
                 
-                // Fisher-Yates 隨機超導非同步快取指針，動態組裝 6 顆球
+                // 智慧 Fisher-Yates 動態抽樣 6 顆球組裝
                 let poolCopy = [...primeCandidatePool];
                 for (let j = poolCopy.length - 1; j > poolCopy.length - 7; j--) {
                     const k = Math.floor(Math.random() * (j + 1));
@@ -385,7 +385,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                 // 【物理防線 4/條件 2】：首尾邊界熱區控制
                 if (cfg.f2_on && (i1 >= f2_min || i6 <= f2_max)) continue;
                 
-                // 【物理防線 2】：歷史大數據全中全重疊排除
+                // 【物理防線 2】：歷史全中全重疊排除
                 if (historyCacheSet.has(comb.join(','))) pass = false;
                 
                 // 【物理防線 5/條件 3】：五大物理區塊落點個數控制
@@ -419,7 +419,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
                     if (cfg.f6_on && (sumValue < f6_low || sumValue > f6_high)) pass = false;
                 }
-
+// =========================================================================
+// 【零件 4-2】：大樂透高階 9-15 防線對撞、全局不重複大組隔離與流式串流
+// =========================================================================
                 // 【物理防線 12/條件 7、8、9】：大樂透連號檢查機制 (2-4連號防禦牆)
                 if (pass && cfg.f7_on) {
                     let maxConsecutive = 1;
@@ -445,64 +447,65 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     });
                     if (r0 >= 5 || r1 >= 5 || r2 >= 5) pass = false;
                 }
-// =========================================================================
-// 【零件 5】：大樂透高階防線對撞、大組隔離自癒、串流結果封裝與資料庫啟動監聽
-// =========================================================================
-                    if (pass && cfg.f13_on) {
-                        let diffs = new Set();
-                        for (let m = 0; m < 6; m++) {
-                            for (let n = m + 1; n < 6; n++) { 
-                                diffs.add(Math.abs(comb[m] - comb[n])); 
-                            }
-                        }
-                        if ((diffs.size - 5) < cfg.f13_min) pass = false; 
-                    }
-                    
-                    if (pass && cfg.f14_on) {
-                        const prime49Mask = (1n<<2n)|(1n<<3n)|(1n<<5n)|(1n<<7n)|(1n<<11n)|(1n<<13n)|(1n<<17n)|(1n<<19n)|(1n<<23n)|(1n<<29n)|(1n<<31n)|(1n<<37n)|(1n<<41n)|(1n<<43n)|(1n<<47n);
-                        let primeCount = 0;
-                        if ((prime49Mask & (1n << BigInt(i1))) !== 0n) primeCount++;
-                        if ((prime49Mask & (1n << BigInt(i2))) !== 0n) primeCount++;
-                        if ((prime49Mask & (1n << BigInt(i3))) !== 0n) primeCount++;
-                        if ((prime49Mask & (1n << BigInt(i4))) !== 0n) primeCount++;
-                        if ((prime49Mask & (1n << BigInt(i5))) !== 0n) primeCount++;
-                        if ((prime49Mask & (1n << BigInt(i6))) !== 0n) primeCount++;
-                        if (primeCount >= 4) pass = false; 
-                    }
-                    
-                    if (pass && cfg.f15_on && typeof globalHistoryBigInts !== 'undefined') {
-                        let currentMask = (1n<<BigInt(i1))|(1n<<BigInt(i2))|(1n<<BigInt(i3))|(1n<<BigInt(i4))|(1n<<BigInt(i5))|(1n<<BigInt(i6));
-                        for (let h = 0; h < globalHistoryBigInts.length; h++) {
-                            let intersect = currentMask & globalHistoryBigInts[h];
-                            let matchOverlap = 0;
-                            while (intersect > 0n) { 
-                                if (intersect & 1n) matchOverlap++; 
-                                intersect >>= 1n; 
-                            }
-                            if (matchOverlap >= 5) { pass = false; break; }
+
+                // 【物理防線 9/條件 13】：大樂透數字複雜度 (AC值) 獨立過濾
+                if (pass && cfg.f13_on) {
+                    let diffs = new Set();
+                    for (let m = 0; m < 6; m++) {
+                        for (let n = m + 1; n < 6; n++) { 
+                            diffs.add(Math.abs(comb[m] - comb[n])); 
                         }
                     }
-                    
-                    // ───【大樂透全局不重複：大組動態接力隔離智控鎖】───
-                    if (pass) {
-                        matchCount++; 
-                        if (checkAndRegisterSmart接力(comb)) {
-                            vipValidPool.push(comb);
+                    if ((diffs.size - 5) < cfg.f13_min) pass = false; 
+                }
+                
+                // 【物理防線 10/條件 14】：大樂透質數/合數比例過濾
+                if (pass && cfg.f14_on) {
+                    const prime49Mask = (1n<<2n)|(1n<<3n)|(1n<<5n)|(1n<<7n)|(1n<<11n)|(1n<<13n)|(1n<<17n)|(1n<<19n)|(1n<<23n)|(1n<<29n)|(1n<<31n)|(1n<<37n)|(1n<<41n)|(1n<<43n)|(1n<<47n);
+                    let primeCount = 0;
+                    if ((prime49Mask & (1n << BigInt(i1))) !== 0n) primeCount++;
+                    if ((prime49Mask & (1n << BigInt(i2))) !== 0n) primeCount++;
+                    if ((prime49Mask & (1n << BigInt(i3))) !== 0n) primeCount++;
+                    if ((prime49Mask & (1n << BigInt(i4))) !== 0n) primeCount++;
+                    if ((prime49Mask & (1n << BigInt(i5))) !== 0n) primeCount++;
+                    if ((prime49Mask & (1n << BigInt(i6))) !== 0n) primeCount++;
+                    if (primeCount >= 4) pass = false; 
+                }
+                
+                // 【物理防線 11/條件 15】：大樂透歷史大數據 5 碼重疊位元級高速硬體排除
+                if (pass && cfg.f15_on && typeof globalHistoryBigInts !== 'undefined') {
+                    let currentMask = (1n<<BigInt(i1))|(1n<<BigInt(i2))|(1n<<BigInt(i3))|(1n<<BigInt(i4))|(1n<<BigInt(i5))|(1n<<BigInt(i6));
+                    for (let h = 0; h < globalHistoryBigInts.length; h++) {
+                        let intersect = currentMask & globalHistoryBigInts[h];
+                        let matchOverlap = 0;
+                        while (intersect > 0n) { 
+                            if (intersect & 1n) matchOverlap++; 
+                            intersect >>= 1n; 
                         }
+                        if (matchOverlap >= 5) { pass = false; break; }
                     }
-                } 
+                }
+                
+                // ───【大樂透全局不重複：大組動態接力隔離智控鎖】───
+                if (pass) {
+                    matchCount++; 
+                    if (checkAndRegisterSmart接力(comb)) {
+                        vipValidPool.push(comb);
+                    }
+                }
                 
                 // 🌊 大樂透超導異步串流進度％數實時噴回手機前端
                 if (totalScanned % 2000 === 0 || vipValidPool.length >= targetCount) {
                     let percent = Math.floor((vipValidPool.length / targetCount) * 100);
                     if (percent > 100) percent = 100;
                     res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                    // 核心非同步切片：釋放執行緒，防禦硬體超時中斷
                     await new Promise(resolve => setImmediate(resolve));
                 }
             }
-        } // 🎯 閉合大樂透主軌道
-        
+        } // 🎯 閉合大樂透主軌道 (else 區塊)
+// =========================================================================
+// 【零件 4-3】：流式字串封裝、明牌備份接口、雙層保險環境變數激活監聽
+// =========================================================================
         // ⚡ 終極防護盾牌：100% 完美閉合超導路由的所有結構，徹底滅殺 Missing catch 惡夢！
         if (vipValidPool.length === 0) {
             return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
