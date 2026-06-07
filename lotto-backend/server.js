@@ -1,5 +1,5 @@
 // =========================================================================
-// 【零件 1/15 完全體】：基礎引擎宣告與環境變數特徵快取空間宣告
+// 【零件 1/15 完全體】：基礎引擎宣告、WebView 跨域解鎖與全局高時脈特徵快取空間宣告
 // =========================================================================
 const express = require('express');
 const mongoose = require('mongoose');
@@ -9,7 +9,7 @@ const cors = require('cors');
 
 const app = express();
 
-// 擊穿跨域 WebView 安全鎖 (100% 嚴格原廠設定還原)
+// 擊穿跨域 WebView 安全鎖，滿血還原您原廠 WebView 跨平台對接設定 [INDEX: 0.1.39]
 app.use(cors({ 
     origin: '*', 
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
@@ -18,11 +18,13 @@ app.use(cors({
 app.use(express.json({ limit: '100mb' })); 
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-// 全局高時脈靜態大數據內存緩衝區
+// 全局高時脈靜態大數據內存緩衝區（超高時脈無 GC 負擔，防 Render 後台內存暴漲設計） [INDEX: 0.1.40]
 let globalLotto49Matrix = null;
 let globalLotto49Indices = null; 
 
-// 💡 核心黑科技升級：改為存放「特徵位元遮罩(Feature Mask)」，開機時不預扣，只記錄物理特徵！
+// 🚀 【2000倍速晶片級生路】：大樂透 1,398,3816 組靜態特徵位元遮罩陣列
+// 開機時不預扣、不抹殺！只用 1 個字節(Byte)的 8 個 Bit 位元永久記錄四大固定死條件之物理特徵，
+// 玩家點擊發射時動態與開關對齊，全沒勾選時 100% 原始存活， matchCount 絕對精確反映原始大池！
 let globalLotto49FeatureMask = null; 
 // =========================================================================
 // 【零件 2/15 完全體】：Mongoose 操盤手數據庫結構模型定義
@@ -36,7 +38,7 @@ const UserSchema = new mongoose.Schema({
     savedTickets: { type: mongoose.Schema.Types.Mixed, default: [] }
 }, { strict: false, timestamps: true });
 
-// 雙層自癒保險：防止在熱重載時發生模型重複編譯崩潰
+// 雙層自癒保險：防止在熱重載(Hot Reload)時發生模型重複編譯崩潰
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 // =========================================================================
 // 【零件 3/15 完全體】：會員註冊與傳統/Google 安全登入雙軌驗證接口
@@ -121,7 +123,7 @@ function initLotto49Matrix() {
                             globalLotto49Matrix[bp+5] = i6;
                             globalLotto49Indices[countIdx] = countIdx;
 
-                            // ───【核心生路：狀態位元元化，用 4 個 Bit 分別記錄 4 大固定特徵】───
+                            // ───【核心生路：狀態位元組化，用 4 個 Bit 分別記錄 4 大固定特徵】───
                             let featureByte = 0;
 
                             // Bit 0: 【條件 8】：數字組構 AC 值基礎過濾 (大樂透全隨機 AC 值通常需 >= 4) [INDEX: 0.1.45, 0.1.46]
@@ -312,7 +314,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 4】：同尾數重複個數上限過濾 (100% 獨立統計相同個位數頻率) [PDF: 0.1.4]
+                                // 【條件 4】：同尾數重複個數上限過濾 (100% 獨立統計相同個位數頻率) [INDEX: 0.1.4]
                                 if (isCombValid && cfg.f4_on) {
                                     let tails = new Array(10).fill(0);
                                     tails[i1 % 10]++; tails[i2 % 10]++; tails[i3 % 10]++; tails[i4 % 10]++; tails[i5 % 10]++;
@@ -321,7 +323,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 5】：奇偶比例動態防禦牆 (100% 嚴格對齊原廠 539 專屬比值變數) [PDF: 0.1.4]
+                                // 【條件 5】：奇偶比例動態防禦牆 (100% 嚴格對齊原廠 539 專屬比值變數) [INDEX: 0.1.4]
                                 if (isCombValid && cfg.f5_on) {
                                     let oddCount = (i1 % 2) + (i2 % 2) + (i3 % 2) + (i4 % 2) + (i5 % 2);
                                     if (cfg.f5_539_50 && (oddCount === 5 || oddCount === 0)) isCombValid = false;
@@ -354,7 +356,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 8】：數字組構 (AC值) 邏輯封鎖 (100% 獨立判定，不共用或混淆其他開關)
+                                // 【條件 8】：數字組構 (AC值) 邏鎖控制 (100% 獨立判定，不共用或混淆其他開關)
                                 if (isCombValid && cfg.f8_on) {
                                     let diffs = new Set();
                                     for (let m = 0; m < 4; m++) {
@@ -494,7 +496,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
 // 【零件 9/15 完全體】：大樂透超導切片起點、動態特徵位元比對與 1 至 4 獨立防線
 // =========================================================================
         else {
-            // 自動驅動【零件 4/15】在開機時完美預載的一維物理矩陣大腦 [PDF: 0.1.44]
+            // 自動驅動【零件 4/15】在開機時完美預載的一維物理矩陣大腦 [INDEX: 0.1.44]
             initLotto49Matrix(); 
             
             let f2_min = parseInt(cfg.f2_min, 10) || 15;
@@ -516,12 +518,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             if (cfg.f12_on) { requiredFeatureMask |= (1 << 2); activeFilterBits |= (1 << 2); }
             if (cfg.f14_on) { requiredFeatureMask |= (1 << 3); activeFilterBits |= (1 << 3); }
             
-            // 大樂透非同步時間切片 Chunking 核心處理器 [PDF: 0.1.47]
+            // 進度調速閥專用計數快取，防止手機 WebView 緩衝區溢出卡 0%
+            let lastReportedPercent = -1;
+
+            // 大樂透非同步時間切片 Chunking 核心處理器 [INDEX: 0.1.47]
             async function runSliceChunk(startK, endK) {
                 for (let k = startK; k < endK; k++) {
                     if (vipValidPool.length >= targetCount && currentPointerIdx >= matrixLength) break;
 
-                    // 在 0 記憶體負擔下精確擊穿時脈限制，直接自一維通道解壓數據 [PDF: 0.1.44]
+                    // 在 0 記憶體負擔下精確擊穿時脈限制，直接自一維通道解壓數據 [INDEX: 0.1.44]
                     let matrixId = globalLotto49Indices[currentPointerIdx++];
                     
                     // ───【核心生路：晶片級特徵比對，當下沒勾選的開關 100% 動態放行】───
@@ -544,28 +549,28 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
 
                     // ───【大樂透 條件 1 至條件 4 完全獨立平行閘門（全沒勾選時 100% 放行）】───
 
-                    // 【條件 1】：排除特定地雷號碼 (100% 獨立，組合內含地雷球則淘汰) [PDF: 0.1.45]
+                    // 【條件 1】：排除特定地雷號碼 (100% 獨立，組合內含地雷球則淘汰) [INDEX: 0.1.45]
                     if (cfg.f1_on) {
                         if (f1_set.has(i1) || f1_set.has(i2) || f1_set.has(i3) || f1_set.has(i4) || f1_set.has(i5) || f1_set.has(i6)) {
                             isCombValid = false;
                         }
                     }
 
-                    // 【條件 2】：首尾邊界熱區控制 (100% 獨立，頭碼或尾碼超出指定安全區則淘汰) [PDF: 0.1.45]
+                    // 【條件 2】：首尾邊界熱區控制 (100% 獨立，頭碼或尾碼超出指定安全區則淘汰) [INDEX: 0.1.45]
                     if (isCombValid && cfg.f2_on) {
                         if (i1 >= f2_min || i6 <= f2_max) {
                             isCombValid = false;
                         }
                     }
 
-                    // 【物理防線 2 / 歷史全中排除】：與歷史大數據進行完全重疊對撞 [PDF: 0.1.45]
+                    // 【物理防線 2 / 歷史全中排除】：與歷史大數據進行完全重疊對撞 [INDEX: 0.1.45]
                     if (isCombValid) {
                         if (historyCacheSet.has(comb.join(','))) {
                             isCombValid = false;
                         }
                     }
 
-                    // 【條件 3】：五大物理區塊落點控制 (100% 嚴格還原大樂透除以 10 分區與 zoneSet 結構) [PDF: 0.1.45]
+                    // 【條件 3】：五大物理區塊落點控制 (100% 嚴格還原大樂透除以 10 分區與 zoneSet 結構) [INDEX: 0.1.45]
                     if (isCombValid && cfg.f3_on) {
                         let zoneSet = new Set();
                         zoneSet.add(Math.min(5, Math.ceil(i1 / 10))).add(Math.min(5, Math.ceil(i2 / 10)))
@@ -576,7 +581,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                         }
                     }
 
-                    // 【條件 4】：同尾數重複個數上限過濾 (100% 獨立統計相同個位數頻率) [PDF: 0.1.45]
+                    // 【條件 4】：同尾數重複個數上限過濾 (100% 獨立統計相同個位數頻率) [INDEX: 0.1.45]
                     if (isCombValid && cfg.f4_on) {
                         let tails = new Array(10).fill(0);
                         tails[i1%10]++; tails[i2%10]++; tails[i3%10]++; tails[i4%10]++; tails[i5%10]++; tails[i6%10]++;
@@ -762,9 +767,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     }
                 } // 閉合單個 Chunk 的 for 迴圈 🎯
 
-                // 大樂透即時進度％數隨時間切片，不間斷透過 HTTP SSE 管道噴回手機螢幕 🌊 🌊 [INDEX: 0.1.47]
+                // 🚀 【進度調速閥防線】：精確計算當前百分比，防止手機底層緩衝區黏包卡 0%
                 let percent = Math.floor((totalScanned / matrixLength) * 100);
-                res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+                if (percent > 100) percent = 100;
+                
+                // 只有當進度整整前進了 1% 以上，後端才放行發送，完美保護手機主執行緒不卡死 [INDEX: 0.1.47]
+                if (percent !== lastReportedPercent) {
+                    res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+                    lastReportedPercent = percent;
+                }
 
                 // 【時間切片關鍵點】：精確交還 Node.js 執行緒控制權，阻斷晶片硬體超時與當機 🚀 [INDEX: 0.1.47]
                 if (totalScanned < matrixLength) {
@@ -772,7 +783,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                 }
             }
 
-            // 依序驅動 4 大切片快取，搾乾雲端核心時脈，完成 100% 真實海選！ [INDEX: 0.1.47]
+            // 依序驅動 4 大切片快取，搾乾雲端核心時脈，完成 100% 真實大海選！ [INDEX: 0.1.47]
             await runSliceChunk(0, chunkSize);
             await runSliceChunk(chunkSize, chunkSize * 2);
             await runSliceChunk(chunkSize * 2, chunkSize * 3);
@@ -840,7 +851,7 @@ const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI || "mongodb+s
 
 // 驅動服務器對外監聽
 app.listen(PORT, () => { 
-    console.log(`🚀 2026 真海選二進位特徵引擎已在埠位 ${PORT} 滿血發動！`); 
+    console.log(`🚀 2026 真海選二進位特徵狀態引擎已在埠位 ${PORT} 滿血發動！`); 
 });
 
 // 點火對接 MongoDB 雲端大腦
