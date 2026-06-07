@@ -14,8 +14,8 @@ app.use(cors());
 
 // 🔗 1. 連線至您剛剛申請的 MongoDB Atlas 永久免費雲端資料庫
 // 請將下方字串替換為您在 Atlas 複製的真實連線字串，並把 <password> 換成您的資料庫密碼
-const MONGO_URI = "mongodb+srv://您的帳號:<password>@cluster0.xxxx.mongodb.net/lotto_db?retryWrites=true&w=majority";
-
+// ⚡ 核心優化：優先讀取 Render 後台環境變數，徹底拔除寫死範例的死穴
+const MONGO_URI = process.env.MONGODB_URI || "mongodb+srv://bingooo16888_db_user:bingo19880429@cluster0.t33ebvn.mongodb.net/lotto?retryWrites=true&w=majority&appName=Cluster0";
 mongoose.connect(MONGO_URI)
   .then(() => console.log('☁️ 永久免費 MongoDB Atlas 雲端資料庫連線成功！'))
   .catch(err => console.error('❌ 資料庫連線失敗', err));
