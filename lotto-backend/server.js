@@ -734,38 +734,39 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
 
 // 📍 正確的 else 閘門在攔截盾牌正下方開啟，把大樂透（49_6）原廠領地完整保護起來：
 else {
+    // 💡 大樂透所有變數與一維高速通道初始化，100% 穩固地鎖定在 else 口袋肚子內：
+    if (!globalLotto49Matrix) { initLotto49Matrix(); }
+     
+    let f2_min = parseInt(cfg.f2_min, 10) || 15;
+    let f2_max = parseInt(cfg.f2_max, 10) || 30;
+    let f4_max = parseInt(cfg.f4_max, 10) || 2;
+    let f6_low = parseInt(cfg.f6_low, 10) || 100;
+    let f6_high = parseInt(cfg.f6_high, 10) || 185;
+     
+    const matrixLength = 13983816;
+    const chunkSize = 3495954; 
+    let currentPointerIdx = 0;
 
-     // 📍 以下原廠大樂透（49_6）的 1,400 萬組一維高速通道初始化與切片邏輯 100% 完好留存，不受干擾：
-     if (!globalLotto49Matrix) { initLotto49Matrix(); }
-            
-            // 活性進階設定參數強制清洗與安全防呆盾牌
-            let f2_min = parseInt(cfg.f2_min, 10) || 15;
-            let f2_max = parseInt(cfg.f2_max, 10) || 30;
-            let f4_max = parseInt(cfg.f4_max, 10) || 2;
-            let f6_low = parseInt(cfg.f6_low, 10) || 100;
-            let f6_high = parseInt(cfg.f6_high, 10) || 185;
-            
-            const matrixLength = 13983816;
-            const chunkSize = 3495954; 
-            let currentPointerIdx = 0;
+    // 🏆 【原廠精銳晶片完好留存】：根據玩家「當下有勾選的防線」動態編譯出後台部隊的點名核對遮罩 🚀
+    let activeFilterBits = 0; // 記錄當前哪些死條件部隊需要參與對撞消除
+    let requiredFeatureMask = 0; // 記錄參與對撞消除的部隊其合格特徵碼
 
-            // 🚀 【部隊集結大開關】：根據玩家「當下有勾選的防線」動態編譯出後台部隊的點名核對遮罩
-            let activeFilterBits = 0;   // 記錄當前哪些死條件部隊需要參與對撞消除
-            let requiredFeatureMask = 0; // 記錄參與對撞消除的部隊其合格特徵碼
+    // 如果玩家點開了該開關，大腦就無條件將其納入本次點名消除範圍，沒點開則 100% 放行 🟢
+    if (cfg.f8_on) { activeFilterBits |= (1 << 0); requiredFeatureMask |= (1 << 0); } // 部隊 8 (AC合格營隊)
+    if (cfg.f11_on) { activeFilterBits |= (1 << 1); requiredFeatureMask |= (1 << 1); } // 部隊 11 (大小比營隊)
+    if (cfg.f12_on) { activeFilterBits |= (1 << 2); requiredFeatureMask |= (1 << 2); } // 部隊 12 (012路營隊)
+    if (cfg.f14_on) { activeFilterBits |= (1 << 3); requiredFeatureMask |= (1 << 3); } // 部隊 14 (質數比例營隊)
+     
+    // 條件 15 (歷史5碼裂變地雷部隊) 的獨立提取開關指標 💡
+    const checkHistoryGeiLei = !!cfg.f15_on; 
 
-            // 如果玩家點開了該開關，大腦就無條件將其納入本次點名消除範圍，沒點開則 100% 放行 [INDEX: 0.1.44]
-            if (cfg.f8_on)  { activeFilterBits |= (1 << 0); requiredFeatureMask |= (1 << 0); } // 部隊 8 (AC合格營隊)
-            if (cfg.f11_on) { activeFilterBits |= (1 << 1); requiredFeatureMask |= (1 << 1); } // 部隊 11 (大小比營隊)
-            if (cfg.f12_on) { activeFilterBits |= (1 << 2); requiredFeatureMask |= (1 << 2); } // 部隊 12 (012路營隊)
-            if (cfg.f14_on) { activeFilterBits |= (1 << 3); requiredFeatureMask |= (1 << 3); } // 部隊 14 (質數比例營隊)
-            
-            // 💡 條件 15 (歷史5碼裂變地雷部隊) 的獨立提取開關指標
-            const checkHistoryGeiLei = !!cfg.f15_on; 
+    // 【進度調速閥快取】：記錄上一次噴回前端的百分比，整整前進 1% 才放行 SSE 訊號，防止手機卡 0% 🚀
+    let lastReportedPercent = -1;
 
-            // 🚀 【進度調速閥快取】：記錄上一次噴回前端的百分比，整整前進 1% 才放行 SSE 訊號，防止手機卡 0% [INDEX: 0.1.47]
-            let lastReportedPercent = -1;
-            // 大樂透非同步時間切片 Chunking 核心處理器 🚀 [INDEX: 0.1.47]
-            async function runSliceChunk(startK, endK) {
+    // 🏆 【世紀修復】：將大樂透切片程序 runSliceChunk 完美宣告在 else 控制範疇之內，539 絕對讀不到它！
+    async function runSliceChunk(startK, endK) {
+        // === 📍 這裡下方會直接接上您原本原裝的 for (let k = startK; k < endK; k++) 迴圈開頭 ===
+
                 // === 前後行定位：在大樂透 runSliceChunk 異步切片的 for 迴圈第一行 ===
         for (let k = startK; k < endK; k++) {
             if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) break;
@@ -1156,17 +1157,17 @@ else {
                     }
                 }
            }      
-                // 📥 🏆 【大樂透專屬完全隔離防禦鐵閘門】
-     // 取代掉原本危險的 return 盾牌！改用主動式括號包裹，唯有當彩種百分之百為大樂透（49_6）時，才允許發動切片！
-     // 539 進來這裡時判定不成立，會安全流暢地跳過此區塊，絕對不傷及大樂透的原生海選邏輯！
-     if (cfg && cfg.lottoType === "49_6") {
-         console.log(" 📡 【大樂透大腦全線點火】：1,400 萬組一維核心矩陣切片開始對撞！");
-         await runSliceChunk(0, chunkSize);
-         await runSliceChunk(chunkSize, chunkSize * 2);
-         await runSliceChunk(chunkSize * 2, chunkSize * 3);
-         await runSliceChunk(chunkSize * 3, matrixLength);
-     }
-        } // ⚙️ 完美閉合大樂透主軌道 (else 區塊) 🎯
+                    // 📥 🏆 【大樂透 1,400 萬核心全線引爆閘門】
+    // 徹底廢除外部危險的變數判定！直接在 else 領地最底部，點燃這 4 大切片，沒勾選條件也能 100% 滿血海選大池！
+    console.log(" 📡 【大樂透超導分流】：1,400 萬組一維核心矩陣切片開始通電對撞！");
+    await runSliceChunk(0, chunkSize);
+    await runSliceChunk(chunkSize, chunkSize * 2);
+    await runSliceChunk(chunkSize * 2, chunkSize * 3);
+    await runSliceChunk(chunkSize * 3, matrixLength);
+
+} // ⚙️ 🎯 完美閉合大樂透主軌道 (else 區塊) 的大口袋！539 在前端就 return 了，生生世世碰不到這四行！
+
+
 // =========================================================================
 // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
 // =========================================================================
