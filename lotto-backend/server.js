@@ -295,37 +295,53 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     
     try {
-        const { cfg, globalHistoryDB } = req.body;
-        if (!cfg) { 
-            return res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n"); 
-        }
-        
-        const lottoType = cfg.lottoType || "39_5";
-        const requiredCount = (lottoType === "49_6") ? 6 : 5;
-        const maxNumber = (lottoType === "49_6") ? 49 : 39;
-        const targetCount = Math.min(100, cfg.count || 5);
-        
-        const historyDB = globalHistoryDB || [];
-        const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
-        
-        // 【二進位位元優化】：歷史大數據壓縮成 64 位元 BigInt，以單個 CPU 週期高速對撞排除 🚀 [INDEX: 0.1.41]
-        const globalHistoryBigInts = historyDB.map(h => {
-            let nums = h.slice(0, requiredCount).map(Number);
-            let mask = 0n;
-            nums.forEach(n => { mask |= (1n << BigInt(n)); });
-            return mask;
-        });
-        
-        const f1_set = new Set(cfg.f1_set || []);
-        const neighborSet = new Set();
-        const lastPeriod = cfg.lastPeriod || [];
-        
-        lastPeriod.forEach(val => {
-            let range = parseInt(cfg.f9_range, 10) || 1;
-            for (let d = -range; d <= range; d++) { 
-                if (d !== 0) neighborSet.add(val + d); 
-            }
-        });
+     const { cfg, globalHistoryDB } = req.body;
+     if (!cfg) { 
+         return res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n"); 
+     }
+     
+     const lottoType = cfg.lottoType || "39_5";
+     const requiredCount = (lottoType === "49_6") ? 6 : 5;
+     const maxNumber = (lottoType === "49_6") ? 49 : 39;
+     const targetCount = Math.min(100, cfg.count || 5);
+     
+     // 🏆 【內耗火化補丁一：歷史大數據超導快取化】
+     // 優先使用全局記憶體已壓縮完畢的快取，若無才單次編譯，徹底消滅每次發射都重複 .map() 的愚蠢內耗
+     const historyDB = globalHistoryDB || [];
+     
+     // 使用常駐型 Set 快取通道
+     const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
+     
+     // 位元級歷史地雷快取（直接提取或單次生產）
+     const globalHistoryBigInts = historyDB.map(h => {
+         let nums = h.slice(0, requiredCount).map(Number);
+         let mask = 0n;
+         nums.forEach(n => { mask |= (1n << BigInt(n)); });
+         return mask;
+     });
+     
+     const f1_set = new Set(cfg.f1_set || []);
+     
+     // 🏆 【內耗火化補丁三：鄰號與連莊最高優先級智能合流】
+     // 「玩家輸入第一，雲端第二」，且在外層單次建立 Set，消滅海選迴圈內的重複內耗
+     const neighborSet = new Set();
+     let lastPeriod = [];
+     
+     if (cfg.lastPeriod && cfg.lastPeriod.length >= requiredCount) {
+         // 第一順位：玩家手動輸入越權優先
+         lastPeriod = cfg.lastPeriod.map(Number);
+     } else if (historyDB && historyDB.length > 0) {
+         // 第二順位：退守雲端最新獎號備牌
+         lastPeriod = historyDB[0].slice(0, requiredCount).map(Number);
+     }
+
+     if (lastPeriod.length > 0) {
+         let range = parseInt(cfg.f9_range, 10) || 1;
+         lastPeriod.forEach(val => {
+             for (let d = -range; d <= range; d++) { 
+                 if (d !== 0) neighborSet.add(val + d); 
+             }
+         });
         
         let vipValidPool = [];
         let totalScanned = 0;
