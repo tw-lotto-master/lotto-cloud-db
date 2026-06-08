@@ -740,8 +740,12 @@ else {
     let f2_min = parseInt(cfg.f2_min, 10) || 15;
     let f2_max = parseInt(cfg.f2_max, 10) || 30;
     let f4_max = parseInt(cfg.f4_max, 10) || 2;
-    let f6_low = parseInt(cfg.f6_low, 10) || 100;
-    let f6_high = parseInt(cfg.f6_high, 10) || 185;
+    
+    // 🏆 【雙彩種總和極值自癒補丁】：一字不漏精確分流！
+    // 沒勾選條件 6 時，大樂透自動退守 21~279，今彩 539 自動退守 15~185，100% 關閉誤殺死鎖！
+    let f6_low = cfg.f6_on ? (parseInt(cfg.f6_low, 10) || 110) : (lottoType === "49_6" ? 21 : 15);
+    let f6_high = cfg.f6_on ? (parseInt(cfg.f6_high, 10) || 210) : (lottoType === "49_6" ? 279 : 185);
+
      
     const matrixLength = 13983816;
     const chunkSize = 3495954; 
