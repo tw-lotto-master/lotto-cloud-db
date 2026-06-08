@@ -342,7 +342,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                  if (d !== 0) neighborSet.add(val + d); 
              }
          });
-        
+        }
         let vipValidPool = [];
         let totalScanned = 0;
         let matchCount = 0;
