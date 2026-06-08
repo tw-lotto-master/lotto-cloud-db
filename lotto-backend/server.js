@@ -442,7 +442,10 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                             diffs.add(Math.abs(comb[m] - comb[n])); 
                                         }
                                     }
-                                    if (diffs.size - 4 < 4) {
+                                    // 📥 修正 539 的 AC 基礎過濾線：539 常態 AC 值為 1~4，AC 必須 >= 1 (即 diffs.size - 4 >= 1)
+        if ((diffs.size - 4) < 1) {
+            isCombValid = false;
+        }{
                                         isCombValid = false;
                                     }
                                 }
@@ -492,10 +495,12 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                             diffs.add(Math.abs(comb[m] - comb[n])); 
                                         }
                                     }
-                                    let acVal = diffs.size - 4;
-                                    if (acVal < cfg.f13_min) {
-                                        isCombValid = false;
-                                    }
+                                    // === 前後行定位：在 539 條件 13 的 diffs 迴圈計算結束後 ===
+        let acVal = diffs.size - 4; // 539 選 5 碼，公式為 size - 4
+        let f13MinTarget = parseInt(cfg.f13_min, 10) || 1; // 539 安全防呆底線為 1
+        if (acVal < f13MinTarget) {
+            isCombValid = false;
+        }
                                 }
                                 // ───【539 條件 14 至條件 15 完全獨立平行閘門（全沒勾選時 100% 放行）】───
 
@@ -509,20 +514,32 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     }
                                 }
 
-                                // 【條件 15】：539 歷史大數據 4 碼重疊位元級防禦封殺 (對撞重疊 >= 4 碼直接海選淘汰) [INDEX: 0.1.5]
-                                if (isCombValid && cfg.f15_on && cfg.f15_kill && typeof globalHistoryBigInts !== 'undefined') {
-                                    let currentMask = (1n<<BigInt(i1))|(1n<<BigInt(i2))|(1n<<BigInt(i3))|(1n<<BigInt(i4))|(1n<<BigInt(i5));
-                                    let isOverlapLimit = false;
-                                    for (let h = 0; h < globalHistoryBigInts.length; h++) {
-                                        let intersect = currentMask & globalHistoryBigInts[h];
-                                        let matchOverlap = 0;
-                                        while (intersect > 0n) { if (intersect & 1n) matchOverlap++; intersect >>= 1n; }
-                                        if (matchOverlap >= 4) { isOverlapLimit = true; break; }
-                                    }
-                                    if (isOverlapLimit) {
-                                        isCombValid = false;
-                                    }
-                                }
+                                // 【部隊 15 終極修復】：539 歷史大數據動態碼數疊合封殺牆 (直接與當前傳入的歷史庫進行動態位元碰撞)
+        if (isCombValid && cfg.f15_on && cfg.f15_kill) {
+            let overlapLimit = parseInt(cfg.f15_overlap_limit, 10) || 4; // 動態接收前端的4碼限制（大樂透則為5碼）
+            let currentMask = (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5));
+            let isOverlapLimit = false;
+
+            // 活化對撞：直接利用本輪請求傳遞進來的 globalHistoryBigInts 緩衝陣列
+            if (typeof globalHistoryBigInts !== 'undefined' && globalHistoryBigInts.length > 0) {
+                for (let h = 0; h < globalHistoryBigInts.length; h++) {
+                    let intersect = currentMask & globalHistoryBigInts[h];
+                    let matchOverlap = 0;
+                    let tempIntersect = intersect;
+                    while (tempIntersect > 0n) { 
+                        if (tempIntersect & 1n) matchOverlap++; 
+                        tempIntersect >>= 1n; 
+                    }
+                    if (matchOverlap >= overlapLimit) { 
+                        isOverlapLimit = true; 
+                        break; 
+                    }
+                }
+            }
+            if (isOverlapLimit) {
+                isCombValid = false;
+            }
+        }
 
                                 // ───【世紀生路：大海選池真實計數與生存精銳索引光速抄底】───
                                 if (isCombValid) {
