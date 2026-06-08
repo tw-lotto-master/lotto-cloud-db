@@ -707,23 +707,22 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         // =========================================================================
         // 【零件 12/25 完全體】：大樂透倒排部隊提取、動態開關對齊與進度調速閥初始化
         // =========================================================================
-       if (lottoType === "39_5" || cfg.lottoType === "39_5") {
-    console.log(" 📡 【雙軌超導分流】：539 篩選與基因重組已完美竣工，強制安全攔截釋放，絕不混用大樂透矩陣！");
-    
-    // 安全包裝 539 結果並回傳前端
-    if (vipValidPool.length === 0) {
-        res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
-    } else {
-        let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
-        let outputText = `【VIP篩選完成】符合防線總組數：${vipValidPool.length} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
-        vipValidPool.forEach((comb, idx) => {
-            outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-        });
-        res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
-    }
-    res.end(); // 完美閉合串流協定
-    return;    // 最關鍵的一步：強行中斷，絕對不讓執行緒跨入下方的大樂透 1400 萬池！
-}
+       if (cfg && cfg.lottoType === "39_5") {
+     console.log(" 📡 【雙軌超導分流】：今彩 539 經精準海選與基因合成已完美竣工，強制交卷截斷！");
+     
+     if (vipValidPool.length === 0) {
+         res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
+     } else {
+         let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
+         let outputText = `【VIP篩選完成】符合防線總組數：${vipValidPool.length} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+         vipValidPool.forEach((comb, idx) => {
+             outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
+         });
+         res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
+     }
+     res.end();
+     return; // 🏆 鐵閘門放下：539 到此徹底離場，下方 1400 萬大樂透矩陣連一隻蒼蠅都飛不進來！
+ }
 
 // 📍 正確的 else 閘門在攔截盾牌正下方開啟，把大樂透（49_6）原廠領地完整保護起來：
 else {
@@ -1158,19 +1157,20 @@ else {
 // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
 // =========================================================================
 
-        if (vipValidPool.length === 0) {
-            return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
-        }
-        
-        let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
-        let outputText = `【VIP篩選完成】符合防線總組數：${(lottoType === "39_5") ? vipValidPool.length : matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
-        
-        vipValidPool.forEach((comb, idx) => {
-            outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-        });
-        
-        res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
-        res.end(); // 完美閉合超導路由 HTTP 串流
+         if (vipValidPool.length === 0) {
+     return res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
+ }
+ 
+ let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
+ // 📥 徹底火化內耗：這裡百分之百只有大樂透會走到，直接輸出真實大樂透海選對撞出來的 matchCount！
+ let outputText = `【VIP篩選完成】符合防線總組數：${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+ 
+ vipValidPool.forEach((comb, idx) => {
+     outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
+ });
+ 
+ res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
+ res.end(); // 完美閉合超導路由 HTTP 串流
         
     } catch (err) {
         console.error("🚨 核心海選崩潰，啟動自癒防禦：", err.message);
