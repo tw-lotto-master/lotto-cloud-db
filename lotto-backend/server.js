@@ -707,16 +707,26 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         // =========================================================================
         // 【零件 12/25 完全體】：大樂透倒排部隊提取、動態開關對齊與進度調速閥初始化
         // =========================================================================
-        else {
-     // 🏆 【硬體中斷自癒防禦補丁】：如果當前彩種是 539，絕對禁止執行下方大樂透的 1,400 萬組一維物理矩陣，直接攔截並安全結束！
-     if (cfg.lottoType === "39_5" || lottoType === "39_5") {
-         console.log(" 📡 偵測到當前彩種為今彩 539，大樂透 1400 萬組指針大腦自動閉鎖，安全分流！");
-         // 確保 539 在前半段軌道已經算完，若誤入此處則直接釋放串流，防止進程崩潰
-         if (!res.writableEnded) {
-             res.end();
-         }
-         return;
-     }
+       if (lottoType === "39_5" || cfg.lottoType === "39_5") {
+    console.log(" 📡 【雙軌超導分流】：539 篩選與基因重組已完美竣工，強制安全攔截釋放，絕不混用大樂透矩陣！");
+    
+    // 安全包裝 539 結果並回傳前端
+    if (vipValidPool.length === 0) {
+        res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
+    } else {
+        let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
+        let outputText = `【VIP篩選完成】符合防線總組數：${vipValidPool.length} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+        vipValidPool.forEach((comb, idx) => {
+            outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
+        });
+        res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
+    }
+    res.end(); // 完美閉合串流協定
+    return;    // 最關鍵的一步：強行中斷，絕對不讓執行緒跨入下方的大樂透 1400 萬池！
+}
+
+// 📍 正確的 else 閘門在攔截盾牌正下方開啟，把大樂透（49_6）原廠領地完整保護起來：
+else {
 
      // 📍 以下原廠大樂透（49_6）的 1,400 萬組一維高速通道初始化與切片邏輯 100% 完好留存，不受干擾：
      if (!globalLotto49Matrix) { initLotto49Matrix(); }
