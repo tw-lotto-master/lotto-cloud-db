@@ -981,11 +981,7 @@ else {
                 }
             }
 
-            // 依序驅動 4 大切片快取，搾乾雲端核心時脈，完成 100% 真實大海選！ [INDEX: 0.1.47]
-            await runSliceChunk(0, chunkSize);
-            await runSliceChunk(chunkSize, chunkSize * 2);
-            await runSliceChunk(chunkSize * 2, chunkSize * 3);
-            await runSliceChunk(chunkSize * 3, matrixLength);
+            
             // =========================================================================
             // 【零件 20/25 完全體】：大樂透生存池隨機分流與方向一階梯降階補充機制
             // =========================================================================
@@ -1152,6 +1148,11 @@ else {
                     }
                 }
             }
+    // 依序驅動 4 大切片快取，搾乾雲端核心時脈，完成 100% 真實大海選！ [INDEX: 0.1.47]
+            await runSliceChunk(0, chunkSize);
+            await runSliceChunk(chunkSize, chunkSize * 2);
+            await runSliceChunk(chunkSize * 2, chunkSize * 3);
+            await runSliceChunk(chunkSize * 3, matrixLength);
         } // ⚙️ 完美閉合大樂透主軌道 (else 區塊) 🎯
 // =========================================================================
 // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
