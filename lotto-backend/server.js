@@ -1155,17 +1155,18 @@ else {
                         }
                     }
                 }
-                 }
+                 
                 // 🏆 【大樂透異步切片・雙重防禦融斷盾牌】
   // 核心修復：再次強制核對彩種！如果是 539，此處立刻徹底中斷，絕對不准執行下方 1,400 萬組切片點火器！
   if (cfg.lottoType === "39_5" || lottoType === "39_5") {
-      return; 
-            }
+     console.log(" 
+            
     // 依序驅動 4 大切片快取，搾乾雲端核心時脈，完成 100% 真實大海選！ [INDEX: 0.1.47]
             await runSliceChunk(0, chunkSize);
             await runSliceChunk(chunkSize, chunkSize * 2);
             await runSliceChunk(chunkSize * 2, chunkSize * 3);
             await runSliceChunk(chunkSize * 3, matrixLength);
+      }
         } // ⚙️ 完美閉合大樂透主軌道 (else 區塊) 🎯
 // =========================================================================
 // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
