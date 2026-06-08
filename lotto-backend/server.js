@@ -1156,17 +1156,16 @@ else {
                     }
                 }
                  
-                // 🏆 【大樂透異步切片・雙重防禦融斷盾牌】
-  // 核心修復：再次強制核對彩種！如果是 539，此處立刻徹底中斷，絕對不准執行下方 1,400 萬組切片點火器！
-  if (cfg.lottoType === "39_5" || lottoType === "39_5") {
-     console.log(" 
-            
-    // 依序驅動 4 大切片快取，搾乾雲端核心時脈，完成 100% 真實大海選！ [INDEX: 0.1.47]
-            await runSliceChunk(0, chunkSize);
-            await runSliceChunk(chunkSize, chunkSize * 2);
-            await runSliceChunk(chunkSize * 2, chunkSize * 3);
-            await runSliceChunk(chunkSize * 3, matrixLength);
-      }
+                // 📥 🏆 【大樂透專屬完全隔離防禦鐵閘門】
+     // 取代掉原本危險的 return 盾牌！改用主動式括號包裹，唯有當彩種百分之百為大樂透（49_6）時，才允許發動切片！
+     // 539 進來這裡時判定不成立，會安全流暢地跳過此區塊，絕對不傷及大樂透的原生海選邏輯！
+     if (cfg && cfg.lottoType === "49_6") {
+         console.log(" 📡 【大樂透大腦全線點火】：1,400 萬組一維核心矩陣切片開始對撞！");
+         await runSliceChunk(0, chunkSize);
+         await runSliceChunk(chunkSize, chunkSize * 2);
+         await runSliceChunk(chunkSize * 2, chunkSize * 3);
+         await runSliceChunk(chunkSize * 3, matrixLength);
+     }
         } // ⚙️ 完美閉合大樂透主軌道 (else 區塊) 🎯
 // =========================================================================
 // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
