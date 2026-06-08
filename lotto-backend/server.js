@@ -749,24 +749,24 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             let lastReportedPercent = -1;
             // 大樂透非同步時間切片 Chunking 核心處理器 🚀 [INDEX: 0.1.47]
             async function runSliceChunk(startK, endK) {
-                for (let k = startK; k < endK; k++) {
-                    if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) break;
+                // === 前後行定位：在大樂透 runSliceChunk 異步切片的 for 迴圈第一行 ===
+        for (let k = startK; k < endK; k++) {
+            if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) break;
+            
+            let matrixId = globalLotto49Indices[currentPointerIdx++];
+            
+            // 🏆 【內耗火化補丁二：多部隊連鎖點名晶片，跳過 1400 萬次解壓】
+            let currentFeature = 0;
+            if (globalLotto49FilterBit0[matrixId] === 1) currentFeature |= (1 << 0); // 部隊 8 (AC)
+            if (globalLotto49FilterBit1[matrixId] === 1) currentFeature |= (1 << 1); // 部隊 11 (大小)
+            if (globalLotto49FilterBit2[matrixId] === 1) currentFeature |= (1 << 2); // 部隊 12 (012路)
+            if (globalLotto49FilterBit3[matrixId] === 1) currentFeature |= (1 << 3); // 部隊 14 (質數)
 
-                    // 在 0 記憶體負擔下精確擊穿時脈限制，直接自一維通道解壓數據 [INDEX: 0.1.44]
-                    let matrixId = globalLotto49Indices[currentPointerIdx++];
-                    
-                    // ───【第一步：四大死條件倒排部隊晶片級點名消除，當下沒勾選的開關 100% 動態放行】───
-                    let currentFeature = 0;
-                    // 動態將後台各自獨立預存、暫時休息的四大營隊特徵組裝回特徵狀態位元組 [INDEX: 0.1.44]
-                    if (globalLotto49FilterBit0[matrixId] === 1) currentFeature |= (1 << 0); // 部隊 8 合格
-                    if (globalLotto49FilterBit1[matrixId] === 1) currentFeature |= (1 << 1); // 部隊 11 合格
-                    if (globalLotto49FilterBit2[matrixId] === 1) currentFeature |= (1 << 2); // 部隊 12 合格
-                    if (globalLotto49FilterBit3[matrixId] === 1) currentFeature |= (1 << 3); // 部隊 14 合格
+            // 連鎖封鎖線秒速核對，不符者直接彈開，不進行任何號碼解壓解鎖
+            if ((currentFeature & activeFilterBits) !== requiredFeatureMask) {
+                continue; 
+            }
 
-                    // 利用位元運算 (Bitwise)，只對玩家有開啟的部隊進行點名消除，沒開啟的條件直接放行 [INDEX: 0.1.44]
-                    if ((currentFeature & activeFilterBits) !== requiredFeatureMask) {
-                        continue; // 只有當開啟的部隊與特徵不符時，才進行攔截淘殺！
-                    }
 
                     let bytePos = matrixId * 6;
                     let i1 = globalLotto49Matrix[bytePos];
