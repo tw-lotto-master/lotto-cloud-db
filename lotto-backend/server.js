@@ -758,7 +758,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     if (cfg && cfg.lottoType === "39_5") {
       console.log(" 【雙軌超導分流】：今彩 539 經精準海選已竣工，啟動交卷！");
       
-      matchCount = vipValidPool.length; 
+      matchCount = survivorPoolIndices.length / 5;
       totalScanned = 575757; 
       
       if (vipValidPool.length === 0) {
@@ -769,7 +769,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
       } else {
         let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
         let outputText = `【VIP篩選完成】符合今彩 539 防線總組數：` +
-          `${vipValidPool.length} 組\n【本次輸出模式】${mName}\n【本次輸出】` +
+          `${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】` +
           `精選出 ${vipValidPool.length} 組\n-------------------------\n`;
           
         vipValidPool.forEach((comb, idx) => {
