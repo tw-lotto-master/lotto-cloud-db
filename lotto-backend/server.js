@@ -574,16 +574,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                   if (typeof globalHistoryBigInts !== 'undefined' && 
                       globalHistoryBigInts.length > 0) {
                     for (let h = 0; h < globalHistoryBigInts.length; h++) {
-                      let intersect = currentMask & globalHistoryBigInts[h];
-                      let matchOverlap = 0;
-                      let tempIntersect = intersect;
-                      while (tempIntersect > 0n) { 
-                        if (tempIntersect & 1n) matchOverlap++; 
-                        tempIntersect >>= 1n; 
-                      }
-                      if (matchOverlap >= overlapLimit) { 
-                        isOverlapLimit = true; 
-                        break; 
+    let intersect = currentMask & globalHistoryBigInts[h];
+    let matchOverlap = intersect.toString(2).split('1').length - 1;
+    
+    if (matchOverlap >= overlapLimit) {
+        isOverlapLimit = true;
+        break;
+    }
+}
+
                       }
                     }
                   }
@@ -602,14 +601,14 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                 totalScanned++; 
                 
                 // 539 異步串流進度實時透過 HTTP SSE 管道噴回手機前端
-                if (totalScanned % 150000 === 0) {
-                  let percent = Math.floor((totalScanned / 575757) * 100);
-                  res.write(JSON.stringify({ 
-                    isProgress: true, 
-                    percent: percent, 
-                    currentMatch: matchCount 
-                  }) + "\n");
-                }
+                if (totalScanned % 30000 === 0) {
+  let percent = Math.floor((totalScanned / 575757) * 100);
+  if (percent > 100) percent = 100;
+  res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+  // 🔑【終極自癒點】：打散同步迴圈，強制交還控制權給 Node.js，讓手機 WebView 有時間一格一格跑進度！
+  await new Promise(resolve => setImmediate(resolve));
+}
+
                 
               } // 閉合 i5 迴圈
             } // 閉合 i4 迴圈
