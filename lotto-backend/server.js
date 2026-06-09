@@ -700,8 +700,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  }
  }
  }
- }
-   }          
+ }         
  // =========================================================================
  // ➔ 【今彩 539 局部修復結束，原裝閉合閘門保留不變】
  // =========================================================================
@@ -1194,7 +1193,7 @@ else {
  
  res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
  res.end(); // 完美閉合超導路由 HTTP 串流
-        
+       }    
     } catch (err) {
         console.error("🚨 核心海選崩潰，啟動自癒防禦：", err.message);
         res.write(JSON.stringify({ success: false, message: "雲端大數據晶片過載：" + err.message }) + "\n");
