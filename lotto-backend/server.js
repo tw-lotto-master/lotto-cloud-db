@@ -461,10 +461,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     // 📥 修正 539 的 AC 基礎過濾線：539 常態 AC 值為 1~4，AC 必須 >= 1 (即 diffs.size - 4 >= 1)
         if ((diffs.size - 4) < 1) {
             isCombValid = false;
-        }{
-                                        isCombValid = false;
-                                    }
-                                }
+        }
 
                                 // 【條件 9】：鄰號夾擊防線控制 (100% 還原原廠鄰號落點顆數範圍) [INDEX: 0.1.31]
                                 if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
@@ -1157,10 +1154,6 @@ else {
                                 if (n6 <= 25) smartMaskLow |= (1 << n6); else smartMaskHigh |= (1 << (n6 - 25));
                                 vipValidPool.push(newComb);
                             }
-                        }
-                    }
-                }
-           }      
      // 📥 🏆 【大樂透 1,400 萬核心通道・終極封閉式點火器】
     // 採用最高權限主動式包裹，唯有當彩種百分之百為大樂透（49_6）時，才允許發動非同步切片對撞！
     if (lottoType === "49_6" || cfg.lottoType === "49_6") {
