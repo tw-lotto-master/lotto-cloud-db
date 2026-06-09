@@ -791,8 +791,9 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     }
     
     // ───【大樂透 49_6 原廠領地大口袋正式開啟】───
-    else {
-      if (!globalLotto49Matrix) { 
+   else {
+  try { // 🔑【就是這行指令與左大括號！】幫大樂透專區重新套上大口袋，對接最底部的安全氣囊！  
+    if (!globalLotto49Matrix) { 
         initLotto49Matrix(); 
       }
       
@@ -1321,9 +1322,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     }
     
    res.end(); // 完美閉合超導路由 HTTP 串流
-} // 🔑【就是這一個！】手動補上這顆右大括號，用來完整閉合大樂透前面漏掉的肚子！
-         
-
+ } // 這是用來閉合上面大樂透運算肚子裡漏掉的右大括號
+ } catch (err) { // 🔒【警報解除！】有了上游新補的 try，這行安全氣囊完全通電歸位！
     console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
     try {
       res.write(JSON.stringify({ 
@@ -1332,6 +1332,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
       }) + "\n");
       res.end();
     } catch (e) {}
+      }
+   }) 
  
 
 // =========================================================================
