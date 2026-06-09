@@ -375,7 +375,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     // =========================================================================
     // 【零件 8/25 完全體】：今彩 539 大海選起點與條件 1 至條件 4 獨立平行防線
     // =========================================================================
-    if (lottoType === "39_5") {
+    if (lottoType === "39_5" || cfg.lottoType === "39_5") {
       
       // 真實大海選點火：100% 完整遍歷 575,757 組今彩 539 大池，絕不偷懶截斷！
       lotto539OuterLoop:
@@ -606,13 +606,14 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
   if (percent > 100) percent = 100;
   res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
   // 🔑【終極自癒點】：打散同步迴圈，強制交還控制權給 Node.js，讓手機 WebView 有時間一格一格跑進度！
-  await new Promise(resolve => setImmediate(resolve));                
+  await new Promise(resolve => setImmediate(resolve)); 
+                  }
               } // 閉合 i5 迴圈
             } // 閉合 i4 迴圈
           } // 閉合 i3 迴圈
         } // 閉合 i2 迴圈
       } // 閉合 i1 迴圈 ➔ 539 大海選 5 層迴圈完美落幕！🎯
-      } 
+       
     // =========================================================================
     // 【零件 11/25 完全體】：今彩 539 生存池雙軌分流抽取與基因逆向合成晶片
     // =========================================================================
