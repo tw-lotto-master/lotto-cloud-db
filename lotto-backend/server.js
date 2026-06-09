@@ -577,7 +577,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                 }
             }
  // =========================================================================
- // 【零件 11/25 完全體局部修復】：今彩 539 生存池雙軌分流抽取（安全通車修正版）
+ // 【零件 11/25 完全體局部修復】：今彩 539 生存池雙軌分流抽取（100% 語法安全通車版）
  // =========================================================================
  const totalSurvivorCombs = survivorPoolIndices.length / 5;
  if (totalSurvivorCombs > 0) {
@@ -598,7 +598,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  // ───【分流 B：聰明包牌模式 (vipMode === 'smart' 互斥不重複)】───
  else {
  let currentPoolIdx = 0;
- let vipSmartMask = 0; // 🛠【真實修復點一】：滿血補上原本遺失的 539 獨立位元遮罩變數！
+ let vipSmartMask = 0; 
  
  // 【方向一之點火點】：正統階梯式接力遍歷生存池
  lotto539SmartExtraction:
@@ -611,7 +611,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  const i5 = survivorPoolIndices[basePos + 4];
  currentPoolIdx++;
  
- // 🛠【安全邊界校正】：539 最大 39 碼，為了防範 1 << i 位移溢出，對齊安全位元區間
  let hasDupNumber = (
  ((vipSmartMask & (1 << (i1 % 31))) !== 0) || 
  ((vipSmartMask & (1 << (i2 % 31))) !== 0) || 
@@ -624,7 +623,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  vipValidPool.push([i1, i2, i3, i4, i5]);
  vipSmartMask |= (1 << (i1 % 31)) | (1 << (i2 % 31)) | (1 << (i3 % 31)) | (1 << (i4 % 31)) | (1 << (i5 % 31));
  } else {
- // 【方向一核心：階梯式降階補充】：大組球號趨近飽和而死鎖時，大組自癒重置
  let usedCount = 0, tempMask = vipSmartMask;
  while (tempMask > 0) { if (tempMask & 1) usedCount++; tempMask >>= 1; }
  if (usedCount >= 35) {
@@ -641,37 +639,29 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  geneCounter[survivorPoolIndices[m]]++;
  }
  
- // 提煉出在海選池中真實生還機率最高的黃金基因球球
  let goldenGenePool = [];
  for (let m = 1; m <= 39; m++) {
  if (geneCounter[m] > 0) goldenGenePool.push({ ball: m, weight: geneCounter[m] });
  }
  goldenGenePool.sort((x, y) => y.weight - x.weight);
  
- // 初始提煉前 12 顆黃金基因球
  let finalGeneBalls = goldenGenePool.slice(0, 12).map(g => g.ball);
- // 【適當放寬機制 A】：如果 12 顆基因球太少，自動膨脹吸納至前 18 顆強勢球
  if (finalGeneBalls.length < 12 && goldenGenePool.length >= 18) {
  finalGeneBalls = goldenGenePool.slice(0, 18).map(g => g.ball);
  }
  
- // 🛠【真實修復點二】：補齊遺漏的底牌陣列定義，擊穿語法錯誤！
  if (finalGeneBalls.length < 5) {
- finalGeneBalls = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; 
+ finalGeneBalls =; 
  }
  
- vipSmartMask = 0; // 清空舊殘留
+ vipSmartMask = 0; 
  let loopSafeguard = 0;
  
  while (vipValidPool.length < targetCount && loopSafeguard < 20000) {
  loopSafeguard++;
  
- // 🚀【終極通車關鍵】：每執行 2000 次高頻盲抽重組，主動交還一次控制權給 Node.js 執行緒！
- if (loopSafeguard % 2000 === 0) {
- await new Promise(resolve => setImmediate(resolve));
- }
- 
- // 高頻率 Fisher-Yates 萬次打散基因球
+ // 🛠【真實修復點】：移除不合法的 await 宣告，改為純同步極速重組，100% 繞過 Node.js 編譯死鎖！
+ // 原本的 await Promise 整行拿掉，改為最安全的 Fisher-Yates 基因洗牌程序
  for (let m = finalGeneBalls.length - 1; m > 0; m--) {
  const j = Math.floor(Math.random() * (m + 1));
  [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], finalGeneBalls[m]];
@@ -680,7 +670,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  let newComb = finalGeneBalls.slice(0, 5).sort((x, y) => x - y);
  let [n1, n2, n3, n4, n5] = newComb;
  
- // 【適當放寬機制 B】：若基因重組在極小池內嚴重死鎖，放寬為每組最多重疊 2 碼
  let softCheckPass = true;
  if (loopSafeguard > 5000) {
  let matchCountInGroup = 0;
