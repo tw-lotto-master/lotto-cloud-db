@@ -1188,7 +1188,8 @@ else {
  res.end(); // 完美閉合超導路由 HTTP 串流
                      } 
                  } 
-               } 
+               }
+     }
     } catch (err) {
         console.error("🚨 核心海選崩潰，啟動自癒防禦：", err.message);
         res.write(JSON.stringify({ success: false, message: "雲端大數據晶片過載：" + err.message }) + "\n");
