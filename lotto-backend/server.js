@@ -607,7 +607,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
   res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
   // 🔑【終極自癒點】：打散同步迴圈，強制交還控制權給 Node.js，讓手機 WebView 有時間一格一格跑進度！
   await new Promise(resolve => setImmediate(resolve));
-}
+
 
                 
               } // 閉合 i5 迴圈
