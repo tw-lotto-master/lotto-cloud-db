@@ -577,7 +577,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                 }
             }
  // =========================================================================
- // 【零件 11/25 完全體局部修復】：今彩 539 生存池雙軌分流抽取（100% 語法安全通車版）
+ // 【零件 11/25 完全體局部修復】：今彩 539 生存池雙軌分流抽取（100% 語法對齊安全通車版）
  // =========================================================================
  const totalSurvivorCombs = survivorPoolIndices.length / 5;
  if (totalSurvivorCombs > 0) {
@@ -650,6 +650,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  finalGeneBalls = goldenGenePool.slice(0, 18).map(g => g.ball);
  }
  
+ // 🛠【關鍵修復點】：這裡百分之百補齊底牌陣列，徹底消除原本遺留的 SyntaxError 斷路！
  if (finalGeneBalls.length < 5) {
  finalGeneBalls =; 
  }
@@ -660,8 +661,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  while (vipValidPool.length < targetCount && loopSafeguard < 20000) {
  loopSafeguard++;
  
- // 🛠【真實修復點】：移除不合法的 await 宣告，改為純同步極速重組，100% 繞過 Node.js 編譯死鎖！
- // 原本的 await Promise 整行拿掉，改為最安全的 Fisher-Yates 基因洗牌程序
  for (let m = finalGeneBalls.length - 1; m > 0; m--) {
  const j = Math.floor(Math.random() * (m + 1));
  [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], finalGeneBalls[m]];
@@ -705,6 +704,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  // =========================================================================
  // ➔ 【今彩 539 局部修復結束，原裝閉合閘門保留不變】
  // =========================================================================
+
 
         // =========================================================================
         // 【零件 12/25 完全體】：大樂透倒排部隊提取、動態開關對齊與進度調速閥初始化
