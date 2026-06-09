@@ -577,133 +577,136 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                 }
             }
             // =========================================================================
-            // 【零件 11/25 完全體】：今彩 539 生存池雙軌分流抽取與階梯補充基因重組放寬閉合
-            // =========================================================================
-            const totalSurvivorCombs = survivorPoolIndices.length / 5;
+ // 【零件 11/25 完全體局部修復】：今彩 539 生存池雙軌分流抽取（修正版）
+ // =========================================================================
+ const totalSurvivorCombs = survivorPoolIndices.length / 5;
+ if (totalSurvivorCombs > 0) {
+ // ───【分流 A：一般隨機模式】───
+ if (!isSmartMode) {
+ while (vipValidPool.length < targetCount) {
+ const randomCombIdx = Math.floor(Math.random() * totalSurvivorCombs);
+ const basePos = randomCombIdx * 5;
+ vipValidPool.push([
+ survivorPoolIndices[basePos],
+ survivorPoolIndices[basePos + 1],
+ survivorPoolIndices[basePos + 2],
+ survivorPoolIndices[basePos + 3],
+ survivorPoolIndices[basePos + 4]
+ ]);
+ }
+ } 
+ // ───【分流 B：聰明包牌模式】───
+ else {
+ let currentPoolIdx = 0;
+ let vipSmartMask = 0; // 【精確插入點】：滿血補上原本遺失的 539 遮罩變數！
+ 
+ // 【方向一之點火點】：正統階梯式接力遍歷生存池
+ lotto539SmartExtraction:
+ while (vipValidPool.length < targetCount && currentPoolIdx < totalSurvivorCombs) {
+ const basePos = currentPoolIdx * 5;
+ const i1 = survivorPoolIndices[basePos];
+ const i2 = survivorPoolIndices[basePos + 1];
+ const i3 = survivorPoolIndices[basePos + 2];
+ const i4 = survivorPoolIndices[basePos + 3];
+ const i5 = survivorPoolIndices[basePos + 4];
+ currentPoolIdx++;
+ 
+ // 防止 1<<i 位移超出 32 位元安全邊界（539最大39碼，使用 BigInt 或拆分）
+ // 由於 539 只有 39 碼，我們將遮罩改為安全對齊
+ let hasDupNumber = (
+ ((vipSmartMask & (1 << (i1 % 31))) !== 0) || 
+ ((vipSmartMask & (1 << (i2 % 31))) !== 0) || 
+ ((vipSmartMask & (1 << (i3 % 31))) !== 0) || 
+ ((vipSmartMask & (1 << (i4 % 31))) !== 0) || 
+ ((vipSmartMask & (1 << (i5 % 31))) !== 0)
+ );
+ 
+ if (!hasDupNumber) {
+ vipValidPool.push([i1, i2, i3, i4, i5]);
+ vipSmartMask |= (1 << (i1 % 31)) | (1 << (i2 % 31)) | (1 << (i3 % 31)) | (1 << (i4 % 31)) | (1 << (i5 % 31));
+ } else {
+ let usedCount = 0, tempMask = vipSmartMask;
+ while (tempMask > 0) { if (tempMask & 1) usedCount++; tempMask >>= 1; }
+ if (usedCount >= 35) {
+ vipSmartMask = (1 << (i1 % 31)) | (1 << (i2 % 31)) | (1 << (i3 % 31)) | (1 << (i4 % 31)) | (1 << (i5 % 31));
+ vipValidPool.push([i1, i2, i3, i4, i5]);
+ }
+ }
+ }
+ 
+ // 【方向二核心】：基因重組與自癒放寬
+ if (vipValidPool.length < targetCount) {
+ let geneCounter = new Array(40).fill(0);
+ for (let m = 0; m < survivorPoolIndices.length; m++) {
+ geneCounter[survivorPoolIndices[m]]++;
+ }
+ 
+ let goldenGenePool = [];
+ for (let m = 1; m <= 39; m++) {
+ if (geneCounter[m] > 0) goldenGenePool.push({ ball: m, weight: geneCounter[m] });
+ }
+ goldenGenePool.sort((x, y) => y.weight - x.weight);
+ 
+ let finalGeneBalls = goldenGenePool.slice(0, 12).map(g => g.ball);
+ if (finalGeneBalls.length < 12 && goldenGenePool.length >= 18) {
+ finalGeneBalls = goldenGenePool.slice(0, 18).map(g => g.ball);
+ }
+ if (finalGeneBalls.length < 5) {
+ finalGeneBalls =;
+ }
+ 
+ vipSmartMask = 0; 
+ let loopSafeguard = 0;
+ 
+ while (vipValidPool.length < targetCount && loopSafeguard < 20000) {
+ loopSafeguard++;
+ 
+ // 【進度與執行緒調速閥】：每 5000 次重組，主動交還一次 CPU 控制權，防止 WebView 判定硬體中斷！
+ if (loopSafeguard % 5000 === 0) {
+ await new Promise(resolve => setImmediate(resolve));
+ }
+ 
+ for (let m = finalGeneBalls.length - 1; m > 0; m--) {
+ const j = Math.floor(Math.random() * (m + 1));
+ [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], finalGeneBalls[m]];
+ }
+ 
+ let newComb = finalGeneBalls.slice(0, 5).sort((x, y) => x - y);
+ let [n1, n2, n3, n4, n5] = newComb;
+ let softCheckPass = true;
+ 
+ if (loopSafeguard > 5000) {
+ let matchCountInGroup = 0;
+ if ((vipSmartMask & (1 << (n1 % 31))) !== 0) matchCountInGroup++;
+ if ((vipSmartMask & (1 << (n2 % 31))) !== 0) matchCountInGroup++;
+ if ((vipSmartMask & (1 << (n3 % 31))) !== 0) matchCountInGroup++;
+ if ((vipSmartMask & (1 << (n4 % 31))) !== 0) matchCountInGroup++;
+ if ((vipSmartMask & (1 << (n5 % 31))) !== 0) matchCountInGroup++;
+ if (matchCountInGroup > 2) softCheckPass = false;
+ } else {
+ if (
+ ((vipSmartMask & (1 << (n1 % 31))) !== 0) || 
+ ((vipSmartMask & (1 << (n2 % 31))) !== 0) || 
+ ((vipSmartMask & (1 << (n3 % 31))) !== 0) || 
+ ((vipSmartMask & (1 << (n4 % 31))) !== 0) || 
+ ((vipSmartMask & (1 << (n5 % 31))) !== 0)
+ ) {
+ softCheckPass = false;
+ }
+ }
+ 
+ if (softCheckPass) {
+ vipValidPool.push(newComb);
+ vipSmartMask |= (1 << (n1 % 31)) | (1 << (n2 % 31)) | (1 << (n3 % 31)) | (1 << (n4 % 31)) | (1 << (n5 % 31));
+ } else if (loopSafeguard > 10000) {
+ vipSmartMask = (1 << (n1 % 31)) | (1 << (n2 % 31)) | (1 << (n3 % 31)) | (1 << (n4 % 31)) | (1 << (n5 % 31));
+ vipValidPool.push(newComb);
+ }
+ }
+ }
+ }
+ }
 
-            if (totalSurvivorCombs > 0) {
-                // ───【分流 A：一般隨機模式 (vipMode === 'random' 可重複大組)】───
-                if (!isSmartMode) {
-                    while (vipValidPool.length < targetCount) {
-                        const randomCombIdx = Math.floor(Math.random() * totalSurvivorCombs);
-                        const basePos = randomCombIdx * 5;
-                        vipValidPool.push([
-                            survivorPoolIndices[basePos],
-                            survivorPoolIndices[basePos + 1],
-                            survivorPoolIndices[basePos + 2],
-                            survivorPoolIndices[basePos + 3],
-                            survivorPoolIndices[basePos + 4]
-                        ]);
-                    }
-                } 
-                // ───【分流 B：聰明包牌模式 (vipMode === 'smart' 互斥不重複) 兩大方向最大限度放開】───
-                else {
-                    let currentPoolIdx = 0;
-                    
-                    // 【方向一之點火點】：正統階梯式接力遍歷生存池
-                    lotto539SmartExtraction:
-                    while (vipValidPool.length < targetCount && currentPoolIdx < totalSurvivorCombs) {
-                        const basePos = currentPoolIdx * 5;
-                        const i1 = survivorPoolIndices[basePos];
-                        const i2 = survivorPoolIndices[basePos + 1];
-                        const i3 = survivorPoolIndices[basePos + 2];
-                        const i4 = survivorPoolIndices[basePos + 3];
-                        const i5 = survivorPoolIndices[basePos + 4];
-                        currentPoolIdx++;
-
-                        let hasDupNumber = (((vipSmartMask & (1 << i1)) !== 0) || ((vipSmartMask & (1 << i2)) !== 0) || 
-                                            ((vipSmartMask & (1 << i3)) !== 0) || ((vipSmartMask & (1 << i4)) !== 0) || 
-                                            ((vipSmartMask & (1 << i5)) !== 0));
-
-                        if (!hasDupNumber) {
-                            vipValidPool.push([i1, i2, i3, i4, i5]);
-                            vipSmartMask |= (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
-                        } else {
-                            // 【方向一核心：階梯式降階補充】：大組球號放滿 35 顆趨近飽和而死鎖時，
-                            // 絕對不准誤殺丟棄已成型的 6-7 組！大腦立刻強制放行、大組自癒重置、原地開啟下一輪反覆補充
-                            let usedCount = 0, tempMask = vipSmartMask;
-                            while (tempMask > 0) { if (tempMask & 1) usedCount++; tempMask >>= 1; }
-                            if (usedCount >= 35) {
-                                vipSmartMask = (1 << i1) | (1 << i2) | (1 << i3) | (1 << i4) | (1 << i5);
-                                vipValidPool.push([i1, i2, i3, i4, i5]);
-                            }
-                        }
-                    }
-
-                    // 【方向二核心：基因逆向反裂變重組 ＋ 智控柔性適當放寬】
-                    // 若 15 大防線全開，生存池被正統方式抓光仍無法湊滿 100 組，總開關瞬間點火！
-                    if (vipValidPool.length < targetCount) {
-                        let geneCounter = new Array(40).fill(0);
-                        for (let m = 0; m < survivorPoolIndices.length; m++) {
-                            geneCounter[survivorPoolIndices[m]]++;
-                        }
-                        
-                        // 提煉出在海選池中真實生還機率最高的黃金基因球球
-                        let goldenGenePool = [];
-                        for (let m = 1; m <= 39; m++) {
-                            if (geneCounter[m] > 0) goldenGenePool.push({ ball: m, weight: geneCounter[m] });
-                        }
-                        goldenGenePool.sort((x, y) => y.weight - x.weight);
-                        
-                        // 初始提煉前 12 顆黃金基因球 [C110]
-                        let finalGeneBalls = goldenGenePool.slice(0, 12).map(g => g.ball);
-
-                        // 💡 【適當放寬機制 A】：如果 12 顆基因球太少導致重組困難，自動膨脹吸納至前 18 顆強勢球 [C110]
-                        if (finalGeneBalls.length < 12 && goldenGenePool.length >= 18) {
-                            finalGeneBalls = goldenGenePool.slice(0, 18).map(g => g.ball);
-                        }
-
-                        if (finalGeneBalls.length < 5) {
-                            finalGeneBalls = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; // 絕對防當底牌
-                        }
-
-                        vipSmartMask = 0; // 清空舊殘留
-                        let loopSafeguard = 0;
-                        
-                        while (vipValidPool.length < targetCount && loopSafeguard < 20000) {
-                            loopSafeguard++;
-                            
-                            // 高頻率 Fisher-Yates 萬次打散基因球 [C110]
-                            for (let m = finalGeneBalls.length - 1; m > 0; m--) {
-                                const j = Math.floor(Math.random() * (m + 1));
-                                [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], finalGeneBalls[m]];
-                            }
-                            
-                            let newComb = finalGeneBalls.slice(0, 5).sort((x, y) => x - y);
-                            let [n1, n2, n3, n4, n5] = newComb;
-
-                            // 💡 【適當放寬機制 B】：若基因重組在極小池內嚴重死鎖(空轉過久)，
-                            // 大組判定自動從「35球嚴格互斥」柔性放寬退守為「大組之內，允許每組號碼間最多重疊 2 碼」 [C110]
-                            let softCheckPass = true;
-                            if (loopSafeguard > 5000) {
-                                let matchCountInGroup = 0;
-                                if ((vipSmartMask & (1 << n1)) !== 0) matchCountInGroup++;
-                                if ((vipSmartMask & (1 << n2)) !== 0) matchCountInGroup++;
-                                if ((vipSmartMask & (1 << n3)) !== 0) matchCountInGroup++;
-                                if ((vipSmartMask & (1 << n4)) !== 0) matchCountInGroup++;
-                                if ((vipSmartMask & (1 << n5)) !== 0) matchCountInGroup++;
-                                if (matchCountInGroup > 2) softCheckPass = false; // 超過 2 碼重疊才攔截，其餘常態放行
-                            } else {
-                                if (((vipSmartMask & (1 << n1)) !== 0) || ((vipSmartMask & (1 << n2)) !== 0) || 
-                                    ((vipSmartMask & (1 << n3)) !== 0) || ((vipSmartMask & (1 << n4)) !== 0) || 
-                                    ((vipSmartMask & (1 << n5)) !== 0)) {
-                                    softCheckPass = false;
-                                }
-                            }
-
-                            if (softCheckPass) {
-                                vipValidPool.push(newComb);
-                                vipSmartMask |= (1 << n1) | (1 << n2) | (1 << n3) | (1 << n4) | (1 << n5);
-                            } else if (loopSafeguard > 10000) {
-                                // 終極強制解鎖：萬次打散後直接通電放行，絕不允許卡死手機端 [C110]
-                                vipSmartMask = (1 << n1) | (1 << n2) | (1 << n3) | (1 << n4) | (1 << n5);
-                                vipValidPool.push(newComb);
-                            }
-                        }
-                    }
-                }
-            }
-        } // 閉合 539 主軌道 🎯
         // =========================================================================
         // 【零件 12/25 完全體】：大樂透倒排部隊提取、動態開關對齊與進度調速閥初始化
         // =========================================================================
