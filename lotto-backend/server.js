@@ -1186,7 +1186,6 @@ else {
  
  res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
  res.end(); // 完美閉合超導路由 HTTP 串流
-       } 
                      } 
                  } 
     } catch (err) {
