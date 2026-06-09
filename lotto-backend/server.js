@@ -652,7 +652,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  
  // 🛠【關鍵修復點】：這裡百分之百補齊底牌陣列，徹底消除原本遺留的 SyntaxError 斷路！
  if (finalGeneBalls.length < 5) {
- finalGeneBalls =; 
+ finalGeneBalls =[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; 
  }
  
  vipSmartMask = 0; 
