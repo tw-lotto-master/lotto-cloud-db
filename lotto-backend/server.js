@@ -1166,7 +1166,7 @@ else {
         await runSliceChunk(chunkSize * 2, chunkSize * 3);
         await runSliceChunk(chunkSize * 3, matrixLength);
     }
-
+}
 } // ⚙️ 🎯 【重要自癒錨點】：完美閉合大樂透主軌道最外層的 else 區塊！100% 阻斷 539 誤入！
 
 
@@ -1190,10 +1190,7 @@ else {
  res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
  res.end(); // 完美閉合超導路由 HTTP 串流
                      } 
-                 } 
-               
-     
-                
+                 }      
     } catch (err) {
         console.error("🚨 核心海選崩潰，啟動自癒防禦：", err.message);
         res.write(JSON.stringify({ success: false, message: "雲端大數據晶片過載：" + err.message }) + "\n");
