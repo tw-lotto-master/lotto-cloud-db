@@ -1214,7 +1214,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             
             // 基因球不足 6 顆時自動代入保險底牌，保證合成不崩潰
             if (finalGeneBalls.length < 6) {
-              finalGeneBalls =;
+              finalGeneBalls =[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
             }
             
             smartMaskLow = 0; 
