@@ -1321,6 +1321,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     }
     
     res.end(); // 完美閉合超導路由 HTTP 串流
+}
   } catch (err) {
     console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
     try {
@@ -1330,7 +1331,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
       }) + "\n");
       res.end();
     } catch (e) {}
-  }
+}
  }) // ➔ 完美關閉零件 7 開頭的 runVipLightEngine 大路由函式！🎯
 // =========================================================================
 // 【零件 23/25 完全體】：操盤手雲端收藏夾・已購包牌組合即時儲存接口
