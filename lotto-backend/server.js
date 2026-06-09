@@ -1320,9 +1320,10 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
       res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
     }
     
-    res.end(); // 完美閉合超導路由 HTTP 串流
+   res.end(); // 完美閉合超導路由 HTTP 串流
+} // 🔑【就是這一個！】手動補上這顆右大括號，用來完整閉合大樂透前面漏掉的肚子！
+         
 
-  } catch (err) {
     console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
     try {
       res.write(JSON.stringify({ 
@@ -1331,6 +1332,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
       }) + "\n");
       res.end();
     } catch (e) {}
+ 
 
 // =========================================================================
 // 【零件 23/25 完全體】：操盤手雲端收藏夾・已購包牌組合即時儲存接口
