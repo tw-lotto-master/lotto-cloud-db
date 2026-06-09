@@ -606,17 +606,12 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
   if (percent > 100) percent = 100;
   res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
   // 🔑【終極自癒點】：打散同步迴圈，強制交還控制權給 Node.js，讓手機 WebView 有時間一格一格跑進度！
-  await new Promise(resolve => setImmediate(resolve));
-
-
-                
+  await new Promise(resolve => setImmediate(resolve));                
               } // 閉合 i5 迴圈
             } // 閉合 i4 迴圈
           } // 閉合 i3 迴圈
         } // 閉合 i2 迴圈
       } 
-
-    } // 閉合 if (lottoType === "39_5")
     // =========================================================================
     // 【零件 11/25 完全體】：今彩 539 生存池雙軌分流抽取與基因逆向合成晶片
     // =========================================================================
