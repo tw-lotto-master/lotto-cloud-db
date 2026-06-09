@@ -1154,6 +1154,8 @@ else {
                                 if (n6 <= 25) smartMaskLow |= (1 << n6); else smartMaskHigh |= (1 << (n6 - 25));
                                 vipValidPool.push(newComb);
                             }
+                            }
+                        }
      // 📥 🏆 【大樂透 1,400 萬核心通道・終極封閉式點火器】
     // 採用最高權限主動式包裹，唯有當彩種百分之百為大樂透（49_6）時，才允許發動非同步切片對撞！
     if (lottoType === "49_6" || cfg.lottoType === "49_6") {
@@ -1188,9 +1190,9 @@ else {
  res.end(); // 完美閉合超導路由 HTTP 串流
                      } 
                  } 
-               }
-     }
-                }
+               
+     
+                
     } catch (err) {
         console.error("🚨 核心海選崩潰，啟動自癒防禦：", err.message);
         res.write(JSON.stringify({ success: false, message: "雲端大數據晶片過載：" + err.message }) + "\n");
