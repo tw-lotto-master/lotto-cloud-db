@@ -1321,7 +1321,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     }
     
     res.end(); // 完美閉合超導路由 HTTP 串流
-}
+
   } catch (err) {
     console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
     try {
