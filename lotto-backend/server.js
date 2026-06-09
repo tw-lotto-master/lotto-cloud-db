@@ -1293,7 +1293,16 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
           } // 閉合方向二 if
         } // 閉合分流 B else
       } // 閉合 totalSurvivorCombs > 0
-    } // 🔑【終極自癒關門錨點】：完美物理閉合第 12 零件開頭的大樂透 else 大口袋！
+        1296     } catch (err) {
+           console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
+           try {
+             res.write(JSON.stringify({ 
+               success: false, 
+               message: `後台引擎自癒阻斷：${err.message}` 
+             }) + "\n");
+             res.end();
+           } catch (e) {}
+         } // 🔑【大功告成！】安全氣囊完美在第 1296 行就位通電，保護大樂透專區！
     // =========================================================================
     // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
     // =========================================================================
@@ -1319,21 +1328,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         currentMatch: vipValidPool.length 
       }) + "\n");
       res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
-    }
+     }
+ 
+ res.end(); // 完美閉合超導路由 HTTP 串流
+ } // 🔒【第一道金鎖】：精確對應並完美閉合第 794 行最外層的大樂透 else { 大口袋！
+ } // 🔒【第二道金鎖】：大路由函式的最後自然閉合 (對應您的總 try 生命線)
+ }) // 🔒【第三道金鎖】：完美閉合第 309 行的 app.post 總防護罩大門！
+
     
-   res.end(); // 完美閉合超導路由 HTTP 串流
- } // 這是用來閉合上面大樂透運算肚子裡漏掉的右大括號
- } catch (err) { // 🔒【警報解除！】有了上游新補的 try，這行安全氣囊完全通電歸位！
-    console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
-    try {
-      res.write(JSON.stringify({ 
-        success: false, 
-        message: `後台引擎自癒阻斷：${err.message}` 
-      }) + "\n");
-      res.end();
-    } catch (e) {}
-      }
-   }) 
+  
  
 
 // =========================================================================
