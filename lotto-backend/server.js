@@ -562,7 +562,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                                     // 這樣能將有效組合的原始完整度完美留存，徹底消滅隨機打散指針中的無效空洞
                                     survivorPoolIndices.push(i1, i2, i3, i4, i5);
                                 }
-
+                                    
+                                totalScanned++; // 🔑【就是這行！】讓 539 的總掃描數真正跑起來！
                                 // 539 異步串流進度每 15 萬組實時透過 HTTP SSE 管道噴回手機前端 [INDEX: 0.1.44]
                                 if (totalScanned % 150000 === 0) {
                                     let percent = Math.floor((totalScanned / 575757) * 100);
@@ -967,13 +968,25 @@ else {
 
                     // ───【世紀生路：大樂透海選池真實計數與生存精銳索引光速抄底】───
                     if (isCombValid) {
-                        matchCount++; // 100% 真實海選大池計數，全沒勾選時此處固定精準累積！ 🟢
-
-                        // 💡 降維打擊關鍵：不在此處動態做不重複包牌抽取！而是把大樂透生還者唯一的 matrixId (整數索引)
-                        // 直接塞進連續小桶子中，這樣能將有效組合的原始完整度完美留存，徹底消滅隨機打散指針中的無效空洞
-                        survivorPoolIndices.push(matrixId);
-                    }
-                } // 閉合單個 Chunk 的 for 迴圈 🎯
+       matchCount++; 
+       survivorPoolIndices.push(matrixId);
+     }
+     
+     // 🔑【核心對齊點一】：在大樂透迴圈內部讓計數器高頻遞增
+     totalScanned++; 
+     
+     // 🔑【核心對齊點二】：把進度通訊與時間切片全部搬回 for 迴圈內（每 20 萬組安全發送一次）
+     if (totalScanned % 200000 === 0) {
+       let percent = Math.floor((totalScanned / matrixLength) * 100);
+       if (percent > 100) percent = 100;
+       if (percent !== lastReportedPercent) {
+         res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+         lastReportedPercent = percent;
+       }
+       // 【時間切片】：搬回迴圈內部，阻斷 App 斷線與當機
+       await new Promise(resolve => setImmediate(resolve));
+     }
+   } // 閉合單個 Chunk 的 for 迴圈 🎯（這顆原裝的關門括號挪到最下面）
 
                 // 🚀 【進度調速閥防線】：精確計算當前百分比，防止手機底層緩衝區黏包卡 0%
                 let percent = Math.floor((totalScanned / matrixLength) * 100);
