@@ -1303,47 +1303,42 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
           } // 閉合方向二 if
         } // 閉合分流 B else
       } // 閉合 totalSurvivorCombs > 0
-             } catch (err) {
-           console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
-           try {
-             res.write(JSON.stringify({ 
-               success: false, 
-               message: `後台引擎自癒阻斷：${err.message}` 
-             }) + "\n");
-             res.end();
-           } catch (e) {}
-         } // 🔑【大功告成！】安全氣囊完美在第 1296 行就位通電，保護大樂透專區！
-    // =========================================================================
-    // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
-    // =========================================================================
-    if (vipValidPool.length === 0) {
-      res.write(JSON.stringify({ 
-        success: false, 
-        message: "符合防線有效組合為 0 組，請放寬過濾標準！" 
-      }) + "\n");
-    } else {
-      let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
-      let outputText = `【VIP篩選完成】符合大樂透防線總組數：` +
-        `${survivorPoolIndices.length} 組\n【本次輸出模式】${mName}\n【本次輸出】` +
-        `精選出 ${vipValidPool.length} 組\n-------------------------\n`;
-        
-      vipValidPool.forEach((comb, idx) => {
-        outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：` +
-          `${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-      });
-      
-      res.write(JSON.stringify({ 
-        isProgress: true, 
-        percent: 100, 
-        currentMatch: vipValidPool.length 
-      }) + "\n");
-      res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
+                 // =========================================================================
+     // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
+     // =========================================================================
+     if (vipValidPool.length === 0) {
+       res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
+     } else {
+       let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
+       let outputText = `【VIP篩選完成】符合大樂透防線總組數：${survivorPoolIndices.length} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+       
+       vipValidPool.forEach((comb, idx) => {
+         outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
+       });
+       
+       res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: vipValidPool.length }) + "\n");
+       res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
      }
+     res.end(); // 完美閉合超導路由 HTTP 串流
+
+   } catch (err) {
+     // 大樂透核心海選大口袋 try 的精密自癒防禦門
+     console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
+     try {
+       res.write(JSON.stringify({ success: false, message: `後台引擎自癒阻斷：${err.message}` }) + "\n");
+       res.end();
+     } catch (e) {}
+   }
+
+ } // 【第一道金鎖】：完美閉合第 14 頁原廠領地最外層的大樂透 else 大口袋！ 🔒
  
- res.end(); // 完美閉合超導路由 HTTP 串流
- } // 🔒【第一道金鎖】：精確對應並完美閉合第 794 行最外層的大樂透 else { 大口袋！
- } // 🔒【第二道金鎖】：大路由函式的最後自然閉合 (對應您的總 try 生命線)
-) // 🔒【第三道金鎖】：完美閉合第 309 行的 app.post 總防護罩大門！
+} catch (globalErr) {
+ // 覆蓋全路由的最高生命線安全氣囊
+ console.error(" 全局路由異常：", globalErr.message);
+ try { res.end(); } catch(e){}
+}
+}); // 【第 309 行總防護罩】：精確對齊並關閉 app.post('/api/lottery/generate-vip-turbo') 大門！ 🔒
+
 
     
   
