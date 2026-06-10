@@ -1077,7 +1077,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         }
         
         if (totalScanned < matrixLength) {
-          await new Promise(resolve => setImmediate(resolve));
+          await new Promise(resolve => setImmediate(resolve)));
         }
       } // 完美閉合 async function runSliceChunk 函式大門！🔒 🎯
       
