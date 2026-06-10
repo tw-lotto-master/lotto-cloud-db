@@ -1303,7 +1303,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
           } // 閉合方向二 if
         } // 閉合分流 B else
       } // 閉合 totalSurvivorCombs > 0
-        1296     } catch (err) {
+             } catch (err) {
            console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
            try {
              res.write(JSON.stringify({ 
