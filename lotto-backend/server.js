@@ -580,7 +580,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
          }
          
          if (finalGeneBalls.length < 5) {
-           finalGeneBalls =;
+           finalGeneBalls =[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
          }
          
          vipSmartMask = 0; 
