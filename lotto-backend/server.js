@@ -705,7 +705,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
           
           // 絕對防當保險底牌 (100% 轉義還原補正，等號右側完美就位)
           if (finalGeneBalls.length < 5) {
-            finalGeneBalls =;
+            finalGeneBalls =Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
           }
           
           vipSmartMask = 0; 
