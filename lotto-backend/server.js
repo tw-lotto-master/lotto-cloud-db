@@ -168,7 +168,7 @@ function initLotto49Matrix() {
 
              // 【部隊 11】：大小數比例常態合格預存
              let highCount = 0;
-             if (i1 >= 25 highCount++; if (i2 >= 25) highCount++;
+             if (i1 >= 25) highCount++; if (i2 >= 25) highCount++;
              if (i3 >= 25) highCount++; if (i4 >= 25) highCount++;
              if (i5 >= 25) highCount++; if (i6 >= 25) highCount++;
              if (highCount !== 6 && highCount !== 0 && highCount !== 5 && highCount !== 1) {
