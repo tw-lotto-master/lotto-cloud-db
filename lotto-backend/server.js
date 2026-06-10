@@ -311,6 +311,12 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('Access-Control-Allow-Origin', '*');
+
+  // ===【加入此段：核心變數外掛化，擊穿大口袋作用域】===
+ let totalScanned = 0;
+ let matchCount = 0;
+ let lastReportedPercent = -1;
+ let vipValidPool = [];
   
   try {
     const { cfg, globalHistoryDB } = req.body;
@@ -359,11 +365,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         }
       });
     }
-    
-    let vipValidPool = [];
-    let totalScanned = 0;
-    let matchCount = 0;
-    let lastReportedPercent = -1;
     
     // 聰明包牌的雙軌遮罩鎖初始化
     let smartMaskLow = 0;
@@ -596,17 +597,20 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                   survivorPoolIndices.push(i1, i2, i3, i4, i5);
                 }
                 
-                // 🔑【539 計數發送增壓晶片】：高頻精確遞增總掃描數
-                totalScanned++; 
-                
-                // 539 異步串流進度實時透過 HTTP SSE 管道噴回手機前端
-                if (totalScanned % 30000 === 0) {
-  let percent = Math.floor((totalScanned / 575757) * 100);
-  if (percent > 100) percent = 100;
-  res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-  // 🔑【終極自癒點】：打散同步迴圈，強制交還控制權給 Node.js，讓手機 WebView 有時間一格一格跑進度！
-  await new Promise(resolve => setImmediate(resolve)); 
-                  }
+                 // ===【加入此段：539 智控非同步調速閥，解鎖強烈同步鎖死】===
+ totalScanned++; 
+ if (totalScanned % 10000 === 0) {
+ let percent = Math.min(100, Math.floor((totalScanned / 575757) * 100));
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: percent, 
+ currentMatch: matchCount 
+ }) + "\n");
+ // 強制交還事件循環控制權，讓 Node.js 有時間向前端噴射串流
+ await new Promise(resolve => setTimeout(resolve, 1));
+ }
+ // =========================================================
+
                           } // 🔒【精確對應 i5 迴圈關門！】
       } // 🔒【精確對應 i4 迴圈關門！】
     } // 🔒【精確對應 i3 迴圈關門！】
@@ -1046,24 +1050,23 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             survivorPoolIndices.push(matrixId);
           }
           
-          // 🔑【大樂透計數器歸位】：在迴圈內部高頻即時遞增掃描總數
-          totalScanned++; 
-          
-          // 🔑【大樂透進度發送歸位】：把進度通訊與時間切片移回迴圈內部，打破卡0%
-          if (totalScanned % 200000 === 0) {
-            let percent = Math.floor((totalScanned / matrixLength) * 100);
-            if (percent > 100) percent = 100;
-            if (percent !== lastReportedPercent) {
-              res.write(JSON.stringify({ 
-                isProgress: true, 
-                percent: percent, 
-                currentMatch: matchCount 
-              }) + "\n");
-              lastReportedPercent = percent;
-            }
-            // 【時間切片】：交還執行緒控制權，阻斷 WebView 判定網路硬件中斷
-            await new Promise(resolve => setImmediate(resolve));
-          }
+          // ===【加入此段：大樂透物理總量解鎖，切片通訊非同步化】===
+ totalScanned++; 
+ if (totalScanned % 150000 === 0) {
+ let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
+ if (percent !== lastReportedPercent) {
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: percent, 
+ currentMatch: matchCount 
+ }) + "\n");
+ lastReportedPercent = percent;
+ }
+ // 給予執行緒 1 毫秒物理喘息，徹底打破大口袋導致的串流阻斷
+ await new Promise(resolve => setTimeout(resolve, 1));
+ }
+ // =========================================================
+
           
         } // 完美閉合單個 Chunk 的 for 迴圈大門！🎯
         // =========================================================================
@@ -1094,6 +1097,13 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         await runSliceChunk(chunkSize, chunkSize * 2);
         await runSliceChunk(chunkSize * 2, chunkSize * 3);
         await runSliceChunk(chunkSize * 3, matrixLength);
+        if (lottoType === "49_6" || cfg.lottoType === "49_6") {
+ totalScanned = 13983816;
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: 100, 
+ currentMatch: matchCount 
+ }) + "\n");
       }
       // =========================================================================
       // 【零件 18/25 完全體】：大樂透生還池數量判定與分流 A 一般隨機抽取
