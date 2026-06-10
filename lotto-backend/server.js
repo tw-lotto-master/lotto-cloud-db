@@ -1321,7 +1321,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
      }
      res.end(); // 完美閉合超導路由 HTTP 串流
 
-    catch (err) {
+   } catch (err)
      // 大樂透核心海選大口袋 try 的精密自癒防禦門
      console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
      try {
