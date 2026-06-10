@@ -7,7 +7,6 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const app = express();
-
 // 擊穿行動端 WebView 跨域安全鎖，滿血還原您原廠 WebView 跨平台對接設定
 app.use(cors({ 
   origin: '*', 
@@ -16,12 +15,11 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '100mb' })); 
 app.use(express.urlencoded({ limit: '100mb', extended: true }));
-
 // 全局高時脈靜態大數據內存緩衝區（超高時脈無 GC 負擔，防內存暴漲設計）
 let globalLotto49Matrix = null;
 let globalLotto49Indices = null; 
-
-// 【世紀換骨戰略】：後台五大死條件獨立預存營隊 (倒排索引) 🚀
+�
+� // 【世紀換骨戰略】：後台五大死條件獨立預存營隊 (倒排索引) 
 // 【部隊15】：6萬歷史資料庫「自體裂變去重」精銳地雷庫 (0代表地雷, 1代表安全)
 let globalLotto49HistoryMask = null; 
 // 【部隊8】：數字組構 (AC值 >= 4) 的獨立預存安全營隊 (1代表符合, 0代表不符)
@@ -42,7 +40,6 @@ const UserSchema = new mongoose.Schema({
   isPaidMember: { type: Boolean, default: false },
   savedTickets: { type: mongoose.Schema.Types.Mixed, default: [] }
 }, { strict: false, timestamps: true });
-
 // 雙層自癒保險：防止在熱重載(Hot Reload)時發生模型重複編譯崩潰
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 // =========================================================================
@@ -65,7 +62,6 @@ app.post('/api/auth/register', async (req, res) => {
     }); 
   }
 });
-
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -91,7 +87,6 @@ app.post('/api/auth/login', async (req, res) => {
     res.status(500).json({ success: false, message: '登入驗證異常' }); 
   }
 });
-
 app.post('/api/auth/google-sync', async (req, res) => {
   try {
     const { username, googleId } = req.body;
@@ -104,7 +99,8 @@ app.post('/api/auth/google-sync', async (req, res) => {
     let user = await User.findOne({ googleId });
     if (!user) {
       user = new User({ 
-        username: username || `Google操盤手_${Math.floor(1000 + Math.random() * 9000)}`, 
+        username: username || `Google操盤手_${Math.floor(1000 + Math.random() * 
+9000)}`, 
         googleId: googleId, 
         isPaidMember: false, 
         savedTickets: [] 
@@ -240,14 +236,15 @@ function initLotto49Matrix() {
     globalLotto49Indices[j] = temp;
   }
   console.log(" 大樂透指針大洗牌完成，四大死條件部隊預編完畢！");
-} // ➔ 完美關閉零件 4 開頭的 initLotto49Matrix 函式
+➔ } //  完美關閉零件 4 開頭的 initLotto49Matrix 函式
 // =========================================================================
 // 【零件 6/25 完全體】：部隊 15 歷史大數據分子級自體裂變去重背景晶片
 // =========================================================================
 // 本函式可由開機自動驅動，亦可由接收到台彩最新開獎庫更新時在背景被動點火
 app.set('initHistory裂變去重', function(historyDB) {
   if (!globalLotto49HistoryMask) return;
-  console.log(` 歷史資料庫大閱兵：偵測到 ${historyDB.length} 筆原始獎號，正在進行自體裂變去重...`);
+  console.log(` 歷史資料庫大閱兵：偵測到 ${historyDB.length} 筆原始獎號，正在進行自體裂
+變去重...`);
   
   // 100% 先行還原：每次重算前將遮罩全面洗回 1 (安全)，確保更新歷史時數據不打結
   globalLotto49HistoryMask.fill(1);
@@ -262,7 +259,8 @@ app.set('initHistory裂變去重', function(historyDB) {
     // 裂變 A：6 碼全中地雷 (每期 1 組)
     uniqueGeiLeiCombs.add(nums.join(','));
     
-    // 裂變 B：剛好重疊 5 碼地雷 (從 6 碼挑 5 碼有 6 種挑法，每挑法配外面 43 顆球，共 258 組)
+    // 裂變 B：剛好重疊 5 碼地雷 (從 6 碼挑 5 碼有 6 種挑法，每挑法配外面 43 顆球，共 
+258 組)
     for (let i = 0; i < 6; i++) {
       let sub5 = nums.filter((_, idx) => idx !== i);
       for (let ball = 1; ball <= 49; ball++) {
@@ -273,7 +271,8 @@ app.set('initHistory裂變去重', function(historyDB) {
     }
   });
   
-  console.log(` 歷史大軍自體裂變去重完畢！共繁衍出 ${uniqueGeiLeiCombs.size} 組精英唯一地雷。`);
+  console.log(` 歷史大軍自體裂變去重完畢！共繁衍出 ${uniqueGeiLeiCombs.size} 組精英唯一
+地雷。`);
   console.log(" 正在將精英地雷庫映射入 13.9MB 後台預存緩衝區中...");
   
   // 遍歷 1398 萬組一維通道，進行晶片級靜態點名，不符合歷史地雷的位址通通打成 0
@@ -298,7 +297,6 @@ app.set('initHistory裂變去重', function(historyDB) {
   uniqueGeiLeiCombs.clear(); // 算完立刻釋放記憶體，確保 Render 512MB 絕對不爆倉
   console.log(" 【部隊 15：歷史地雷精英庫】已完美在後台暫時休息，等候集結！");
 });
-
 // 服務器點火 1 秒鐘後自動驅動鋪設大數據大腦
 setTimeout(() => {
   initLotto49Matrix();
@@ -311,6 +309,11 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
   res.setHeader('Access-Control-Allow-Origin', '*');
+  // ===【加入此段：核心變數外掛化，擊穿大口袋作用域】===
+ let totalScanned = 0;
+ let matchCount = 0;
+ let lastReportedPercent = -1;
+ let vipValidPool = [];
   
   try {
     const { cfg, globalHistoryDB } = req.body;
@@ -360,11 +363,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
       });
     }
     
-    let vipValidPool = [];
-    let totalScanned = 0;
-    let matchCount = 0;
-    let lastReportedPercent = -1;
-    
     // 聰明包牌的雙軌遮罩鎖初始化
     let smartMaskLow = 0;
     let smartMaskHigh = 0;
@@ -388,7 +386,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                 let comb = [i1, i2, i3, i4, i5];
                 let isCombValid = true; // 539 本組號碼的大海選生還指標
                 
-                // ───【539 條件 1 至條件 4 完全獨立平行閘門（全沒勾選時 100% 放行）】───
+                // ───【539 條件 1 至條件 4 完全獨立平行閘門（全沒勾選時 100% 放行）
+】───
                 
                 // 【條件 1】：排除特定地雷號碼 (組合內含地雷球則淘汰)
                 if (cfg.f1_on) {
@@ -434,7 +433,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     isCombValid = false;
                   }
                 }
-                // ───【539 條件 5 至條件 9 完全獨立平行閘門（全沒勾選時 100% 放行）】───
+                // ───【539 條件 5 至條件 9 完全獨立平行閘門（全沒勾選時 100% 放行）
+】───
                 
                 // 【條件 5】：奇偶比例動態防禦牆
                 if (isCombValid && cfg.f5_on) {
@@ -498,13 +498,15 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                     isCombValid = false;
                   }
                 }
-                // ───【539 條件 10 至條件 13 完全獨立平行閘門（全沒勾選時 100% 放行）】───
+                // ───【539 條件 10 至條件 13 完全獨立平行閘門（全沒勾選時 100% 放
+行）】───
                 
                 // 【條件 10】：上期獎號連莊封殺牆
                 if (isCombValid && cfg.f10_on && cfg.lastPeriod && 
                     cfg.lastPeriod.length > 0) {
                   let repeatCount = 0;
-                  comb.forEach(num => { if (cfg.lastPeriod.includes(num)) repeatCount++; });
+                  comb.forEach(num => { if (cfg.lastPeriod.includes(num)) 
+repeatCount++; });
                   if (repeatCount > (cfg.f10_max || 2)) {
                     isCombValid = false;
                   }
@@ -548,7 +550,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                   }
                 }
                 
-                // ───【539 條件 14 至條件 15 完全獨立平行閘門（全沒勾選時 100% 放行）】───
+                // ───【539 條件 14 至條件 15 完全獨立平行閘門（全沒勾選時 100% 放
+行）】───
                 
                 // 【條件 14】：質數/合數比例過濾 (位元遮罩極速處理)
                 if (isCombValid && cfg.f14_on && cfg.f14_kill) {
@@ -582,7 +585,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         break;
     }
 }
-
                       }
                     }
                   
@@ -596,28 +598,34 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
                   survivorPoolIndices.push(i1, i2, i3, i4, i5);
                 }
                 
-                // 🔑【539 計數發送增壓晶片】：高頻精確遞增總掃描數
-                totalScanned++; 
-                
-                // 539 異步串流進度實時透過 HTTP SSE 管道噴回手機前端
-                if (totalScanned % 30000 === 0) {
-  let percent = Math.floor((totalScanned / 575757) * 100);
-  if (percent > 100) percent = 100;
-  res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-  // 🔑【終極自癒點】：打散同步迴圈，強制交還控制權給 Node.js，讓手機 WebView 有時間一格一格跑進度！
-  await new Promise(resolve => setImmediate(resolve)); 
-                  }
-                          } // 🔒【精確對應 i5 迴圈關門！】
-      } // 🔒【精確對應 i4 迴圈關門！】
-    } // 🔒【精確對應 i3 迴圈關門！】
-  } // 🔒【精確對應 i2 迴圈關門！】
-} // 🔒【精確對應 382 行 i1 迴圈關門！】➔ 539 海選 5 層迴圈流暢落幕！🎯
-} // 🔒【這顆大括號】精確關閉第 382 行的上游 if (lottoType === "39_5") 條件判定！
-   } catch (err) { // 🔑【就是這行指令！】完美收尾 315 行的 try 口袋，當場擊穿 Missing catch 錯誤！
+                 // ===【加入此段：539 智控非同步調速閥，解鎖強烈同步鎖死】===
+ totalScanned++; 
+ if (totalScanned % 10000 === 0) {
+ let percent = Math.min(100, Math.floor((totalScanned / 575757) * 100));
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: percent, 
+ currentMatch: matchCount 
+ }) + "\n");
+ // 強制交還事件循環控制權，讓 Node.js 有時間向前端噴射串流
+ await new Promise(resolve => setTimeout(resolve, 1));
+ }
+ // =========================================================
+🔒                          } // 【精確對應 i5 迴圈關門！】
+�
+�      } // 【精確對應 i4 迴圈關門！】
+�
+�    } // 【精確對應 i3 迴圈關門！】
+�
+�  } // 【精確對應 i2 迴圈關門！】
+➔ 🔒 🎯 } // 【精確對應 382 行 i1 迴圈關門！】 539 海選 5 層迴圈流暢落幕！
+�
+� } // 【這顆大括號】精確關閉第 382 行的上游 if (lottoType === "39_5") 條件判定！
+�
+�   } catch (err) { // 【就是這行指令！】完美收尾 315 行的 try 口袋，當場擊穿 Missing 
+catch 錯誤！
     console.error(" 539海選分流內部異常：", err.message);
   }
-
-
     // =========================================================================
     // 【零件 11/25 完全體】：今彩 539 生存池雙軌分流抽取與基因逆向合成晶片
     // =========================================================================
@@ -643,11 +651,12 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         // ───【分流 B：聰明包牌模式 (vipMode === 'smart' 互斥不重複)】───
         else {
           let currentPoolIdx = 0;
-          let vipSmartMask = 0; // 🔑【滿血對齊點】：539 獨立位元遮罩變數
+🔑          let vipSmartMask = 0; // 【滿血對齊點】：539 獨立位元遮罩變數
           
           // 【方向一】：正統階梯式接力遍歷 539 生存池
           lotto539SmartExtraction:
-          while (vipValidPool.length < targetCount && currentPoolIdx < totalSurvivorCombs) {
+          while (vipValidPool.length < targetCount && currentPoolIdx < 
+totalSurvivorCombs) {
             const basePos = currentPoolIdx * 5;
             const i1 = survivorPoolIndices[basePos];
             const i2 = survivorPoolIndices[basePos + 1];
@@ -712,7 +721,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
               
               for (let m = finalGeneBalls.length - 1; m > 0; m--) {
                 const j = Math.floor(Math.random() * (m + 1));
-                [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], finalGeneBalls[m]];
+                [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], 
+finalGeneBalls[m]];
               }
               
               let newComb = finalGeneBalls.slice(0, 5).sort((x, y) => x - y);
@@ -792,7 +802,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     
     // ───【大樂透 49_6 原廠領地大口袋正式開啟】───
    else {
-  try { // 🔑【就是這行指令與左大括號！】幫大樂透專區重新套上大口袋，對接最底部的安全氣囊！  
+🔑  try { // 【就是這行指令與左大括號！】幫大樂透專區重新套上大口袋，對接最底部的安全氣
+囊！  
     if (!globalLotto49Matrix) { 
         initLotto49Matrix(); 
       }
@@ -814,10 +825,13 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
       // 根據玩家「當下有勾選的防線」動態編譯出後台部隊的點名核對遮罩
       let activeFilterBits = 0; 
       let requiredFeatureMask = 0; 
-      if (cfg.f8_on) { activeFilterBits |= (1 << 0); requiredFeatureMask |= (1 << 0); } 
-      if (cfg.f11_on) { activeFilterBits |= (1 << 1); requiredFeatureMask |= (1 << 1); } 
-      if (cfg.f12_on) { activeFilterBits |= (1 << 2); requiredFeatureMask |= (1 << 2); } 
-      if (cfg.f14_on) { activeFilterBits |= (1 << 3); requiredFeatureMask |= (1 << 3); } 
+      if (cfg.f8_on) { activeFilterBits |= (1 << 0); requiredFeatureMask |= (1 << 0); }
+      if (cfg.f11_on) { activeFilterBits |= (1 << 1); requiredFeatureMask |= (1 << 1); 
+} 
+      if (cfg.f12_on) { activeFilterBits |= (1 << 2); requiredFeatureMask |= (1 << 2); 
+} 
+      if (cfg.f14_on) { activeFilterBits |= (1 << 3); requiredFeatureMask |= (1 << 3); 
+} 
       
       const checkHistoryGeiLei = (cfg.f15_on === true || cfg.f15_on === 'true'); 
       let lastReportedPercent = -1;
@@ -1046,26 +1060,25 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             survivorPoolIndices.push(matrixId);
           }
           
-          // 🔑【大樂透計數器歸位】：在迴圈內部高頻即時遞增掃描總數
-          totalScanned++; 
+          // ===【加入此段：大樂透物理總量解鎖，切片通訊非同步化】===
+ totalScanned++; 
+ if (totalScanned % 150000 === 0) {
+ let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
+ if (percent !== lastReportedPercent) {
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: percent, 
+ currentMatch: matchCount 
+ }) + "\n");
+ lastReportedPercent = percent;
+ }
+ // 給予執行緒 1 毫秒物理喘息，徹底打破大口袋導致的串流阻斷
+ await new Promise(resolve => setTimeout(resolve, 1));
+ }
+ // =========================================================
           
-          // 🔑【大樂透進度發送歸位】：把進度通訊與時間切片移回迴圈內部，打破卡0%
-          if (totalScanned % 200000 === 0) {
-            let percent = Math.floor((totalScanned / matrixLength) * 100);
-            if (percent > 100) percent = 100;
-            if (percent !== lastReportedPercent) {
-              res.write(JSON.stringify({ 
-                isProgress: true, 
-                percent: percent, 
-                currentMatch: matchCount 
-              }) + "\n");
-              lastReportedPercent = percent;
-            }
-            // 【時間切片】：交還執行緒控制權，阻斷 WebView 判定網路硬件中斷
-            await new Promise(resolve => setImmediate(resolve));
-          }
-          
-        } // 完美閉合單個 Chunk 的 for 迴圈大門！🎯
+�
+�        } // 完美閉合單個 Chunk 的 for 迴圈大門！
         // =========================================================================
         // 【零件 17/25 完全體】：大樂透切片函式完全閉合與四大分片超導對撞點火器
         // =========================================================================
@@ -1084,16 +1097,23 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
         if (totalScanned < matrixLength) {
           await new Promise(resolve => setImmediate(resolve));
         }
-      } // ➔ 完美閉合 async function runSliceChunk 函式大門！🎯
+➔ 🎯      } //  完美閉合 async function runSliceChunk 函式大門！
       
       // 【大樂透 1,400 萬核心通道・終極封閉式點火器】
       // 唯有當彩種百分之百為大樂透（49_6）時，才允許發動非同步切片對撞！
       if (lottoType === "49_6" || cfg.lottoType === "49_6") {
-        console.log(" 【大樂透超導分流】：1,400 萬組一維核心矩陣切片開始對撞！ 📡");
+📡        console.log(" 【大樂透超導分流】：1,400 萬組一維核心矩陣切片開始對撞！ ");
         await runSliceChunk(0, chunkSize);
         await runSliceChunk(chunkSize, chunkSize * 2);
         await runSliceChunk(chunkSize * 2, chunkSize * 3);
         await runSliceChunk(chunkSize * 3, matrixLength);
+        if (lottoType === "49_6" || cfg.lottoType === "49_6") {
+ totalScanned = 13983816;
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: 100, 
+ currentMatch: matchCount 
+ }) + "\n");
       }
       // =========================================================================
       // 【零件 18/25 完全體】：大樂透生還池數量判定與分流 A 一般隨機抽取
@@ -1124,7 +1144,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
           
           // 【方向一之點火點】：正統階梯式接力遍歷生存池
           lotto49SmartExtraction:
-          while (vipValidPool.length < targetCount && currentPoolIdx < totalSurvivorCombs) {
+          while (vipValidPool.length < targetCount && currentPoolIdx < 
+totalSurvivorCombs) {
             const matrixId = survivorPoolIndices[currentPoolIdx];
             currentPoolIdx++;
             const bytePos = matrixId * 6;
@@ -1134,26 +1155,34 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             const i4 = globalLotto49Matrix[bytePos + 3];
             const i5 = globalLotto49Matrix[bytePos + 4];
             const i6 = globalLotto49Matrix[bytePos + 5];
-            // =========================================================================
+            // 
+=========================================================================
             // 【零件 19/25 完全體】：大樂透雙軌遮罩互斥核對與方向一階梯式自癒降階
-            // =========================================================================
+            // 
+=========================================================================
             let hasDupNumber = false;
-            if (i1 <= 25) { if ((smartMaskLow & (1 << i1)) !== 0) hasDupNumber = true; } 
+            if (i1 <= 25) { if ((smartMaskLow & (1 << i1)) !== 0) hasDupNumber = true; 
+} 
             else { if ((smartMaskHigh & (1 << (i1 - 25))) !== 0) hasDupNumber = true; }
             
-            if (i2 <= 25) { if ((smartMaskLow & (1 << i2)) !== 0) hasDupNumber = true; } 
+            if (i2 <= 25) { if ((smartMaskLow & (1 << i2)) !== 0) hasDupNumber = true; 
+} 
             else { if ((smartMaskHigh & (1 << (i2 - 25))) !== 0) hasDupNumber = true; }
             
-            if (i3 <= 25) { if ((smartMaskLow & (1 << i3)) !== 0) hasDupNumber = true; } 
+            if (i3 <= 25) { if ((smartMaskLow & (1 << i3)) !== 0) hasDupNumber = true; 
+} 
             else { if ((smartMaskHigh & (1 << (i3 - 25))) !== 0) hasDupNumber = true; }
             
-            if (i4 <= 25) { if ((smartMaskLow & (1 << i4)) !== 0) hasDupNumber = true; } 
+            if (i4 <= 25) { if ((smartMaskLow & (1 << i4)) !== 0) hasDupNumber = true; 
+} 
             else { if ((smartMaskHigh & (1 << (i4 - 25))) !== 0) hasDupNumber = true; }
             
-            if (i5 <= 25) { if ((smartMaskLow & (1 << i5)) !== 0) hasDupNumber = true; } 
+            if (i5 <= 25) { if ((smartMaskLow & (1 << i5)) !== 0) hasDupNumber = true; 
+} 
             else { if ((smartMaskHigh & (1 << (i5 - 25))) !== 0) hasDupNumber = true; }
             
-            if (i6 <= 25) { if ((smartMaskLow & (1 << i6)) !== 0) hasDupNumber = true; } 
+            if (i6 <= 25) { if ((smartMaskLow & (1 << i6)) !== 0) hasDupNumber = true; 
+} 
             else { if ((smartMaskHigh & (1 << (i6 - 25))) !== 0) hasDupNumber = true; }
             
             if (!hasDupNumber) {
@@ -1173,12 +1202,18 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
               
               if (usedCount >= 48) {
                 smartMaskLow = 0; smartMaskHigh = 0;
-                if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
-                if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
-                if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
-                if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
-                if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
-                if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
+                if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << 
+(i1 - 25));
+                if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << 
+(i2 - 25));
+                if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << 
+(i3 - 25));
+                if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << 
+(i4 - 25));
+                if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << 
+(i5 - 25));
+                if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << 
+(i6 - 25));
                 vipValidPool.push([i1, i2, i3, i4, i5, i6]);
               }
             }
@@ -1229,113 +1264,155 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
               // 高頻率 Fisher-Yates 萬次打散基因球
               for (let m = finalGeneBalls.length - 1; m > 0; m--) {
                 const j = Math.floor(Math.random() * (m + 1));
-                [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], finalGeneBalls[m]];
+                [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], 
+finalGeneBalls[m]];
               }
-              // =========================================================================
+              // 
+=========================================================================
               // 【零件 21/25 完全體】：大樂透重組智控柔性放寬與大口袋完美閉合閘門
-              // =========================================================================
+              // 
+=========================================================================
               let newComb = finalGeneBalls.slice(0, 6).sort((x, y) => x - y);
               let [n1, n2, n3, n4, n5, n6] = newComb;
               
               let softCheckPass = true;
               
-              // 【適當放寬機制 B】：若基因重組在極小池內嚴重死鎖，放寬為每組最多重疊 2 碼
+              // 【適當放寬機制 B】：若基因重組在極小池內嚴重死鎖，放寬為每組最多重疊 2
+碼
               if (loopSafeguard > 5000) {
                 let matchCountInGroup = 0;
-                if (n1 <= 25) { if ((smartMaskLow & (1 << n1)) !== 0) matchCountInGroup++; } 
-                else { if ((smartMaskHigh & (1 << (n1 - 25))) !== 0) matchCountInGroup++; }
-                if (n2 <= 25) { if ((smartMaskLow & (1 << n2)) !== 0) matchCountInGroup++; } 
-                else { if ((smartMaskHigh & (1 << (n2 - 25))) !== 0) matchCountInGroup++; }
-                if (n3 <= 25) { if ((smartMaskLow & (1 << n3)) !== 0) matchCountInGroup++; } 
-                else { if ((smartMaskHigh & (1 << (n3 - 25))) !== 0) matchCountInGroup++; }
-                if (n4 <= 25) { if ((smartMaskLow & (1 << n4)) !== 0) matchCountInGroup++; } 
-                else { if ((smartMaskHigh & (1 << (n4 - 25))) !== 0) matchCountInGroup++; }
-                if (n5 <= 25) { if ((smartMaskLow & (1 << n5)) !== 0) matchCountInGroup++; } 
-                else { if ((smartMaskHigh & (1 << (n5 - 25))) !== 0) matchCountInGroup++; }
-                if (n6 <= 25) { if ((smartMaskLow & (1 << n6)) !== 0) matchCountInGroup++; } 
-                else { if ((smartMaskHigh & (1 << (n6 - 25))) !== 0) matchCountInGroup++; }
+                if (n1 <= 25) { if ((smartMaskLow & (1 << n1)) !== 0) 
+matchCountInGroup++; } 
+                else { if ((smartMaskHigh & (1 << (n1 - 25))) !== 0) 
+matchCountInGroup++; }
+                if (n2 <= 25) { if ((smartMaskLow & (1 << n2)) !== 0) 
+matchCountInGroup++; } 
+                else { if ((smartMaskHigh & (1 << (n2 - 25))) !== 0) 
+matchCountInGroup++; }
+                if (n3 <= 25) { if ((smartMaskLow & (1 << n3)) !== 0) 
+matchCountInGroup++; } 
+                else { if ((smartMaskHigh & (1 << (n3 - 25))) !== 0) 
+matchCountInGroup++; }
+                if (n4 <= 25) { if ((smartMaskLow & (1 << n4)) !== 0) 
+matchCountInGroup++; } 
+                else { if ((smartMaskHigh & (1 << (n4 - 25))) !== 0) 
+matchCountInGroup++; }
+                if (n5 <= 25) { if ((smartMaskLow & (1 << n5)) !== 0) 
+matchCountInGroup++; } 
+                else { if ((smartMaskHigh & (1 << (n5 - 25))) !== 0) 
+matchCountInGroup++; }
+                if (n6 <= 25) { if ((smartMaskLow & (1 << n6)) !== 0) 
+matchCountInGroup++; } 
+                else { if ((smartMaskHigh & (1 << (n6 - 25))) !== 0) 
+matchCountInGroup++; }
                 
                 if (matchCountInGroup > 2) softCheckPass = false;
               } else {
-                if (n1 <= 25) { if ((smartMaskLow & (1 << n1)) !== 0) softCheckPass = false; } 
-                else { if ((smartMaskHigh & (1 << (n1 - 25))) !== 0) softCheckPass = false; }
-                if (n2 <= 25) { if ((smartMaskLow & (1 << n2)) !== 0) softCheckPass = false; } 
-                else { if ((smartMaskHigh & (1 << (n2 - 25))) !== 0) softCheckPass = false; }
-                if (n3 <= 25) { if ((smartMaskLow & (1 << n3)) !== 0) softCheckPass = false; } 
-                else { if ((smartMaskHigh & (1 << (n3 - 25))) !== 0) softCheckPass = false; }
-                if (n4 <= 25) { if ((smartMaskLow & (1 << n4)) !== 0) softCheckPass = false; } 
-                else { if ((smartMaskHigh & (1 << (n4 - 25))) !== 0) softCheckPass = false; }
-                if (n5 <= 25) { if ((smartMaskLow & (1 << n5)) !== 0) softCheckPass = false; } 
-                else { if ((smartMaskHigh & (1 << (n5 - 25))) !== 0) softCheckPass = false; }
-                if (n6 <= 25) { if ((smartMaskLow & (1 << n6)) !== 0) softCheckPass = false; } 
-                else { if ((smartMaskHigh & (1 << (n6 - 25))) !== 0) softCheckPass = false; }
+                if (n1 <= 25) { if ((smartMaskLow & (1 << n1)) !== 0) softCheckPass = 
+false; } 
+                else { if ((smartMaskHigh & (1 << (n1 - 25))) !== 0) softCheckPass = 
+false; }
+                if (n2 <= 25) { if ((smartMaskLow & (1 << n2)) !== 0) softCheckPass = 
+false; } 
+                else { if ((smartMaskHigh & (1 << (n2 - 25))) !== 0) softCheckPass = 
+false; }
+                if (n3 <= 25) { if ((smartMaskLow & (1 << n3)) !== 0) softCheckPass = 
+false; } 
+                else { if ((smartMaskHigh & (1 << (n3 - 25))) !== 0) softCheckPass = 
+false; }
+                if (n4 <= 25) { if ((smartMaskLow & (1 << n4)) !== 0) softCheckPass = 
+false; } 
+                else { if ((smartMaskHigh & (1 << (n4 - 25))) !== 0) softCheckPass = 
+false; }
+                if (n5 <= 25) { if ((smartMaskLow & (1 << n5)) !== 0) softCheckPass = 
+false; } 
+                else { if ((smartMaskHigh & (1 << (n5 - 25))) !== 0) softCheckPass = 
+false; }
+                if (n6 <= 25) { if ((smartMaskLow & (1 << n6)) !== 0) softCheckPass = 
+false; } 
+                else { if ((smartMaskHigh & (1 << (n6 - 25))) !== 0) softCheckPass = 
+false; }
               }
               
               if (softCheckPass) {
-                if (n1 <= 25) smartMaskLow |= (1 << n1); else smartMaskHigh |= (1 << (n1 - 25));
-                if (n2 <= 25) smartMaskLow |= (1 << n2); else smartMaskHigh |= (1 << (n2 - 25));
-                if (n3 <= 25) smartMaskLow |= (1 << n3); else smartMaskHigh |= (1 << (n3 - 25));
-                if (n4 <= 25) smartMaskLow |= (1 << n4); else smartMaskHigh |= (1 << (n4 - 25));
-                if (n5 <= 25) smartMaskLow |= (1 << n5); else smartMaskHigh |= (1 << (n5 - 25));
-                if (n6 <= 25) smartMaskLow |= (1 << n6); else smartMaskHigh |= (1 << (n6 - 25));
+                if (n1 <= 25) smartMaskLow |= (1 << n1); else smartMaskHigh |= (1 << 
+(n1 - 25));
+                if (n2 <= 25) smartMaskLow |= (1 << n2); else smartMaskHigh |= (1 << 
+(n2 - 25));
+                if (n3 <= 25) smartMaskLow |= (1 << n3); else smartMaskHigh |= (1 << 
+(n3 - 25));
+                if (n4 <= 25) smartMaskLow |= (1 << n4); else smartMaskHigh |= (1 << 
+(n4 - 25));
+                if (n5 <= 25) smartMaskLow |= (1 << n5); else smartMaskHigh |= (1 << 
+(n5 - 25));
+                if (n6 <= 25) smartMaskLow |= (1 << n6); else smartMaskHigh |= (1 << 
+(n6 - 25));
                 vipValidPool.push(newComb);
               } else if (loopSafeguard > 15000) {
                 smartMaskLow = 0; smartMaskHigh = 0;
-                if (n1 <= 25) smartMaskLow |= (1 << n1); else smartMaskHigh |= (1 << (n1 - 25));
-                if (n2 <= 25) smartMaskLow |= (1 << n2); else smartMaskHigh |= (1 << (n2 - 25));
-                if (n3 <= 25) smartMaskLow |= (1 << n3); else smartMaskHigh |= (1 << (n3 - 25));
-                if (n4 <= 25) smartMaskLow |= (1 << n4); else smartMaskHigh |= (1 << (n4 - 25));
-                if (n5 <= 25) smartMaskLow |= (1 << n5); else smartMaskHigh |= (1 << (n5 - 25));
-                if (n6 <= 25) smartMaskLow |= (1 << n6); else smartMaskHigh |= (1 << (n6 - 25));
+                if (n1 <= 25) smartMaskLow |= (1 << n1); else smartMaskHigh |= (1 << 
+(n1 - 25));
+                if (n2 <= 25) smartMaskLow |= (1 << n2); else smartMaskHigh |= (1 << 
+(n2 - 25));
+                if (n3 <= 25) smartMaskLow |= (1 << n3); else smartMaskHigh |= (1 << 
+(n3 - 25));
+                if (n4 <= 25) smartMaskLow |= (1 << n4); else smartMaskHigh |= (1 << 
+(n4 - 25));
+                if (n5 <= 25) smartMaskLow |= (1 << n5); else smartMaskHigh |= (1 << 
+(n5 - 25));
+                if (n6 <= 25) smartMaskLow |= (1 << n6); else smartMaskHigh |= (1 << 
+(n6 - 25));
                 vipValidPool.push(newComb);
               }
             } // 閉合 while loopSafeguard
           } // 閉合方向二 if
         } // 閉合分流 B else
       } // 閉合 totalSurvivorCombs > 0
-    } // 🔑【終極自癒關門錨點】：完美物理閉合第 12 零件開頭的大樂透 else 大口袋！
-    // =========================================================================
-    // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
-    // =========================================================================
-    if (vipValidPool.length === 0) {
-      res.write(JSON.stringify({ 
-        success: false, 
-        message: "符合防線有效組合為 0 組，請放寬過濾標準！" 
-      }) + "\n");
-    } else {
-      let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
-      let outputText = `【VIP篩選完成】符合大樂透防線總組數：` +
-        `${survivorPoolIndices.length} 組\n【本次輸出模式】${mName}\n【本次輸出】` +
-        `精選出 ${vipValidPool.length} 組\n-------------------------\n`;
-        
-      vipValidPool.forEach((comb, idx) => {
-        outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：` +
-          `${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-      });
-      
-      res.write(JSON.stringify({ 
-        isProgress: true, 
-        percent: 100, 
-        currentMatch: vipValidPool.length 
-      }) + "\n");
-      res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
-    }
-    
-   res.end(); // 完美閉合超導路由 HTTP 串流
- } // 這是用來閉合上面大樂透運算肚子裡漏掉的右大括號
- } catch (err) { // 🔒【警報解除！】有了上游新補的 try，這行安全氣囊完全通電歸位！
-    console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
-    try {
-      res.write(JSON.stringify({ 
-        success: false, 
-        message: `後台引擎自癒阻斷：${err.message}` 
-      }) + "\n");
-      res.end();
-    } catch (e) {}
-      }
-   }) 
+                 // 
+=========================================================================
+     // 【零件 22/25 完全體】：高科技篩選路由結果格式化封裝與安全閉合
+     // =========================================================================
+     if (vipValidPool.length === 0) {
+       res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請
+放寬過濾標準！" }) + "\n");
+     } else {
+       let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
+       let outputText = `【VIP篩選完成】符合大樂透防線總組數：
+${survivorPoolIndices.length} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 
+${vipValidPool.length} 組\n-------------------------\n`;
+       
+       vipValidPool.forEach((comb, idx) => {
+         outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => 
+String(n).padStart(2, '0')).join(', ')}\n`;
+       });
+       
+       res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: 
+vipValidPool.length }) + "\n");
+       res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
+     }
+     res.end(); // 完美閉合超導路由 HTTP 串流
+   } catch (err) {
+     // 大樂透核心海選大口袋 try 的精密自癒防禦門
+     console.error(" 核心海選崩潰，啟動自癒防禦：", err.message);
+     try {
+       res.write(JSON.stringify({ success: false, message: `後台引擎自癒阻斷：
+${err.message}` }) + "\n");
+       res.end();
+     } catch (e) {}
+   }
+🔒 } // 【第一道金鎖】：完美閉合第 14 頁原廠領地最外層的大樂透 else 大口袋！ 
  
-
+} catch (globalErr) {
+ // 覆蓋全路由的最高生命線安全氣囊
+ console.error(" 全局路由異常：", globalErr.message);
+ try { res.end(); } catch(e){}
+}
+}); // 【第 309 行總防護罩】：精確對齊並關閉 
+�
+� app.post('/api/lottery/generate-vip-turbo') 大門！ 
+    
+  
+ 
 // =========================================================================
 // 【零件 23/25 完全體】：操盤手雲端收藏夾・已購包牌組合即時儲存接口
 // =========================================================================
@@ -1416,7 +1493,6 @@ app.post('/api/tickets/get', async (req, res) => {
     res.status(500).json({ success: false, message: '讀取雲端收藏夾異常' });
   }
 });
-
 app.post('/api/tickets/delete', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -1437,12 +1513,12 @@ app.post('/api/tickets/delete', async (req, res) => {
       user.markModified('savedTickets');
       await user.save();
     }
-    res.json({ success: true, message: '已安全移除該組合！', savedTickets: user.savedTickets || [] });
+    res.json({ success: true, message: '已安全移除該組合！', savedTickets: 
+user.savedTickets || [] });
   } catch (err) {
     res.status(500).json({ success: false, message: '雲端同步刪除失敗' });
   }
 });
-
 app.post('/api/tickets/clear', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -1496,7 +1572,6 @@ app.post('/api/tickets/sync-history', async (req, res) => {
     res.status(500).json({ success: false, message: '同步開獎歷史發生異常' });
   }
 });
-
 app.post('/api/user/unlock-vip', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
@@ -1523,22 +1598,20 @@ app.post('/api/user/unlock-vip', async (req, res) => {
     res.status(500).json({ success: false, message: '激勵權限解鎖失敗' });
   }
 });
-
 // ───【Render 雲端大腦物理引擎正式點火】───
 const PORT = process.env.PORT || 10000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://lottouser2026:lotto2026pass@cluster0.mongodb.net/lottodb";
-
+const MONGO_URI = process.env.MONGO_URI || 
+"mongodb+srv://lottouser2026:lotto2026pass@cluster0.mongodb.net/lottodb";
 mongoose.connect(MONGO_URI)
   .then(() => {
     console.log(" =========================================================");
-    console.log(" ➔ Mongoose 雲端大腦握手成功！資料庫全線通車！ 🏆 💎");
+➔ 🏆💎    console.log("  Mongoose 雲端大腦握手成功！資料庫全線通車！  ");
     console.log(" =========================================================");
     
     app.listen(PORT, '0.0.0.0', () => {
-      console.log(` 🚀 終極超導大數據後台已成功在 Port ${PORT} 點火發動！`);
-      console.log(" ➔ 100% 嚴格配對無錯版、控制流與計數器完美對齊！準備上架！");
+🚀      console.log(`  終極超導大數據後台已成功在 Port ${PORT} 點火發動！`);
+➔      console.log("  100% 嚴格配對無錯版、控制流與計數器完美對齊！準備上架！");
     });
   })
   .catch(err => {
-    console.error(" ❌ 雲端資料庫點火死機：", err.message);
-  });
+❌    console.error("  雲端資料庫點火死機：", err.message);
