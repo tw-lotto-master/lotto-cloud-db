@@ -6,6 +6,9 @@ const cors = require('cors');
 
 const app = express();
 
+// 🔒 滿血開啟靜態託管網頁通道，讓 Google 順利審查隱私權政策
+app.use(express.static('public'));
+
 // 擊穿行動端 WebView 跨境安全鎖，滿血還原原廠 WebView 跨平台對接設定
 app.use(cors({ 
   origin: '*', 
