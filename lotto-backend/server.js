@@ -986,17 +986,38 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
     try { res.end(); } catch(e){}
   } // 完美閉合覆蓋全局最高生命線的 try-catch
 }); // 🔒【總大門竣工】：完美合規關閉第 309 行起手的總 app.post('/api/lottery/generate-vip-turbo') 路由大門！
-app.post('/api/tickets/save', async (req, res) => {
+app.post('/api/tickets/save', authenticateToken, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization; if (!authHeader) return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
-    const token = authHeader.split(' '); const decoded = jwt.verify(token, 'FREE_LOTTO_SECRET_2026'); const { ticket } = req.body;
-    if (!ticket) return res.status(400).json({ success: false, message: '無效的號碼憑證' });
-    const user = await User.findById(decoded.userId); if (!user) return res.status(404).json({ success: false, message: '操盤手帳號不存在' });
+    const ticketsData = req.body.tickets || req.body.ticket; 
+    if (!ticketsData) return res.status(400).json({ success: false, message: '無效的號碼憑證' });
+
+    const user = await User.findById(req.user.userId);
+    if (!user) return res.status(404).json({ success: false, message: '操盤手帳號不存在' });
+
     if (!user.savedTickets) user.savedTickets = [];
-    const newSaveItem = { ...ticket, id: ticket.id || `TK-${Date.now()}-${Math.floor(Math.random()*1000)}`, createdAt: new Date() };
-    user.savedTickets.push(newSaveItem); user.markModified('savedTickets'); await user.save();
+    
+    if (Array.isArray(ticketsData)) {
+      ticketsData.forEach(t => {
+        user.savedTickets.push({
+          content: t,
+          id: `TK-${Date.now()}-${Math.floor(Math.random()*1000)}`,
+          createdAt: new Date()
+        });
+      });
+    } else {
+      user.savedTickets.push({ 
+        content: ticketsData, 
+        id: `TK-${Date.now()}-${Math.floor(Math.random()*1000)}`, 
+        createdAt: new Date() 
+      });
+    }
+
+    user.markModified('savedTickets'); 
+    await user.save();
     res.json({ success: true, message: '成功同步至雲端收藏夾！', savedTickets: user.savedTickets });
-  } catch (err) { res.status(500).json({ success: false, message: '雲端同步失敗' }); }
+  } catch (err) { 
+    res.status(500).json({ success: false, message: '雲端同步失敗' }); 
+  }
 }); // 閉合 save 接口
 
 app.post('/api/tickets/get', async (req, res) => {
