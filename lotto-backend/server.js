@@ -879,107 +879,129 @@ else {
             } // 閉合隨機模式 while
           } // 閉合 if (!isSmartMode)
           // ───【分流 B：聰明包牌模式 (vipMode === 'smart' 互斥不重複)】───
-          else {
-            let currentPoolIdx = 0;
-            lotto49SmartExtraction:
-            while (vipValidPool.length < targetCount && currentPoolIdx < totalSurvivorCombs) {
-              const matrixId = survivorPoolIndices[currentPoolIdx];
-              currentPoolIdx++;
-              const bytePos = matrixId * 6;
-              const i1 = globalLotto49Matrix[bytePos]; const i2 = globalLotto49Matrix[bytePos + 1]; const i3 = globalLotto49Matrix[bytePos + 2]; const i4 = globalLotto49Matrix[bytePos + 3]; const i5 = globalLotto49Matrix[bytePos + 4]; const i6 = globalLotto49Matrix[bytePos + 5];
-              
-              let hasDupNumber = false;
-              if (i1 <= 25) { if ((smartMaskLow & (1 << i1)) !== 0) hasDupNumber = true; } else { if ((smartMaskHigh & (1 << (i1 - 25))) !== 0) hasDupNumber = true; }
-              if (i2 <= 25) { if ((smartMaskLow & (1 << i2)) !== 0) hasDupNumber = true; } else { if ((smartMaskHigh & (1 << (i2 - 25))) !== 0) hasDupNumber = true; }
-              if (i3 <= 25) { if ((smartMaskLow & (1 << i3)) !== 0) hasDupNumber = true; } else { if ((smartMaskHigh & (1 << (i3 - 25))) !== 0) hasDupNumber = true; }
-              if (i4 <= 25) { if ((smartMaskLow & (1 << i4)) !== 0) hasDupNumber = true; } else { if ((smartMaskHigh & (1 << (i4 - 25))) !== 0) hasDupNumber = true; }
-              if (i5 <= 25) { if ((smartMaskLow & (1 << i5)) !== 0) hasDupNumber = true; } else { if ((smartMaskHigh & (1 << (i5 - 25))) !== 0) hasDupNumber = true; }
-              if (i6 <= 25) { if ((smartMaskLow & (1 << i6)) !== 0) hasDupNumber = true; } else { if ((smartMaskHigh & (1 << (i6 - 25))) !== 0) hasDupNumber = true; }
-              
-              if (!hasDupNumber) {
-                if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
-                if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
-                if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
-                if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
-                if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
-                if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
-                vipValidPool.push([i1, i2, i3, i4, i5, i6]);
-              } else {
-                let usedCount = 0; let tLow = smartMaskLow, tHigh = smartMaskHigh;
-                while (tLow > 0) { if (tLow & 1) usedCount++; tLow >>= 1; }
-                while (tHigh > 0) { if (tHigh & 1) usedCount++; tHigh >>= 1; }
-                if (usedCount >= 48) {
-                  smartMaskLow = 0; smartMaskHigh = 0;
-                  if (i1 <= 25) smartMaskLow |= (1 << i1); else smartMaskHigh |= (1 << (i1 - 25));
-                  if (i2 <= 25) smartMaskLow |= (1 << i2); else smartMaskHigh |= (1 << (i2 - 25));
-                  if (i3 <= 25) smartMaskLow |= (1 << i3); else smartMaskHigh |= (1 << (i3 - 25));
-                  if (i4 <= 25) smartMaskLow |= (1 << i4); else smartMaskHigh |= (1 << (i4 - 25));
-                  if (i5 <= 25) smartMaskLow |= (1 << i5); else smartMaskHigh |= (1 << (i5 - 25));
-                  if (i6 <= 25) smartMaskLow |= (1 << i6); else smartMaskHigh |= (1 << (i6 - 25));
-                  vipValidPool.push([i1, i2, i3, i4, i5, i6]);
-                } // 閉合隨機飽和自癒降階 if
-              } // 閉合 hasDupNumber 互斥判斷 if-else
-            } // 閉合 while 階梯互斥提取
-            if (vipValidPool.length < targetCount) {
-              let geneCounter = new Array(50).fill(0);
-              for (let m = 0; m < survivorPoolIndices.length; m++) {
-                let mId = survivorPoolIndices[m]; let bp = mId * 6;
-                geneCounter[globalLotto49Matrix[bp]]++; geneCounter[globalLotto49Matrix[bp + 1]]++; geneCounter[globalLotto49Matrix[bp + 2]]++; geneCounter[globalLotto49Matrix[bp + 3]]++; geneCounter[globalLotto49Matrix[bp + 4]]++; geneCounter[globalLotto49Matrix[bp + 5]]++;
-              } // 閉合生還者基因球統計 for
-              let goldenGenePool = [];
-              for (let m = 1; m <= 49; m++) { if (geneCounter[m] > 0) goldenGenePool.push({ ball: m, weight: geneCounter[m] }); }
-              goldenGenePool.sort((x, y) => y.weight - x.weight);
-              let finalGeneBalls = goldenGenePool.slice(0, 15).map(g => g.ball);
-              if (finalGeneBalls.length < 15 && goldenGenePool.length >= 22) finalGeneBalls = goldenGenePool.slice(0, 22).map(g => g.ball);
-              
-              // ===【100% 顯式防吃字：補回大樂透物理基因保險底牌，硬核轉義保障】===
-              if (finalGeneBalls.length < 6) { finalGeneBalls = Array.from(); }
-              
-              smartMaskLow = 0; smartMaskHigh = 0; let loopSafeguard = 0;
-              while (vipValidPool.length < targetCount && loopSafeguard < 30000) {
-                loopSafeguard++;
-                for (let m = finalGeneBalls.length - 1; m > 0; m--) { const j = Math.floor(Math.random() * (m + 1)); [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], finalGeneBalls[m]]; }
-                let newComb = finalGeneBalls.slice(0, 6).sort((x, y) => x - y);
-                let [n1, n2, n3, n4, n5, n6] = newComb;
-                let softCheckPass = true;
-                if (loopSafeguard > 5000) {
-                  let matchCountInGroup = 0;
-                  if (n1 <= 25) { if ((smartMaskLow & (1 << n1)) !== 0) matchCountInGroup++; } else { if ((smartMaskHigh & (1 << (n1 - 25))) !== 0) matchCountInGroup++; }
-                  if (n2 <= 25) { if ((smartMaskLow & (1 << n2)) !== 0) matchCountInGroup++; } else { if ((smartMaskHigh & (1 << (n2 - 25))) !== 0) matchCountInGroup++; }
-                  if (n3 <= 25) { if ((smartMaskLow & (1 << n3)) !== 0) matchCountInGroup++; } else { if ((smartMaskHigh & (1 << (n3 - 25))) !== 0) matchCountInGroup++; }
-                  if (n4 <= 25) { if ((smartMaskLow & (1 << n4)) !== 0) matchCountInGroup++; } else { if ((smartMaskHigh & (1 << (n4 - 25))) !== 0) matchCountInGroup++; }
-                  if (n5 <= 25) { if ((smartMaskLow & (1 << n5)) !== 0) matchCountInGroup++; } else { if ((smartMaskHigh & (1 << (n5 - 25))) !== 0) matchCountInGroup++; }
-                  if (n6 <= 25) { if ((smartMaskLow & (1 << n6)) !== 0) matchCountInGroup++; } else { if ((smartMaskHigh & (1 << (n6 - 25))) !== 0) matchCountInGroup++; }
-                  if (matchCountInGroup > 2) softCheckPass = false;
-                } else {
-                  if (n1 <= 25) { if ((smartMaskLow & (1 << n1)) !== 0) softCheckPass = false; } else { if ((smartMaskHigh & (1 << (n1 - 25))) !== 0) softCheckPass = false; }
-                  if (n2 <= 25) { if ((smartMaskLow & (1 << n2)) !== 0) softCheckPass = false; } else { if ((smartMaskHigh & (1 << (n2 - 25))) !== 0) softCheckPass = false; }
-                  if (n3 <= 25) { if ((smartMaskLow & (1 << n3)) !== 0) softCheckPass = false; } else { if ((smartMaskHigh & (1 << (n3 - 25))) !== 0) softCheckPass = false; }
-                  if (n4 <= 25) { if ((smartMaskLow & (1 << n4)) !== 0) softCheckPass = false; } else { if ((smartMaskHigh & (1 << (n4 - 25))) !== 0) softCheckPass = false; }
-                  if (n5 <= 25) { if ((smartMaskLow & (1 << n5)) !== 0) softCheckPass = false; } else { if ((smartMaskHigh & (1 << (n5 - 25))) !== 0) softCheckPass = false; }
-                  if (n6 <= 25) { if ((smartMaskLow & (1 << n6)) !== 0) softCheckPass = false; } else { if ((smartMaskHigh & (1 << (n6 - 25))) !== 0) softCheckPass = false; }
-                }
-                if (softCheckPass) {
-                  if (n1 <= 25) smartMaskLow |= (1 << n1); else smartMaskHigh |= (1 << (n1 - 25));
-                  if (n2 <= 25) smartMaskLow |= (1 << n2); else smartMaskHigh |= (1 << (n2 - 25));
-                  if (n3 <= 25) smartMaskLow |= (1 << n3); else smartMaskHigh |= (1 << (n3 - 25));
-                  if (n4 <= 25) smartMaskLow |= (1 << n4); else smartMaskHigh |= (1 << (n4 - 25));
-                  if (n5 <= 25) smartMaskLow |= (1 << n5); else smartMaskHigh |= (1 << (n5 - 25));
-                  if (n6 <= 25) smartMaskLow |= (1 << n6); else smartMaskHigh |= (1 << (n6 - 25));
-                  vipValidPool.push(newComb);
-                } else if (loopSafeguard > 15000) {
-                  smartMaskLow = 0; smartMaskHigh = 0;
-                  if (n1 <= 25) smartMaskLow |= (1 << n1); else smartMaskHigh |= (1 << (n1 - 25));
-                  if (n2 <= 25) smartMaskLow |= (1 << n2); else smartMaskHigh |= (1 << (n2 - 25));
-                  if (n3 <= 25) smartMaskLow |= (1 << n3); else smartMaskHigh |= (1 << (n3 - 25));
-                  if (n4 <= 25) smartMaskLow |= (1 << n4); else smartMaskHigh |= (1 << (n4 - 25));
-                  if (n5 <= 25) smartMaskLow |= (1 << n5); else smartMaskHigh |= (1 << (n5 - 25));
-                  if (n6 <= 25) smartMaskLow |= (1 << n6); else smartMaskHigh |= (1 << (n6 - 25));
-                  vipValidPool.push(newComb);
-                } // 閉合降階基因加入判定 if
-              } // 閉合 while loopSafeguard 盲抽重組
-            } // 閉合方向二基因重組抽取判定 if
-          } // 閉合分流 B else 互斥模式大門
+else {
+  let currentPoolIdx = 0;
+  let vipSmartMask49 = 0n; // 統一使用一條 BigInt 全面取代原先混亂的 Low/High 遮罩 🔒
+  const localOutputSet49 = new Set(); // 大樂透組合去重集
+  
+  lotto49SmartExtraction:
+  while (vipValidPool.length < targetCount && currentPoolIdx < totalSurvivorCombs) {
+    const matrixId = survivorPoolIndices[currentPoolIdx];
+    currentPoolIdx++;
+    const bytePos = matrixId * 6;
+    const i1 = globalLotto49Matrix[bytePos]; 
+    const i2 = globalLotto49Matrix[bytePos + 1]; 
+    const i3 = globalLotto49Matrix[bytePos + 2]; 
+    const i4 = globalLotto49Matrix[bytePos + 3]; 
+    const i5 = globalLotto49Matrix[bytePos + 4]; 
+    const i6 = globalLotto49Matrix[bytePos + 5];
+    
+    const combKey = `${i1},${i2},${i3},${i4},${i5},${i6}`;
+    if (localOutputSet49.has(combKey)) continue; // 組合重複直接跳過
+    
+    let hasDupNumber = (
+      ((vipSmartMask49 & (1n << BigInt(i1))) !== 0n) ||
+      ((vipSmartMask49 & (1n << BigInt(i2))) !== 0n) ||
+      ((vipSmartMask49 & (1n << BigInt(i3))) !== 0n) ||
+      ((vipSmartMask49 & (1n << BigInt(i4))) !== 0n) ||
+      ((vipSmartMask49 & (1n << BigInt(i5))) !== 0n) ||
+      ((vipSmartMask49 & (1n << BigInt(i6))) !== 0n)
+    );
+    
+    if (!hasDupNumber) {
+      vipValidPool.push([i1, i2, i3, i4, i5, i6]);
+      localOutputSet49.add(combKey);
+      vipSmartMask49 |= (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5)) | (1n << BigInt(i6));
+    } else {
+      let usedCount = 0; 
+      let tMask = vipSmartMask49;
+      while (tMask > 0n) { if (tMask & 1n) usedCount++; tMask >>= 1n; }
+      
+      if (usedCount >= 44) {
+        vipSmartMask49 = (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5)) | (1n << BigInt(i6));
+        vipValidPool.push([i1, i2, i3, i4, i5, i6]);
+        localOutputSet49.add(combKey);
+      }
+    }
+  }
+  
+  if (vipValidPool.length < targetCount) {
+    let geneCounter = new Array(50).fill(0);
+    for (let m = 0; m < survivorPoolIndices.length; m++) {
+      let mId = survivorPoolIndices[m]; 
+      let bp = mId * 6;
+      geneCounter[globalLotto49Matrix[bp]]++; 
+      geneCounter[globalLotto49Matrix[bp + 1]]++; 
+      geneCounter[globalLotto49Matrix[bp + 2]]++;
+      geneCounter[globalLotto49Matrix[bp + 3]]++; 
+      geneCounter[globalLotto49Matrix[bp + 4]]++;
+      geneCounter[globalLotto49Matrix[bp + 5]]++;
+    }
+    
+    let goldenGenePool = [];
+    for (let m = 1; m <= 49; m++) { 
+      if (geneCounter[m] > 0) goldenGenePool.push({ ball: m, weight: geneCounter[m] }); 
+    }
+    goldenGenePool.sort((x, y) => y.weight - x.weight);
+    let finalGeneBalls = goldenGenePool.slice(0, 15).map(g => g.ball);
+    if (finalGeneBalls.length < 15 && goldenGenePool.length >= 22) {
+      finalGeneBalls = goldenGenePool.slice(0, 22).map(g => g.ball);
+    }
+    
+    if (finalGeneBalls.length < 6) { 
+      finalGeneBalls =[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; 
+    }
+    
+    vipSmartMask49 = 0n; 
+    let loopSafeguard = 0;
+    
+    while (vipValidPool.length < targetCount && loopSafeguard < 40000) {
+      loopSafeguard++;
+      for (let m = finalGeneBalls.length - 1; m > 0; m--) { 
+        const j = Math.floor(Math.random() * (m + 1)); 
+        [finalGeneBalls[m], finalGeneBalls[j]] = [finalGeneBalls[j], finalGeneBalls[m]]; 
+      }
+      
+      let newComb = finalGeneBalls.slice(0, 6).sort((x, y) => x - y);
+      let [n1, n2, n3, n4, n5, n6] = newComb;
+      const combKey = `${n1},${n2},${n3},${n4},${n5},${n6}`;
+      
+      if (localOutputSet49.has(combKey)) continue; // 全局防重複阻斷
+      
+      let softCheckPass = true;
+      if (loopSafeguard > 6000) {
+        let matchCountInGroup = 0;
+        if ((vipSmartMask49 & (1n << BigInt(n1))) !== 0n) matchCountInGroup++;
+        if ((vipSmartMask49 & (1n << BigInt(n2))) !== 0n) matchCountInGroup++;
+        if ((vipSmartMask49 & (1n << BigInt(n3))) !== 0n) matchCountInGroup++;
+        if ((vipSmartMask49 & (1n << BigInt(n4))) !== 0n) matchCountInGroup++;
+        if ((vipSmartMask49 & (1n << BigInt(n5))) !== 0n) matchCountInGroup++;
+        if ((vipSmartMask49 & (1n << BigInt(n6))) !== 0n) matchCountInGroup++;
+        if (matchCountInGroup > 2) softCheckPass = false;
+      } else {
+        if (((vipSmartMask49 & (1n << BigInt(n1))) !== 0n) ||
+            ((vipSmartMask49 & (1n << BigInt(n2))) !== 0n) ||
+            ((vipSmartMask49 & (1n << BigInt(n3))) !== 0n) ||
+            ((vipSmartMask49 & (1n << BigInt(n4))) !== 0n) ||
+            ((vipSmartMask49 & (1n << BigInt(n5))) !== 0n) ||
+            ((vipSmartMask49 & (1n << BigInt(n6))) !== 0n)) {
+          softCheckPass = false;
+        }
+      }
+      
+      if (softCheckPass) {
+        vipValidPool.push(newComb);
+        localOutputSet49.add(combKey);
+        vipSmartMask49 |= (1n << BigInt(n1)) | (1n << BigInt(n2)) | (1n << BigInt(n3)) | (1n << BigInt(n4)) | (1n << BigInt(n5)) | (1n << BigInt(n6));
+      } else if (loopSafeguard > 20000) {
+        vipSmartMask49 = (1n << BigInt(n1)) | (1n << BigInt(n2)) | (1n << BigInt(n3)) | (1n << BigInt(n4)) | (1n << BigInt(n5)) | (1n << BigInt(n6));
+        vipValidPool.push(newComb);
+        localOutputSet49.add(combKey);
+      } 
+    } 
+    localOutputSet49.clear();
+  }
+}
         } // 閉合生還池有效性核對 if (totalSurvivorCombs > 0)
         // ===【大樂透 聰明包牌高度互斥自癒濾網】===
 
