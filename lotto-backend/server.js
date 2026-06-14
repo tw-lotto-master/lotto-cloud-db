@@ -5,6 +5,12 @@ const bcrypt = require('bcryptjs');
 const cors = require('cors');
 
 const app = express();
+// 🎯 核心補丁：全域防崩潰變數鎖，確保 15 大防線在 O(1) 點名時絕對能讀到資料
+global.f1_set = global.f1_set || new Set();
+global.globalLotto49HistoryMask = global.globalLotto49HistoryMask || null;
+global.global539Matrix = global.global539Matrix || null;
+global.globalLotto49Matrix = global.globalLotto49Matrix || null;
+
 
 // 🔒 滿血開啟靜態託管網頁通道，讓 Google 順利審查隱私權政策
 app.use(express.static('public'));
@@ -347,14 +353,22 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
          return res.end();
        } 
        
-       const lottoType = cfg.lottoType || "39_5";
-       const requiredCount = (lottoType === "49_6") ? 6 : 5;
-       const maxNumber = (lottoType === "49_6") ? 49 : 39;
-       const targetCount = Math.min(100, cfg.count || 5);
-       
-       // 🔒 降維減載優化：改為直接讀取後端全域快取的 Mongoose 資料庫歷史快取 Set 
-       // 若尚未進行過歷史同步，則提供空 Set 防禦，絕不重製全量大數據
-       const historyCacheSet = globalLotto49HistoryMask ? new Set() : new Set(); 
+ const lottoType = cfg.lottoType || "39_5";
+ const requiredCount = (lottoType === "49_6") ? 6 : 5;
+ const maxNumber = (lottoType === "49_6") ? 49 : 39;
+ const targetCount = Math.min(100, cfg.count || 5);
+ 
+ // 🎯 雙軌對接核心：如果前端減載不傳 globalHistoryDB，後端自動從常駐記憶體中抓出歷史獎號
+ let historyCacheSet = new Set();
+ 
+ if (lottoType === "39_5" && global.global539Matrix) {
+   // 539 彩種：若已經執行過同步，自動將全域變數複製給防線執行封殺
+   if (global.f1_set && global.f1_set.size > 0) historyCacheSet = global.f1_set;
+ } else if (lottoType === "49_6" && global.globalLotto49Matrix) {
+   // 大樂透彩種：自動接管歷史大數據
+   if (global.f1_set && global.f1_set.size > 0) historyCacheSet = global.f1_set;
+ }
+
        
        let smartMaskLow = 0;
        let smartMaskHigh = 0;
