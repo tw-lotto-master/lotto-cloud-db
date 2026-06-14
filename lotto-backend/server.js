@@ -949,7 +949,7 @@ else {
     }
     
     if (finalGeneBalls.length < 6) { 
-      finalGeneBalls =[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]; 
+      finalGeneBalls =[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]; 
     }
     
     vipSmartMask49 = 0n; 
