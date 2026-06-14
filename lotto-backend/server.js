@@ -359,7 +359,8 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
  const targetCount = Math.min(100, cfg.count || 5);
  
  // 🎯 雙軌對接核心：如果前端減載不傳 globalHistoryDB，後端自動從常駐記憶體中抓出歷史獎號
- let historyCacheSet = new Set();
+ const historyCacheSet = global.historyCacheSet || new Set();
+ const f1_set = global.f1_set || new Set();
  
  if (lottoType === "39_5" && global.global539Matrix) {
    // 539 彩種：若已經執行過同步，自動將全域變數複製給防線執行封殺
@@ -1091,24 +1092,65 @@ app.post('/api/tickets/clear', async (req, res) => {
 
 app.post('/api/tickets/sync-history', async (req, res) => {
   try {
-    const { historyDB } = req.body; if (!historyDB || !Array.isArray(historyDB)) return res.status(400).json({ success: false, message: '無效的歷史大數據結構' });
+    const { historyDB } = req.body; 
+    if (!historyDB || !Array.isArray(historyDB)) {
+      return res.status(400).json({ success: false, message: '無效的歷史大數據結構' });
+    }
+
+    // 🎯 核心補丁：建立全域大數據防線集合，將歷史號碼拆解存入內存，供 f1_set 和歷史防線 O(1) 查表
+    global.f1_set = new Set();
+    global.historyCacheSet = new Set(); 
+
+    historyDB.forEach(h => {
+      // 保證資料型態正確，並進行升序排列
+      let nums = h.slice(0, 6).map(Number).sort((a, b) => a - b);
+      if (nums.length >= 5) {
+        // 1. 存入全中排除防線的 O(1) 比對池
+        global.historyCacheSet.add(nums.join(','));
+        if (nums.length === 6) {
+          global.historyCacheSet.add(nums.slice(0, 5).join(','));
+        }
+        // 2. 存入第 1 道防線的地雷號碼球點名快取
+        nums.forEach(num => global.f1_set.add(num));
+      }
+    });
+
     const initFn = app.get('initHistory裂變去重');
     if (typeof initFn === 'function') {
       initFn(historyDB);
       if (typeof init539StaticFeatures === 'function') init539StaticFeatures(historyDB); // 同步啟動 539 超導背景裂變預存！🚀
       res.json({ success: true, message: '雙彩種雲端大數據歷史背景裂變全面重新整隊竣工！' });
-    } else { res.status(500).json({ success: false, message: '去重引擎尚未就緒' }); }
-  } catch (err) { res.status(500).json({ success: false, message: '同步歷史開獎發生異常' }); }
+    } else { 
+      res.status(500).json({ success: false, message: '去重引擎尚未就緒' }); 
+    }
+  } catch (err) { 
+    res.status(500).json({ success: false, message: '同步歷史開獎發生異常' }); 
+  }
 }); // 閉合 sync-history 接口
 
 app.post('/api/user/unlock-vip', async (req, res) => {
   try {
-    const authHeader = req.headers.authorization; if (!authHeader) return res.status(411).json({ success: false, message: '請登入會員' });
-    const token = authHeader.split(' '); const decoded = jwt.verify(token, 'FREE_LOTTO_SECRET_2026'); const user = await User.findById(decoded.userId);
+    const authHeader = req.headers.authorization; 
+    if (!authHeader) return res.status(411).json({ success: false, message: '請登入會員' });
+    
+    // 🎯 順手修正上架地雷：修復原本 authHeader.split(' ') 丟進 jwt.verify 造成的陣列格式解密崩潰
+    let tokenString = authHeader;
+    if (authHeader.startsWith('Bearer ')) {
+      tokenString = authHeader.split(' ')[1];
+    } else if (authHeader.includes(' ')) {
+      tokenString = authHeader.split(' ')[1];
+    }
+    
+    const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026'); 
+    const user = await User.findById(decoded.userId);
     if (!user) return res.status(404).json({ success: false, message: '帳號不存在' });
-    user.isPaidMember = true; await user.save();
+    
+    user.isPaidMember = true; 
+    await user.save();
     res.json({ success: true, message: '【AdMob 完看授權成功】操盤手 VIP 專屬防線已全線永久解鎖！', isPaidMember: true });
-  } catch (err) { res.status(500).json({ success: false, message: '激勵權限解鎖失敗' }); }
+  } catch (err) { 
+    res.status(500).json({ success: false, message: '激勵權限解鎖失敗' }); 
+  }
 }); // 閉合 unlock-vip 接口
 
 // ───【Render 雲端大腦物理引擎正式點火監聽】───
