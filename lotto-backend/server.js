@@ -1020,14 +1020,17 @@ app.post('/api/tickets/save', authenticateToken, async (req, res) => {
   }
 }); // 閉合 save 接口
 
-app.post('/api/tickets/get', async (req, res) => {
+app.get('/api/tickets/list', authenticateToken, async (req, res) => {
   try {
-    const authHeader = req.headers.authorization; if (!authHeader) return res.status(411).json({ success: false, message: '請登入會員' });
-    const token = authHeader.split(' '); const decoded = jwt.verify(token, 'FREE_LOTTO_SECRET_2026'); const user = await User.findById(decoded.userId);
+    const user = await User.findById(req.user.userId);
     if (!user) return res.status(404).json({ success: false, message: '帳號不存在' });
-    res.json({ success: true, savedTickets: user.savedTickets || [] });
-  } catch (err) { res.status(500).json({ success: false, message: '讀取雲端收藏夾異常' }); }
-}); // 閉合 get 接口
+    
+    const formattedTickets = (user.savedTickets || []).map(t => typeof t === 'object' ? (t.content || JSON.stringify(t)) : t);
+    res.json({ success: true, savedTickets: formattedTickets });
+  } catch (err) { 
+    res.status(500).json({ success: false, message: '讀取雲端收藏夾異常' }); 
+  }
+}); // 閉合 list 接口
 
 app.post('/api/tickets/delete', async (req, res) => {
   try {
