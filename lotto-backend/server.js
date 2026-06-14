@@ -661,23 +661,6 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
       console.log(" 【雙軌超導分流】：今彩 539 經精密海選已竣工，啟動交卷！");
       matchCount = survivorPoolIndices.length / 5; 
       totalScanned = 575757;
-
-      // ===【539 聰明包牌高度互斥自癒濾網】===
- if (cfg.vipMode === 'smart') {
-   const strictPool = [];
-   const globalUsed = new Set();
-   for (let comb of vipValidPool) {
-     // 計算當前這組號碼，跟前面已經輸出的所有組別重疊了幾個球
-     const overlap = comb.filter(num => globalUsed.has(num)).length;
-     // ⚡ 鋼鐵防線：組與組之間，最多只允許重疊 1 個號碼（肉眼看起來幾乎完全不重複）
-     if (overlap <= 1) {
-       strictPool.push(comb);
-       comb.forEach(num => globalUsed.add(num));
-     }
-     if (globalUsed.size >= 35) globalUsed.clear(); // 選號池耗盡時滾動重置
-   }
-   vipValidPool = strictPool; // 覆蓋回原始陣列
- }
  
       if (vipValidPool.length === 0) {
         res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
@@ -982,21 +965,7 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
           } // 閉合分流 B else 互斥模式大門
         } // 閉合生還池有效性核對 if (totalSurvivorCombs > 0)
         // ===【大樂透 聰明包牌高度互斥自癒濾網】===
- if (cfg.vipMode === 'smart') {
-   const strictPool = [];
-   const globalUsed = new Set();
-   for (let comb of vipValidPool) {
-     // 計算當前這組號碼，跟前面已經輸出的組別重疊了幾個球
-     const overlap = comb.filter(num => globalUsed.has(num)).length;
-     // ⚡ 鋼鐵防線：大樂透 6 碼中，最多只允許重疊 2 個號碼
-     if (overlap <= 2) {
-       strictPool.push(comb);
-       comb.forEach(num => globalUsed.add(num));
-     }
-     if (globalUsed.size >= 45) globalUsed.clear(); // 選號池耗盡時滾動重置
-   }
-   vipValidPool = strictPool; // 覆蓋回原始陣列
- }
+
         if (vipValidPool.length === 0) {
           res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
         } else {
