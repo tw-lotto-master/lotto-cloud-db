@@ -46,6 +46,25 @@ const UserSchema = new mongoose.Schema({
 
 // 雙層自癒保險：防止在熱重載(Hot Reload)時發生模型重複編譯崩潰
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
+
+function authenticateToken(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
+    }
+    let tokenString = authHeader;
+    if (authHeader.startsWith('Bearer ')) {
+      tokenString = authHeader.split(' ')[1];
+    }
+    const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ success: false, message: '驗證令牌失效或已過期' });
+  }
+}
+
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, password } = req.body;
