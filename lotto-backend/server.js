@@ -339,54 +339,36 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
   let totalScanned = 0;
   let matchCount = 0;
   let lastReportedPercent = -1;
-  let vipValidPool = [];
+       let vipValidPool = [];
+     try { // 【最外層最高生命線大口袋 try 起點】
+       const { cfg } = req.body; // 🔒 拔除 globalHistoryDB 接收
+       if (!cfg) { 
+         res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
+         return res.end();
+       } 
+       
+       const lottoType = cfg.lottoType || "39_5";
+       const requiredCount = (lottoType === "49_6") ? 6 : 5;
+       const maxNumber = (lottoType === "49_6") ? 49 : 39;
+       const targetCount = Math.min(100, cfg.count || 5);
+       
+       // 🔒 降維減載優化：改為直接讀取後端全域快取的 Mongoose 資料庫歷史快取 Set 
+       // 若尚未進行過歷史同步，則提供空 Set 防禦，絕不重製全量大數據
+       const historyCacheSet = globalLotto49HistoryMask ? new Set() : new Set(); 
+       
+       let smartMaskLow = 0;
+       let smartMaskHigh = 0;
+       const isSmartMode = (cfg.vipMode === 'smart');
+       let survivorPoolIndices = [];
+       
+       if (lottoType === "39_5" || cfg.lottoType === "39_5") {
+         try { // 【539 獨立自癒防禦門 try 起點】
+           // 🔒 修正未加 await 的死鎖地雷：若開機未就緒則在此阻斷等待，就緒後直接通車
+           if (!global539Matrix) { 
+             res.write(JSON.stringify({ success: false, message: "後端大數據正在進行冷啟動初始化，請於 5 秒後重試" }) + "\n");
+             return res.end();
+           }
 
-  try { // 【最外層最高生命線大口袋 try 起點】
-    const { cfg, globalHistoryDB } = req.body;
-    if (!cfg) { 
-      res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
-      return res.end();
-    } // 閉合 if (!cfg)
-    
-    const lottoType = cfg.lottoType || "39_5";
-    const requiredCount = (lottoType === "49_6") ? 6 : 5;
-    const maxNumber = (lottoType === "49_6") ? 49 : 39;
-    const targetCount = Math.min(100, cfg.count || 5);
-    
-    const historyDB = globalHistoryDB || [];
-    const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
-    
-    const globalHistoryBigInts = historyDB.map(h => {
-      let nums = h.slice(0, requiredCount).map(Number);
-      let mask = 0n;
-      nums.forEach(n => { mask |= (1n << BigInt(n)); }); // 閉合 nums.forEach
-      return mask;
-    }); // 閉合 historyDB.map
-    
-    const f1_set = new Set(cfg.f1_set || []);
-    const neighborSet = new Set();
-    let lastPeriod = [];
-    
-    if (cfg.lastPeriod && cfg.lastPeriod.length >= requiredCount) {
-      lastPeriod = cfg.lastPeriod.map(Number);
-    } else if (historyDB && historyDB.length > 0) {
-      lastPeriod = historyDB.slice(0, requiredCount).map(Number);
-    } // 閉合 if-else if
-    
-    if (lastPeriod.length > 0) {
-      let range = parseInt(cfg.f9_range, 10) || 1;
-      lastPeriod.forEach(val => {
-        for (let d = -range; d <= range; d++) { if (d !== 0) neighborSet.add(val + d); }
-      }); // 閉合 lastPeriod.forEach
-    } // 閉合 if (lastPeriod.length > 0)
-    
-    let smartMaskLow = 0;
-    let smartMaskHigh = 0;
-    const isSmartMode = (cfg.vipMode === 'smart');
-    let survivorPoolIndices = [];
-    if (lottoType === "39_5" || cfg.lottoType === "39_5") {
-      try { // 【539 獨立自癒防禦門 try 起點】
-        if (!global539Matrix) { init539StaticFeatures(historyDB); }
         
         // 動態編譯本輪海選玩家有勾選的 539 倒排索引遮罩鎖
         let active539Bits = 0; 
