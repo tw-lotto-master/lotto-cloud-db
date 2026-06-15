@@ -386,12 +386,12 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
             // 扣除資產並即時同步至資料庫
             targetUser.points = (targetUser.points || 0) - OPERATION_COST;
             await targetUser.save();
-            console.log(`🪙 扣點成功！用戶 [${targetUser.username}] 消耗 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
-            
-            // 即時向前端推送一條最新點數通知，方便前端 UI 扣點後同步刷新顯示
-            res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n");
-        }
-
+            console.log(` 扣點成功！用戶 [${targetUser.username}] 消耗 🪙 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
+ 
+            // 🎯【終極大解鎖】：在 JSON 尾端強制換行「\n\n」，並發動 Header 物理沖刷，徹底擊穿 Express 緩衝阻斷，讓進度％數瞬間活過來！
+            res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
+            if (typeof res.flushHeaders === 'function') res.flushHeaders();
+        } // 🔒 完美閉合非訂閱用戶的 else 大口袋！
     
     const lottoType = cfg.lottoType || "39_5";
     const requiredCount = (lottoType === "49_6") ? 6 : 5;
