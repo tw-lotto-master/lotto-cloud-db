@@ -558,21 +558,37 @@ app.post('/api/lottery/generate-vip-turbo', async (req, res) => {
             ]); // 閉合 vipValidPool.push
           } // 閉合 while 隨機抽樣
         } // 閉合 if (!isSmartMode)
-// ───【分流 B：聰明包牌模式 (vipMode === 'smart' 互斥不重複)】───
+// ───【分流 B：聰明包牌模式 (vipMode === 'smart' 互斥不重複 - 洗牌分流版)】───
 else {
-    let currentPoolIdx = 0;
     let vipSmartMask = 0n; 
     const localOutputSet = new Set(); // 本輪已輸出組合去重集
     
-    lotto539SmartExtraction:
+    // 【全新指針矩陣隨機洗牌】：打破遞增順序，讓大小號號碼交織，大幅延長第一輪互斥空間
+    let shuffledIndices539 = [];
+    for (let i = 0; i < totalSurvivorCombs; i++) {
+        shuffledIndices539.push(i); // 複製原始生還組合的索引序列
+    }
+    // 發動 Fisher-Yates 晶片級完美洗牌
+    for (let i = shuffledIndices539.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = shuffledIndices539[i];
+        shuffledIndices539[i] = shuffledIndices539[j];
+        shuffledIndices539[j] = temp;
+    }
+
+    let currentPoolIdx = 0;
+    
+    // 第一輪：極致互斥提取（受惠於洗牌，前 7 組能開出極致均勻、相異球數最大化的黃金組合）
     while (vipValidPool.length < targetCount && currentPoolIdx < totalSurvivorCombs) {
-        const basePos = currentPoolIdx * 5;
+        const targetCombIdx = shuffledIndices539[currentPoolIdx];
+        currentPoolIdx++;
+        
+        const basePos = targetCombIdx * 5;
         const i1 = survivorPoolIndices[basePos]; 
         const i2 = survivorPoolIndices[basePos + 1]; 
         const i3 = survivorPoolIndices[basePos + 2]; 
         const i4 = survivorPoolIndices[basePos + 3]; 
         const i5 = survivorPoolIndices[basePos + 4];
-        currentPoolIdx++;
         
         const combKey = `${i1},${i2},${i3},${i4},${i5}`;
         if (localOutputSet.has(combKey)) continue; 
@@ -594,7 +610,7 @@ else {
             let tempMask = vipSmartMask;
             while (tempMask > 0n) { if (tempMask & 1n) usedCount++; tempMask >>= 1n; }
             
-            // 互斥空間飽和（抽滿 35 碼），重設互斥遮罩，進行下一輪滾動
+            // 當前輪次 39 碼已抽滿 35 碼以上（接近飽和），動態重置遮罩，開啟下一輪全網交織互斥
             if (usedCount >= 35) {
                 vipSmartMask = (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5));
                 vipValidPool.push([i1, i2, i3, i4, i5]);
@@ -603,15 +619,19 @@ else {
         }
     }
     
-    // 【生還池全量指針擾動機制】：若生還組合抽盡仍不足組數，絕不放寬防線，直接從「全量生還池」中發動高隨機擾動抽樣
+    // 第二輪：若組數仍不足，從已洗牌的全量生還池中，進行低碰撞跨組分流保底（絕不放寬防線）
     if (vipValidPool.length < targetCount && totalSurvivorCombs > 0) {
         let loopSafeguard = 0;
+        let scanIdx = 0;
+        
         while (vipValidPool.length < targetCount && loopSafeguard < 30000) {
             loopSafeguard++;
             
-            // 隨機指針大跳躍：在「全量 100% 合規生還組合」中隨機挑選一組
-            const randomCombIdx = Math.floor(Math.random() * totalSurvivorCombs);
-            const basePos = randomCombIdx * 5;
+            // 循序提取已完全洗牌的生還組合，確保每一個合規組合都有均等機會，杜絕密集扎堆
+            const targetCombIdx = shuffledIndices539[scanIdx % totalSurvivorCombs];
+            scanIdx++;
+            
+            const basePos = targetCombIdx * 5;
             const n1 = survivorPoolIndices[basePos];
             const n2 = survivorPoolIndices[basePos + 1];
             const n3 = survivorPoolIndices[basePos + 2];
@@ -619,15 +639,26 @@ else {
             const n5 = survivorPoolIndices[basePos + 4];
             
             const combKey = `${n1},${n2},${n3},${n4},${n5}`;
-            // 全局硬核阻斷：如果這組號碼之前已經輸出過，絕對跳過，徹底消滅相同相同組
-            if (localOutputSet.has(combKey)) continue;
+            if (localOutputSet.has(combKey)) continue; // 組合去重絕對防線
             
-            // 完美符合安全號碼且不重複，直接收錄
-            vipValidPool.push([n1, n2, n3, n4, n5]);
-            localOutputSet.add(combKey);
+            // 限制單組號碼與上一輪餘留遮罩的碰撞數（柔性均勻分流），隨時間推移微幅放寬，保障產出效率
+            let matchCountInGroup = 0;
+            [n1, n2, n3, n4, n5].forEach(n => {
+                if ((vipSmartMask & (1n << BigInt(n))) !== 0n) matchCountInGroup++;
+            });
+            
+            let maxAllowedOverlap = loopSafeguard > 15000 ? 4 : (loopSafeguard > 6000 ? 2 : 1);
+            
+            if (matchCountInGroup <= maxAllowedOverlap) {
+                vipValidPool.push([n1, n2, n3, n4, n5]);
+                localOutputSet.add(combKey);
+                // 均勻注入遮罩
+                [n1, n2, n3, n4, n5].forEach(n => { vipSmartMask |= (1n << BigInt(n)); });
+            }
         }
-        localOutputSet.clear();
     }
+    shuffledIndices539 = []; // 記憶體回收
+    localOutputSet.clear();
 }
 
       } // 閉合 if (totalSurvivorCombs > 0)
@@ -836,15 +867,29 @@ else {
               ]); // 閉合隨機組合 push
             } // 閉合隨機模式 while
           } // 閉合 if (!isSmartMode)
-// ───【分流 B：聰明包牌模式 (vipMode === 'smart' 互斥不重複)】───
+// ───【分流 B：聰明包牌模式 (vipMode === 'smart' 互斥不重複 - 洗牌分流版)】───
 else {
-    let currentPoolIdx = 0;
     let vipSmartMask49 = 0n; 
-    const localOutputSet49 = new Set(); // 大樂透組合去重集
+    const localOutputSet49 = new Set(); 
     
-    lotto49SmartExtraction:
+    // 【全新指針矩陣隨機洗牌】：打破遞增順序，讓大小號號碼交織，大幅延長互斥空間
+    let shuffledIndices = [];
+    for (let i = 0; i < totalSurvivorCombs; i++) {
+        shuffledIndices.push(survivorPoolIndices[i]); // 複製原始生還指標矩陣 ID
+    }
+    // 發動 Fisher-Yates 晶片級完美洗牌
+    for (let i = shuffledIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = shuffledIndices[i];
+        shuffledIndices[i] = shuffledIndices[j];
+        shuffledIndices[j] = temp;
+    }
+
+    let currentPoolIdx = 0;
+    
+    // 第一輪：極致互斥提取（受惠於洗牌，此處能開出極致均勻、絕不重號的前幾組）
     while (vipValidPool.length < targetCount && currentPoolIdx < totalSurvivorCombs) {
-        const matrixId = survivorPoolIndices[currentPoolIdx];
+        const matrixId = shuffledIndices[currentPoolIdx];
         currentPoolIdx++;
         const bytePos = matrixId * 6;
         const i1 = globalLotto49Matrix[bytePos]; 
@@ -875,8 +920,8 @@ else {
             let tMask = vipSmartMask49;
             while (tMask > 0n) { if (tMask & 1n) usedCount++; tMask >>= 1n; }
             
-            // 大樂透抽滿 44 碼，遮罩滾動重置
-            if (usedCount >= 44) {
+            // 當前輪次 49 碼已抽滿 42 碼以上（接近飽和），動態重置遮罩，開啟下一輪全網交織互斥
+            if (usedCount >= 42) {
                 vipSmartMask49 = (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5)) | (1n << BigInt(i6));
                 vipValidPool.push([i1, i2, i3, i4, i5, i6]);
                 localOutputSet49.add(combKey);
@@ -884,15 +929,17 @@ else {
         }
     }
     
-    // 【生還池全量指針擾動機制】：若生還組合抽盡仍不足組數，絕不放寬防線，直接從「大樂透全量生還池」發動高隨機擾動抽樣
+    // 第二輪：若組數仍不足（大數據極端嚴格篩選狀況），從已洗牌的全量生還池中，進行低碰撞跨組分流保底
     if (vipValidPool.length < targetCount && totalSurvivorCombs > 0) {
         let loopSafeguard = 0;
+        let scanIdx = 0;
+        
         while (vipValidPool.length < targetCount && loopSafeguard < 40000) {
             loopSafeguard++;
             
-            // 隨機指針大跳躍：直接抽取安全生還池中的原廠矩陣 ID
-            const randomCombIdx = Math.floor(Math.random() * totalSurvivorCombs);
-            const matrixId = survivorPoolIndices[randomCombIdx];
+            // 循序提取已完全洗牌的生還組合，確保每一個合規組合都有均等機會，杜絕密集扎堆
+            const matrixId = shuffledIndices[scanIdx % totalSurvivorCombs];
+            scanIdx++;
             const bytePos = matrixId * 6;
             
             const n1 = globalLotto49Matrix[bytePos];
@@ -903,15 +950,26 @@ else {
             const n6 = globalLotto49Matrix[bytePos + 5];
             
             const combKey = `${n1},${n2},${n3},${n4},${n5},${n6}`;
-            // 全局硬核阻斷重複組
-            if (localOutputSet49.has(combKey)) continue;
+            if (localOutputSet49.has(combKey)) continue; // 組合去重絕對防線
             
-            // 100% 安全合規且不重複，直接輸出
-            vipValidPool.push([n1, n2, n3, n4, n5, n6]);
-            localOutputSet49.add(combKey);
+            // 限制單組號碼與上一輪餘留遮罩的碰撞數（柔性均勻分流），隨時間推移微幅放寬，保障產出效率
+            let matchCountInGroup = 0;
+            [n1, n2, n3, n4, n5, n6].forEach(n => {
+                if ((vipSmartMask49 & (1n << BigInt(n))) !== 0n) matchCountInGroup++;
+            });
+            
+            let maxAllowedOverlap = loopSafeguard > 20000 ? 5 : (loopSafeguard > 8000 ? 3 : 2);
+            
+            if (matchCountInGroup <= maxAllowedOverlap) {
+                vipValidPool.push([n1, n2, n3, n4, n5, n6]);
+                localOutputSet49.add(combKey);
+                // 均勻注入遮罩
+                [n1, n2, n3, n4, n5, n6].forEach(n => { vipSmartMask49 |= (1n << BigInt(n)); });
+            }
         }
-        localOutputSet49.clear();
     }
+    shuffledIndices = []; // 記憶體回收
+    localOutputSet49.clear();
 }
 
         } // 閉合生還池有效性核對 if (totalSurvivorCombs > 0)
