@@ -1252,6 +1252,31 @@ app.post('/api/user/cancel-vip', authenticateToken, async (req, res) => {
         return res.status(500).json({ success: false, message: "終止訂閱請求失敗" });
     }
 });
+// 🪙 5. 正式版環境：處理前端點擊「單次解鎖 (10點)」實體按鈕的扣點權限請求
+app.post('/api/user/single-unlock', authenticateToken, async (req, res) => {
+    try {
+        // 1. 提取解密後的用戶特徵 ID (精密對齊原廠 req.user.userId 規格)
+        const sessionUserId = req.user && req.user.userId;
+        const user = await User.findById(sessionUserId);
+        if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
+
+        const UNLOCK_COST = 10; // 單次解鎖固定消耗 10 點
+        if ((user.points || 0) < UNLOCK_COST) {
+            return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階 15 大防線需消耗 ${UNLOCK_COST} 點。您目前帳戶資產僅有 ${user.points || 0} 點，請先點擊儲值！` });
+        }
+
+        // 2. 執行點數資產扣除並寫入 MongoDB
+        user.points -= UNLOCK_COST;
+        await user.save();
+
+        console.log(`🪙 [單次扣點解鎖成功] 用戶 [${user.username}] 消耗 10 點，賸餘點數：${user.points} 點。當期高階防線全開通！`);
+        
+        // 3. 回傳成功訊號與最新點數給前端
+        return res.json({ success: true, newPoints: user.points });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "雲端授權通道異常，請稍後再試" });
+    }
+});
 
 // =========================================================================
 
