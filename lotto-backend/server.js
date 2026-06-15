@@ -1155,6 +1155,106 @@ else {
     try { res.end(); } catch(e){}
   } // 完美閉合覆蓋全局最高生命線的 try-catch
 }); // 🔒【總大門竣工】：完美合規關閉第 309 行起手的總 app.post('/api/lottery/generate-vip-turbo') 路由大門！
+// =========================================================================
+// 👑 【商用核心】：四大用戶資產與訂閱交易 API 路由群組 (100% 正式版環境對齊)
+// =========================================================================
+
+// 🔄 1. 獲取用戶最新帳戶點數資產與 VIP 訂閱剩餘天數狀態
+app.get('/api/user/profile', authenticateToken, async (req, res) => {
+    try {
+        // 精密對齊原廠驗證令牌：從 req.user.userId 提取 MongoDB 唯一特徵
+        const sessionUserId = req.user && req.user.userId;
+        if (!sessionUserId) {
+            return res.status(400).json({ success: false, message: "無效的身分憑證權限鎖" });
+        }
+
+        const user = await User.findById(sessionUserId).select('-password'); // 安全防禦：不回傳密碼雜湊
+        if (!user) {
+            return res.status(404).json({ success: false, message: "找不到該會員資料" });
+        }
+        return res.json({ success: true, user: user });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "資料庫資產讀取異常" });
+    }
+});
+
+// 🪙 2. 模擬儲值點數（1:1 黃金比例，未來完美對接 Apple/Google 應用商店 IAP Webhook）
+app.post('/api/user/buy-points', authenticateToken, async (req, res) => {
+    try {
+        const sessionUserId = req.user && req.user.userId;
+        const user = await User.findById(sessionUserId);
+        if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
+
+        // 正式環境儲值規範：儲值台幣 100 元 = 增加 100 點
+        user.points = (user.points || 0) + 100;
+        await user.save();
+
+        console.log(`💳 [金流到帳通知] 用戶 [${user.username}] 成功儲值 100 點，最新餘額：${user.points} 點`);
+        return res.json({ success: true, newPoints: user.points });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "儲值請求失敗，金流網絡中斷" });
+    }
+});
+
+// 👑 3. 點數消耗抵扣 ── 開啟 30 天 VIP 尊榮無限海選訂閱
+app.post('/api/user/subscribe-vip', authenticateToken, async (req, res) => {
+    try {
+        const sessionUserId = req.user && req.user.userId;
+        const user = await User.findById(sessionUserId);
+        if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
+
+        const SUBSCRIBE_COST = 150; // 包月固定消耗 150 點（折合台幣 150 元）
+        if ((user.points || 0) < SUBSCRIBE_COST) {
+            return res.status(400).json({ success: false, message: `續約失敗！訂閱 VIP 需消耗 ${SUBSCRIBE_COST} 點，您的點數餘額不足。` });
+        }
+
+        // 扣除點數資產
+        user.points -= SUBSCRIBE_COST;
+
+        // 🚀【時間線自適應無損疊加演算法】：如果原本已經是有效 VIP，直接在舊到期時間上「續加 30 天」，時間絕不被吃掉！
+        const now = new Date();
+        let baseDate = (user.subscriptionExpiresAt && user.subscriptionExpiresAt > now) 
+            ? new Date(user.subscriptionExpiresAt) 
+            : now;
+            
+        baseDate.setDate(baseDate.getDate() + 30); // 延展 30 天
+        user.subscriptionExpiresAt = baseDate;
+        user.isPaidMember = true; // 100% 同步相容原廠舊有的 [isPaidMember] 鑽石付費牆標誌
+
+        await user.save();
+        console.log(`👑 [訂閱續約成功] 用戶 [${user.username}] 成功抵扣 ${SUBSCRIBE_COST} 點，VIP 延展至：${user.subscriptionExpiresAt.toLocaleDateString()}`);
+        
+        return res.json({ 
+            success: true, 
+            expiresAt: user.subscriptionExpiresAt, 
+            newPoints: user.points 
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "訂閱處理失敗，算力調度異常" });
+    }
+});
+
+// 🛑 4. 會員自主管理：主動終止/取消 VIP 包月訂閱狀態
+app.post('/api/user/cancel-vip', authenticateToken, async (req, res) => {
+    try {
+        const sessionUserId = req.user && req.user.userId;
+        const user = await User.findById(sessionUserId);
+        if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
+
+        // 立即截斷天數截止線，降級回一般計次扣點會員
+        user.subscriptionExpiresAt = null;
+        user.isPaidMember = false; // 同步熄滅原廠鑽石會員牆
+        await user.save();
+
+        console.log(`🛑 [訂閱主動終止] 用戶 [${user.username}] 已手動取消 VIP 天數包月，回復單次 10 點扣點制。`);
+        return res.json({ success: true });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "終止訂閱請求失敗" });
+    }
+});
+
+// =========================================================================
+
 app.post('/api/tickets/save', authenticateToken, async (req, res) => {
   try {
     const ticketsData = req.body.tickets || req.body.ticket; 
