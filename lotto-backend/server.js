@@ -346,15 +346,14 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
     let vipValidPool = [];
 
     try { // 【最外層最高生命線大口袋 try 起點】
-        const { cfg, globalHistoryDB } = req.body;
+                const { cfg, globalHistoryDB } = req.body;
         if (!cfg) {
             res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
             return res.end();
         } // 閉合 if (!cfg)
 
-        // 🎯【商用核心：訂閱/扣點雙軌權限閘】
-        // 從剛剛 authenticateToken 寫入的 req.user 中提取解密後的用戶 ID
-        const sessionUserId = req.user && (req.user._id || req.user.id);
+        // 🎯【全量校正：100% 對齊原廠 userId 金鑰防禦閘】(徹底解決找不到帳號卡 0% Bug)
+        const sessionUserId = req.user && req.user.userId; 
         if (!sessionUserId) {
             res.write(JSON.stringify({ success: false, message: "身分驗證異常，無法讀取用戶特徵，請重新登入！" }) + "\n");
             return res.end();
@@ -367,31 +366,35 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
         }
 
         const currentTime = new Date();
-        // 檢查是否處於包月/包年 👑 VIP 訂閱有效期內
+        // 檢查是否處於包月/包年 VIP 訂閱有效期內 👑
         const hasActiveSubscription = targetUser.subscriptionExpiresAt && targetUser.subscriptionExpiresAt > currentTime;
 
+        // 🎯 核心特權分流控制線
         if (hasActiveSubscription) {
-            console.log(`👑 VIP訂閱會員 [${targetUser.username}] 尊榮通行，剩餘天數：${Math.ceil((targetUser.subscriptionExpiresAt - currentTime)/(1000*60*60*24))} 天`);
+            console.log(`👑 VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。`);
+        } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
+            console.log(`🎬 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。`);
         } else {
-            // 非訂閱用戶，啟動 🪙 點數扣抵制（單次執行 VIP 科學篩選消耗 10 點）
+            // 🪙 一般會員 ── 默默在背景執行單次扣 10 點全功能開放！
             const OPERATION_COST = 10;
             if ((targetUser.points || 0) < OPERATION_COST) {
                 res.write(JSON.stringify({ 
                     success: false, 
-                    message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請觀看廣告或前往儲值！` 
+                    message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
                 }) + "\n");
                 return res.end();
             }
 
-            // 扣除資產並即時同步至資料庫
+            // 執行扣點並即時同步存檔至 MongoDB
             targetUser.points = (targetUser.points || 0) - OPERATION_COST;
             await targetUser.save();
-            console.log(` 扣點成功！用戶 [${targetUser.username}] 消耗 🪙 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
- 
-            // 🎯【終極大解鎖】：在 JSON 尾端強制換行「\n\n」，並發動 Header 物理沖刷，徹底擊穿 Express 緩衝阻斷，讓進度％數瞬間活過來！
+            console.log(`🪙 隱藏扣點成功！用戶 [${targetUser.username}] 消耗 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
+            
+            // 🎯【終極大解鎖】：強制換行 \n\n 並配合物理沖刷，徹底擊穿 Express 快取憋字阻斷！
             res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
             if (typeof res.flushHeaders === 'function') res.flushHeaders();
         } // 🔒 完美閉合非訂閱用戶的 else 大口袋！
+
     
     const lottoType = cfg.lottoType || "39_5";
     const requiredCount = (lottoType === "49_6") ? 6 : 5;
