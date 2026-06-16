@@ -392,7 +392,9 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
             
             // 🎯【終極大解鎖】：強制換行 \n\n 並配合物理沖刷，徹底擊穿 Express 快取憋字阻斷！
             res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
-            if (typeof res.flushHeaders === 'function') res.flushHeaders();
+// 為了防止 Express 憋字，我們在此強行加上最原始的 Node 緩衝區強制沖刷，逼迫點數面板立刻展現
+if (typeof res.flush === 'function') res.flush(); 
+if (typeof res.flushHeaders === 'function') res.flushHeaders();
         } // 🔒 完美閉合非訂閱用戶的 else 大口袋！
 
     
