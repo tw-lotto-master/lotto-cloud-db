@@ -1383,16 +1383,16 @@ app.post('/api/tickets/sync-history', async (req, res) => {
 
 
 app.post('/api/user/unlock-vip', async (req, res) => {
- try {
- const authHeader = req.headers.authorization; if (!authHeader) return 
+  try {
+    const authHeader = req.headers.authorization; if (!authHeader) return 
 res.status(411).json({ success: false, message: '請登入會員' });
- const token = authHeader.split(' '); const decoded = jwt.verify(token, 
+    const token = authHeader.split(' '); const decoded = jwt.verify(token, 
 'FREE_LOTTO_SECRET_2026'); const user = await User.findById(decoded.userId);
- if (!user) return res.status(404).json({ success: false, message: '帳號不存在' });
- user.isPaidMember = true; await user.save();
- res.json({ success: true, message: '【AdMob 完看授權成功】操盤手 VIP 專屬防線已全線
+    if (!user) return res.status(404).json({ success: false, message: '帳號不存在' });
+    user.isPaidMember = true; await user.save();
+    res.json({ success: true, message: '【AdMob 完看授權成功】操盤手 VIP 專屬防線已全線
 永久解鎖！', isPaidMember: true });
- } catch (err) { res.status(500).json({ success: false, message: '激勵權限解鎖失敗' 
+  } catch (err) { res.status(500).json({ success: false, message: '激勵權限解鎖失敗' 
 }); }
 }); // 閉合 unlock-vip 接口
 
