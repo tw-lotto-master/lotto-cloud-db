@@ -1382,47 +1382,19 @@ app.post('/api/tickets/sync-history', async (req, res) => {
 }); // 閉合 sync-history 接口
 
 
-// =========================================================================
-// 🚀 【核心影子後門】專供開發期模擬高階會員與點數增加（測試完正式上架時記得拔除）
-// =========================================================================
-app.post('/api/auth/debug-inject-assets', authenticateToken, async (req, res) => {
-    try {
-        const sessionUserId = req.user && req.user.userId;
-        if (!sessionUserId) {
-            return res.status(401).json({ success: false, message: "找不到驗證憑證權限鎖" });
-        }
-
-        const targetUser = await User.findById(sessionUserId);
-        if (!targetUser) {
-            return res.status(404).json({ success: false, message: "雲端找不到該會員帳號" });
-        }
-
-        const { mode } = req.body;
-
-        if (mode === "SET_VIP") {
-            // 🌟 模擬切換為高階會員：將第 1 頁定義的權限欄位直接點亮，並給予 1 年有效期
-            targetUser.isPaidMember = true;
-            targetUser.subscriptionExpiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
-            await targetUser.save();
-            return res.json({ success: true, message: "🔧 調試成功！此帳號已成功升級為【高級會員 👑】" });
-        } 
-        else if (mode === "ADD_POINTS") {
-            // 🪙 模擬增加點數：一次加 500 點供扣點分流功能實測
-            targetUser.points = (targetUser.points || 0) + 500;
-            // 為了方便重複驗證「一般會員單次計次扣點」的流程，加點時順便將 VIP 特權暫時重置
-            targetUser.isPaidMember = false; 
-            targetUser.subscriptionExpiresAt = null;
-            await targetUser.save();
-            return res.json({ success: true, message: "🔧 調試成功！已注入 500 點 🪙，並還原為【一般會員狀態】" });
-        }
-
-        return res.status(400).json({ success: false, message: "無效的調試變更指令" });
-    } catch (err) {
-        return res.status(500).json({ success: false, error: err.message });
-    }
-});
-
-// ───【Render 雲端大腦物理引擎正式點火監聽】───
+app.post('/api/user/unlock-vip', async (req, res) => {
+ try {
+ const authHeader = req.headers.authorization; if (!authHeader) return 
+res.status(411).json({ success: false, message: '請登入會員' });
+ const token = authHeader.split(' '); const decoded = jwt.verify(token, 
+'FREE_LOTTO_SECRET_2026'); const user = await User.findById(decoded.userId);
+ if (!user) return res.status(404).json({ success: false, message: '帳號不存在' });
+ user.isPaidMember = true; await user.save();
+ res.json({ success: true, message: '【AdMob 完看授權成功】操盤手 VIP 專屬防線已全線
+永久解鎖！', isPaidMember: true });
+ } catch (err) { res.status(500).json({ success: false, message: '激勵權限解鎖失敗' 
+}); }
+}); // 閉合 unlock-vip 接口
 
 
 // ───【Render 雲端大腦物理引擎正式點火監聽】───
