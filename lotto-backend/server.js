@@ -352,50 +352,68 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
             return res.end();
         } // 閉合 if (!cfg)
 
-        // 🎯【全量校正：100% 對齊原廠 userId 金鑰防禦閘】(徹底解決找不到帳號卡 0% Bug)
-        const sessionUserId = req.user && req.user.userId; 
-        if (!sessionUserId) {
-            res.write(JSON.stringify({ success: false, message: "身分驗證異常，無法讀取用戶特徵，請重新登入！" }) + "\n");
-            return res.end();
-        }
+         // 🟢 完美融合：徹底修復用戶 ID 金鑰與雙軌制權限判定 Bug
+ // 1. 精密對齊第 2 頁 jwt.sign 簽發的原始金鑰欄位 [userId]
+ const sessionUserId = req.user && req.user.userId; 
+ if (!sessionUserId) {
+ res.write(JSON.stringify({ success: false, status: 401, message: "身分驗證異常，安全權限鎖失效，請重新登入！" }) + "\n");
+ return res.end();
+ }
 
-        const targetUser = await User.findById(sessionUserId);
-        if (!targetUser) {
-            res.write(JSON.stringify({ success: false, message: "雲端找不到該會員帳號，拒絕存取！" }) + "\n");
-            return res.end();
-        }
+ const targetUser = await User.findById(sessionUserId);
+ if (!targetUser) {
+ res.write(JSON.stringify({ success: false, status: 404, message: "雲端找不到該會員帳號，拒絕算力存取！" }) + "\n");
+ return res.end();
+ }
 
-        const currentTime = new Date();
-        // 檢查是否處於包月/包年 VIP 訂閱有效期內 👑
-        const hasActiveSubscription = targetUser.subscriptionExpiresAt && targetUser.subscriptionExpiresAt > currentTime;
+ const currentTime = new Date();
+ // 🌟 改為「雙重聯防判定」：只要是後台手動開通的 isPaidMember，或者時間在有效期內，皆算高階會員
+ const isPremiumVip = targetUser.isPaidMember === true || (targetUser.subscriptionExpiresAt && new Date(targetUser.subscriptionExpiresAt) > currentTime);
 
-        // 🎯 核心特權分流控制線
-        if (hasActiveSubscription) {
-            console.log(`👑 VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。`);
-        } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
-            console.log(`🎬 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。`);
-        } else {
-            // 🪙 一般會員 ── 默默在背景執行單次扣 10 點全功能開放！
-            const OPERATION_COST = 10;
-            if ((targetUser.points || 0) < OPERATION_COST) {
-                res.write(JSON.stringify({ 
-                    success: false, 
-                    message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
-                }) + "\n");
-                return res.end();
-            }
+ let runModeReason = ""; // 用於記錄本次通關原因
 
-            // 執行扣點並即時同步存檔至 MongoDB
-            targetUser.points = (targetUser.points || 0) - OPERATION_COST;
-            await targetUser.save();
-            console.log(`🪙 隱藏扣點成功！用戶 [${targetUser.username}] 消耗 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
-            
-            // 🎯【終極大解鎖】：強制換行 \n\n 並配合物理沖刷，徹底擊穿 Express 快取憋字阻斷！
-            res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
-// 為了防止 Express 憋字，我們在此強行加上最原始的 Node 緩衝區強制沖刷，逼迫點數面板立刻展現
-if (typeof res.flush === 'function') res.flush(); 
-if (typeof res.flushHeaders === 'function') res.flushHeaders();
-        } // 🔒 完美閉合非訂閱用戶的 else 大口袋！
+ // 🌟 軌道 1：最高權重 —— 檢查是否為終身或訂閱高階會員 (優先放行，免扣點)
+ if (isPremiumVip) {
+ console.log(` 高級會員 [${targetUser.username}] 尊榮通行，免扣點海選。 👑`);
+ runModeReason = "VIP_PREMIUM_PASS";
+ } 
+ // 🌟 軌道 2：中等權重 —— 檢查前端是否帶著「看廣告解鎖成功」的標籤 (單次放行，免扣點)
+ else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
+ console.log(` 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。🎬`);
+ runModeReason = "AD_WATCH_PASS";
+ } 
+ // 🌟 軌道 3：最低權重 —— 既不是高階會員，也沒看廣告，強行啟動「一般會員單次扣點防線」
+ else {
+ const OPERATION_COST = 10;
+ if ((targetUser.points || 0) < OPERATION_COST) {
+ // 點數不足，回傳標準 402 狀態標記，阻斷運算
+ res.write(JSON.stringify({ 
+ success: false, 
+ status: 402,
+ message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。` 
+ }) + "\n");
+ return res.end();
+ }
+
+ // 執行扣點並寫入 MongoDB
+ targetUser.points = (targetUser.points || 0) - OPERATION_COST;
+ await targetUser.save();
+ console.log(` 計次扣點成功！用戶 [${targetUser.username}] 消耗 🪙 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
+ runModeReason = "POINTS_DEDUCTED_PASS";
+ }
+
+ // ====== 🔓 權限隔離審查通過！在串流最前端高頻沖刷資產更新宣告 ======
+ // 這能確保前端 WebView 第一時間拿到最新點數並解除 0% 憋字
+ res.write(JSON.stringify({ 
+ isProgress: false, 
+ status: "AUTH_SUCCESS", 
+ reason: runModeReason, 
+ currentPoints: targetUser.points 
+ }) + "\n\n");
+ 
+ if (typeof res.flush === 'function') res.flush(); 
+ if (typeof res.flushHeaders === 'function') res.flushHeaders();
+ // 🟢 融合區塊結束
 
     
     const lottoType = cfg.lottoType || "39_5";
