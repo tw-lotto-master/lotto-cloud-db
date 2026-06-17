@@ -1230,13 +1230,12 @@ function extractUserIdFromPayload(req) {
 }
 
 // =========================================================================
-// 🚀 【後台局部疏通補丁】：全面相容電腦網頁 Body Token 穿透 (100% 不遺漏)
+// 🚀 【後台局部完全體】：徹底隔離變數大小寫，擊穿 500 內部錯誤
 // =========================================================================
 
 // 1. 獲取用戶最新帳戶點數資產與 VIP 剩餘狀態 🔄 (對齊前端 profile-v2 破壁路徑)
 app.post('/api/user/profile-v2', async (req, res) => {
   try {
-    // 雙軌融合：Header 被 file:// 沒收時，自動改由 bodyPayload 提取憑證
     let authHeader = req.headers.authorization || req.headers.Authorization || (req.body && req.body.token);
     if (!authHeader) return res.status(401).json({ success: false, message: "身分驗證失效" });
     
@@ -1247,16 +1246,17 @@ app.post('/api/user/profile-v2', async (req, res) => {
     const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
     const sessionUserId = String(decoded.userId || decoded._id || decoded.id).trim();
     
-    const user = await User.findById(sessionUserId).select('-password');
-    if (!user) return res.status(404).json({ success: false, message: "找不到該會員資料" });
+    // 精確隔離：使用大寫 User 查詢，存放至小寫常數中
+    const userProfile = await User.findById(sessionUserId).select('-password');
+    if (!userProfile) return res.status(404).json({ success: false, message: "找不到該會員資料" });
     
-    return res.json({ success: true, user: user });
+    return res.json({ success: true, user: userProfile });
   } catch (err) {
     return res.status(500).json({ success: false, message: "資產讀取異常" });
   }
 });
 
-// 2. 儲值點數 🪙 (擊穿 ERR_CONNECTION_CLOSED 死鎖)
+// 2. 儲值點數 🪙 (擊穿 500 Internal Server Error 終極晶片)
 app.post('/api/user/buy-points', async (req, res) => {
   try {
     let authHeader = req.headers.authorization || req.headers.Authorization || (req.body && req.body.token);
@@ -1269,21 +1269,26 @@ app.post('/api/user/buy-points', async (req, res) => {
     const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
     const sessionUserId = String(decoded.userId || decoded._id || decoded.id).trim();
     
-    const user = await User.findById(sessionUserId);
-    if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
+    // 🎯 核心修正：強制改用 dbUser 作為儲存常數，與 Mongoose Model 的 [User] 進行物理隔離，防止作用域劫持！
+    const dbUser = await User.findById(sessionUserId);
+    if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
     
     // 100% 數字化物理防線：防範 undefined 疊加轉為 NaN 導致 MongoDB 崩潰拒絕存檔
-    user.points = (Number(user.points) || 0) + 100;
-    await user.save();
+    dbUser.points = (Number(dbUser.points) || 0) + 100;
     
-    console.log(` 🪙 [金流到帳] 用戶 [${user.username}] 局部升級儲值成功，餘額：${user.points} 點 `);
-    return res.json({ success: true, newPoints: user.points });
+    // 強制標記欄位被修改，確保 Mongoose 順暢進行資料庫寫入
+    dbUser.markModified('points');
+    await dbUser.save();
+    
+    console.log(` 🪙 [金流成功到帳] 用戶 [${dbUser.username}] 局部升級儲值成功，最新餘額：${dbUser.points} 點 `);
+    return res.json({ success: true, newPoints: dbUser.points });
   } catch (err) {
-    console.error("儲值崩潰，原因：", err.message);
+    console.error("🚨 儲值核心拋出異常崩潰，詳細原因：", err.message);
     return res.status(500).json({ success: false, message: "雲端金流異常" });
   }
 });
 // =========================================================================
+
 
 
 // 3. 點數消耗抵扣 ── 開啟 30 天 VIP 尊榮無限海選訂閱 👑
