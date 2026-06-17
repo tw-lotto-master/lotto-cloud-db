@@ -1229,41 +1229,62 @@ function extractUserIdFromPayload(req) {
   }
 }
 
-// 1. 獲取用戶最新帳戶點數資產與 VIP 狀態 🔄 (為了相容電腦 file:// 網頁端讀取，升級為 POST body 接收)
+// =========================================================================
+// 🚀 【後台局部疏通補丁】：全面相容電腦網頁 Body Token 穿透 (100% 不遺漏)
+// =========================================================================
+
+// 1. 獲取用戶最新帳戶點數資產與 VIP 剩餘狀態 🔄 (對齊前端 profile-v2 破壁路徑)
 app.post('/api/user/profile-v2', async (req, res) => {
   try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+    // 雙軌融合：Header 被 file:// 沒收時，自動改由 bodyPayload 提取憑證
+    let authHeader = req.headers.authorization || req.headers.Authorization || (req.body && req.body.token);
+    if (!authHeader) return res.status(401).json({ success: false, message: "身分驗證失效" });
+    
+    let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
+    if (tokenString.startsWith('Bearer ')) tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
+    if (tokenString.startsWith('Bearer')) tokenString = tokenString.replace(/^Bearer/, "").trim();
+    
+    const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
+    const sessionUserId = String(decoded.userId || decoded._id || decoded.id).trim();
     
     const user = await User.findById(sessionUserId).select('-password');
     if (!user) return res.status(404).json({ success: false, message: "找不到該會員資料" });
     
     return res.json({ success: true, user: user });
   } catch (err) {
-    return res.status(500).json({ success: false, message: "資料庫資產讀取異常" });
+    return res.status(500).json({ success: false, message: "資產讀取異常" });
   }
 });
 
-// 2. 儲值點數 🪙 (強制鎖定真房間版)
+// 2. 儲值點數 🪙 (擊穿 ERR_CONNECTION_CLOSED 死鎖)
 app.post('/api/user/buy-points', async (req, res) => {
   try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "驗證令牌失效或已過期，請重新登入！" });
+    let authHeader = req.headers.authorization || req.headers.Authorization || (req.body && req.body.token);
+    if (!authHeader) return res.status(401).json({ success: false, message: "驗證令牌失效" });
+    
+    let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
+    if (tokenString.startsWith('Bearer ')) tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
+    if (tokenString.startsWith('Bearer')) tokenString = tokenString.replace(/^Bearer/, "").trim();
+    
+    const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
+    const sessionUserId = String(decoded.userId || decoded._id || decoded.id).trim();
     
     const user = await User.findById(sessionUserId);
     if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
     
-    // 預防防禦：若資料庫內 points 為空，強制校正初始化為 0 再進行加法
+    // 100% 數字化物理防線：防範 undefined 疊加轉為 NaN 導致 MongoDB 崩潰拒絕存檔
     user.points = (Number(user.points) || 0) + 100;
     await user.save();
     
-    console.log(` 🪙 [金流成功到帳] 用戶 [${user.username}] 最新餘額：${user.points} 點 `);
+    console.log(` 🪙 [金流到帳] 用戶 [${user.username}] 局部升級儲值成功，餘額：${user.points} 點 `);
     return res.json({ success: true, newPoints: user.points });
   } catch (err) {
-    console.error("儲值崩潰，攔截原因：", err.message);
-    return res.status(500).json({ success: false, message: "儲值請求失敗，金流網絡中斷" });
+    console.error("儲值崩潰，原因：", err.message);
+    return res.status(500).json({ success: false, message: "雲端金流異常" });
   }
 });
+// =========================================================================
+
 
 // 3. 點數消耗抵扣 ── 開啟 30 天 VIP 尊榮無限海選訂閱 👑
 app.post('/api/user/subscribe-vip', async (req, res) => {
