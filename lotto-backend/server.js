@@ -66,20 +66,22 @@ const UserSchema = new mongoose.Schema({
 // 雙層自癒保險：防止在熱重載(Hot Reload)時發生模型重複編譯崩潰
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
-// ================== 後台終極強通電中間件開始 ==================
+// ================== 後台終極雙棲沙盒免疫中間件開始 ==================
 function authenticateToken(req, res, next) {
   if (req.method === 'OPTIONS') {
     return next();
   }
 
   try {
-    const authHeader = req.headers.authorization || req.headers.Authorization;
+    // 🎯【終極核心自癒】：雙軌制並進！Header 被 file:// 沒收時，自動改從網址 Query (?token=) 提取憑證
+    let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token;
+    
     if (!authHeader) {
-      console.log("❌ [攔截] 前端未攜帶任何 Authorization 標頭");
+      console.log("❌ [攔截] 前端未攜帶標頭且網址無備用憑證，拒絕存取");
       return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
     }
     
-    // 強效清洗外衣，物理火化重複的 Bearer 與雙引號
+    // 強效文字清洗，物理火化重複的 Bearer 與畸形引號
     let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
     if (tokenString.startsWith('Bearer ')) {
       tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
@@ -89,26 +91,25 @@ function authenticateToken(req, res, next) {
     }
 
     if (tokenString.includes(' ')) {
-      tokenString = tokenString.split(' ')[0];
+      tokenString = tokenString.split(' ');
     }
 
+    // 密碼學核心驗證
     const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
     
-    // 🎯【核心自癒】：強行將解密出的 userId 轉為純文字字串，擊穿 MongoDB 物件死鎖
-    const rawId = decoded.userId || decoded._id || decoded.id;
-    if (!rawId) throw new Error("Token 內無有效的用戶識別碼");
-    
+    // 強制字串化自癒，擊穿 MongoDB 物件死鎖
     req.user = {
-      userId: String(rawId).trim()
+      userId: String(decoded.userId || decoded._id || decoded.id).trim()
     };
     
     next();
   } catch (err) {
-    console.error("🚨 [後台報錯] JWT 密碼學解密失敗：", err.message);
+    console.error("🚨 [後台報錯] JWT 雙軌核對失敗，原因：", err.message);
     return res.status(401).json({ success: false, message: '驗證令牌失效或已過期' });
   }
 }
 // ================== 後台沙盒免疫中間件結束 ==================
+
 
 // ================== 節點一取代範圍結束 ==================
 app.post('/api/auth/register', async (req, res) => {
