@@ -1,10 +1,25 @@
 const express = require('express');
-const mongoose = require('mongoose');
+const mongoose = require('mongoose'); // 🎯 修正：必須將這行提到最前面，否則下方無法調用！
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 
+// ================== ✨ 後台真房間物理鎖死補丁開始 ==================
+// 1. 強制指定唯一合法的真實 lotto 資料庫連線網址（擊穿任何預設值劫持）
+const TRUE_MONGO_URI = "mongodb+srv://bingooo16888_db_user:bingo19880429@cluster0.t33ebvn.mongodb.net/lotto?retryWrites=true&w=majority&appName=Cluster0";
+
+// 2. 物理清除 Mongoose 快取緩衝區內所有可能殘留的 lottodb / lotto_db 舊模型記憶
+mongoose.models = {};
+mongoose.modelSchemas = {};
+
+// 3. 執行正式硬體鎖死連線
+mongoose.connect(TRUE_MONGO_URI)
+  .then(() => console.log("📡 [大腦通電成功] 已物理清除舊快取，全量強制回歸真房間：MongoDB -> lotto 👑"))
+  .catch(err => console.error("🚨 資料庫真房間開啟失敗，阻斷原因：", err));
+// ================== ✨ 後台真房間物理鎖死補丁結束 ==================
+
 const app = express();
+
 
 // 🔒 滿血開啟靜態託管網頁通道，讓 Google 順利審查隱私權政策
 app.use(express.static('public'));
@@ -51,44 +66,49 @@ const UserSchema = new mongoose.Schema({
 // 雙層自癒保險：防止在熱重載(Hot Reload)時發生模型重複編譯崩潰
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
-// ================== 後台中間件超級自癒補丁開始 ==================
-// ================== 後台沙盒免疫中間件開始 ==================
+// ================== 後台終極強通電中間件開始 ==================
 function authenticateToken(req, res, next) {
-  // 【核心自癒】：如果是瀏覽器跨網域的 OPTIONS 預檢請求，直接放行，絕不攔截！
   if (req.method === 'OPTIONS') {
     return next();
   }
 
   try {
-    const authHeader = req.headers.authorization;
+    const authHeader = req.headers.authorization || req.headers.Authorization;
     if (!authHeader) {
+      console.log("❌ [攔截] 前端未攜帶任何 Authorization 標頭");
       return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
     }
     
-    // 嚴格清洗前後端標頭外衣
-    let tokenString = authHeader.trim();
+    // 強效清洗外衣，物理火化重複的 Bearer 與雙引號
+    let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
     if (tokenString.startsWith('Bearer ')) {
       tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
     }
-    
-    // 萬 gap 容錯：防範格式被切碎
+    if (tokenString.startsWith('Bearer')) {
+      tokenString = tokenString.replace(/^Bearer/, "").trim();
+    }
+
     if (tokenString.includes(' ')) {
       tokenString = tokenString.split(' ')[0];
     }
 
     const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
     
+    // 🎯【核心自癒】：強行將解密出的 userId 轉為純文字字串，擊穿 MongoDB 物件死鎖
+    const rawId = decoded.userId || decoded._id || decoded.id;
+    if (!rawId) throw new Error("Token 內無有效的用戶識別碼");
+    
     req.user = {
-      userId: decoded.userId || decoded._id || decoded.id
+      userId: String(rawId).trim()
     };
+    
     next();
   } catch (err) {
-    console.error("JWT 核心解密異常，攔截報錯：", err.message);
+    console.error("🚨 [後台報錯] JWT 密碼學解密失敗：", err.message);
     return res.status(401).json({ success: false, message: '驗證令牌失效或已過期' });
   }
 }
 // ================== 後台沙盒免疫中間件結束 ==================
-
 
 // ================== 節點一取代範圍結束 ==================
 app.post('/api/auth/register', async (req, res) => {
@@ -1188,17 +1208,20 @@ else {
 // 👑 【商用核心】：四大用戶資產與訂閱交易 API 路由群組 (100% 正式版環境對齊)
 // =========================================================================
 
-// 🔄 1. 獲取用戶最新帳戶點數資產與 VIP 訂閱剩餘天數狀態
+// =========================================================================
+// 🚀 【商用特權正式版】：四大用戶資產與交易 API 路由 (強制鎖定真房間版) 👑
+// =========================================================================
+
+// 1. 獲取用戶最新帳戶點數資產與 VIP 訂閱剩餘天數狀態 🔄
 app.get('/api/user/profile', authenticateToken, async (req, res) => {
   try {
     const sessionUserId = req.user && req.user.userId;
-    if (!sessionUserId) {
-      return res.status(400).json({ success: false, message: "無效的身分憑證權限鎖" });
-    }
-    const user = await User.findById(sessionUserId).select('-password');
-    if (!user) {
-      return res.status(404).json({ success: false, message: "找不到該會員資料" });
-    }
+    if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的身分憑證權限鎖" });
+    
+    // 強制轉型純字串查詢，防止快取劫持
+    const user = await User.findById(String(sessionUserId).trim()).select('-password');
+    if (!user) return res.status(404).json({ success: false, message: "找不到該會員資料" });
+    
     return res.json({ success: true, user: user });
   } catch (err) {
     return res.status(500).json({ success: false, message: "資料庫資產讀取異常" });
@@ -1211,14 +1234,18 @@ app.post('/api/user/buy-points', authenticateToken, async (req, res) => {
     const sessionUserId = req.user && req.user.userId;
     if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的憑證" });
     
-    const user = await User.findById(sessionUserId);
+    // 強制在金流路由中進行字串化自癒防禦，粉碎 undefined 轉 NaN 盲點
+    const user = await User.findById(String(sessionUserId).trim());
     if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
     
-    user.points = (user.points || 0) + 100;
+    // 自癒防禦：若資料庫內 points 欄位為空或 undefined，強制初始化為 0 再進行加法
+    user.points = (Number(user.points) || 0) + 100;
     await user.save();
-    console.log(` [金流到帳通知] 用戶 [${user.username}] 成功儲值 100 點，最新餘額：${user.points} 點 💳 `);
+    
+    console.log(` 🪙 [金流成功到帳] 用戶 [${user.username}] 最新餘額：${user.points} 點 `);
     return res.json({ success: true, newPoints: user.points });
   } catch (err) {
+    console.error("儲值崩潰，攔截原因：", err.message);
     return res.status(500).json({ success: false, message: "儲值請求失敗，金流網絡中斷" });
   }
 });
@@ -1229,33 +1256,25 @@ app.post('/api/user/subscribe-vip', authenticateToken, async (req, res) => {
     const sessionUserId = req.user && req.user.userId;
     if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的憑證" });
     
-    const user = await User.findById(sessionUserId);
+    const user = await User.findById(String(sessionUserId).trim());
     if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
     
     const SUBSCRIBE_COST = 150; 
-    if ((user.points || 0) < SUBSCRIBE_COST) {
+    if ((Number(user.points) || 0) < SUBSCRIBE_COST) {
       return res.status(400).json({ success: false, message: `續約失敗！訂閱 VIP 需消耗 ${SUBSCRIBE_COST} 點，您的點數餘額不足。` });
     }
     
-    user.points -= SUBSCRIBE_COST;
+    user.points = Number(user.points) - SUBSCRIBE_COST;
     const now = new Date();
-    let baseDate = (user.subscriptionExpiresAt && user.subscriptionExpiresAt > now)
-      ? new Date(user.subscriptionExpiresAt) 
-      : now;
-     
+    let baseDate = (user.subscriptionExpiresAt && user.subscriptionExpiresAt > now) ? new Date(user.subscriptionExpiresAt) : now;
     baseDate.setDate(baseDate.getDate() + 30); 
     user.subscriptionExpiresAt = baseDate;
     user.isPaidMember = true; 
     await user.save();
     
-    console.log(` [訂閱續約成功] 用戶 [${user.username}] 成功抵扣 👑 ${SUBSCRIBE_COST} 點，VIP 延展至：${user.subscriptionExpiresAt.toLocaleDateString()}`);
-    return res.json({ 
-      success: true, 
-      expiresAt: user.subscriptionExpiresAt, 
-      newPoints: user.points 
-    });
+    return res.json({ success: true, expiresAt: user.subscriptionExpiresAt, newPoints: user.points });
   } catch (err) {
-    return res.status(500).json({ success: false, message: "訂閱處理失敗，算力調度異常" });
+    return res.status(500).json({ success: false, message: "訂閱處理失敗" });
   }
 });
 
@@ -1265,13 +1284,12 @@ app.post('/api/user/cancel-vip', authenticateToken, async (req, res) => {
     const sessionUserId = req.user && req.user.userId;
     if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的憑證" });
     
-    const user = await User.findById(sessionUserId);
+    const user = await User.findById(String(sessionUserId).trim());
     if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
     
     user.subscriptionExpiresAt = null;
     user.isPaidMember = false; 
     await user.save();
-    console.log(` [訂閱主動終止] 用戶 [${user.username}] 已手動取消 VIP 天數包月 🛑 `);
     return res.json({ success: true });
   } catch (err) {
     return res.status(500).json({ success: false, message: "終止訂閱請求失敗" });
@@ -1284,23 +1302,21 @@ app.post('/api/user/single-unlock', authenticateToken, async (req, res) => {
     const sessionUserId = req.user && req.user.userId;
     if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的憑證" });
     
-    const user = await User.findById(sessionUserId);
+    const user = await User.findById(String(sessionUserId).trim());
     if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
     
     const UNLOCK_COST = 10; 
-    if ((user.points || 0) < UNLOCK_COST) {
-      return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階 15 大防線需消耗 ${UNLOCK_COST} 點。您可以先點擊儲值！` });
+    if ((Number(user.points) || 0) < UNLOCK_COST) {
+      return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階 15 大防線需消耗 ${UNLOCK_COST} 點。` });
     }
     
-    user.points -= UNLOCK_COST;
+    user.points = Number(user.points) - UNLOCK_COST;
     await user.save();
-    console.log(` [單次扣點解鎖成功] 用戶 [${user.username}] 消耗 10 點 🪙 `);
     return res.json({ success: true, newPoints: user.points });
   } catch (err) {
-    return res.status(500).json({ success: false, message: "雲端授權通道異常，請稍後再試" });
+    return res.status(500).json({ success: false, message: "雲端授權通道異常" });
   }
 });
-
 // =========================================================================
 
 app.post('/api/tickets/save', authenticateToken, async (req, res) => {
@@ -1393,18 +1409,13 @@ app.post('/api/user/unlock-vip', async (req, res) => {
 }); // 閉合 unlock-vip 接口
 
 
-// ───【Render 雲端大腦物理引擎正式點火監聽】───
+// ================== ✨ 後台終極完全體引擎點火監聽 ==================
 const PORT = process.env.PORT || 10000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://lottouser2026:lotto2026pass@cluster0.mongodb.net/lottodb";
 
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log(" =========================================================");
-    console.log("    Mongoose 雙軌超導雲端大腦握手成功！資料庫全線通車！    ");
-    console.log(" =========================================================");
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log(` 終極完全體超導後台已成功在 Port ${PORT} 點火發動！`);
-      console.log(" 100% 括號文字精密備註、雙彩種背景預存降維、永久消滅語法死鎖！準備上架！");
-    }); // 閉合 app.listen
-  }) // 閉合 mongoose.connect.then
-  .catch(err => { console.error(" 雲端資料庫點火死機：", err.message); });
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(` =========================================================`);
+  console.log(` 📡 終極完全體超導後台已成功在 Port ${PORT} 點火發動！`);
+  console.log(` 100% 雙資料庫去重隔離、真房間歸位、全線通車！準備上架！`);
+  console.log(` =========================================================`);
+});
+// =========================================================================
