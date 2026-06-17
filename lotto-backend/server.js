@@ -52,37 +52,43 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // ================== 後台中間件超級自癒補丁開始 ==================
+// ================== 後台沙盒免疫中間件開始 ==================
 function authenticateToken(req, res, next) {
+  // 【核心自癒】：如果是瀏覽器跨網域的 OPTIONS 預檢請求，直接放行，絕不攔截！
+  if (req.method === 'OPTIONS') {
+    return next();
+  }
+
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
       return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
     }
     
-    // 【終極包容防線】：無論前端傳過來的是純 Token，還是帶有多個 Bearer 空格的混亂字串，一律物理清洗
+    // 嚴格清洗前後端標頭外衣
     let tokenString = authHeader.trim();
     if (tokenString.startsWith('Bearer ')) {
       tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
     }
     
-    // 如果清洗後還是被切碎包裹，做二次提取防禦
+    // 萬 gap 容錯：防範格式被切碎
     if (tokenString.includes(' ')) {
       tokenString = tokenString.split(' ')[0];
     }
 
     const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
     
-    // 兼容處理 decoded 物件中可能同時存在 _id 或 userId 的情況
     req.user = {
       userId: decoded.userId || decoded._id || decoded.id
     };
     next();
   } catch (err) {
-    console.error("JWT 核心解密死鎖，攔截報錯：", err.message);
+    console.error("JWT 核心解密異常，攔截報錯：", err.message);
     return res.status(401).json({ success: false, message: '驗證令牌失效或已過期' });
   }
 }
-// ================== 後台中間件超級自癒補丁結束 ==================
+// ================== 後台沙盒免疫中間件結束 ==================
+
 
 // ================== 節點一取代範圍結束 ==================
 app.post('/api/auth/register', async (req, res) => {
