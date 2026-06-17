@@ -111,10 +111,10 @@ app.post('/api/auth/login', async (req, res) => {
     } // 閉合 if (!user...)
     
     const token = jwt.sign(
-      { userId: user._id, isPaidMember: user.isPaidMember }, 
-      'FREE_LOTTO_SECRET_2026', 
-      { expiresIn: '30d' }
-    ); // 閉合 jwt.sign
+  { userId: user._id }, 
+  'FREE_LOTTO_SECRET_2026', // 💡 直接鎖死特權密鑰字串
+  { expiresIn: '30d' }
+); // 閉合 jwt.sign
     res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
   } catch (err) { 
     res.status(500).json({ success: false, message: '登入驗證異常' }); 
