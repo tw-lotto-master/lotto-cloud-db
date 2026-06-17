@@ -363,7 +363,13 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
  res.write(JSON.stringify({ success: false, status: 401, message: "身分驗證異常，安全權限鎖失效，請重新登入！" }) + "\n");
  return res.end();
  }
-
+      
+const targetUser = await User.findById(sessionUserId);
+if (!targetUser) {
+res.write(JSON.stringify({ success: false, message: "雲端找不到該會員帳號，拒絕存取！" }) + "\n");
+return res.end();
+}
+const currentTime = new Date();
      // ================== 取代範圍開始 ==================
     // 檢查是否處於包月/包年 VIP 訂閱有效期內 👑
     const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
