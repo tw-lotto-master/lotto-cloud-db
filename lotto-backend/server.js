@@ -1206,21 +1206,36 @@ else {
   } // 完美閉合覆蓋全局最高生命線的 try-catch
 }); // 🔒【總大門竣工】：完美合規關閉第 309 行起手的總 app.post('/api/lottery/generate-vip-turbo') 路由大門！
 // =========================================================================
-// 👑 【商用核心】：四大用戶資產與訂閱交易 API 路由群組 (100% 正式版環境對齊)
+// 🚀 【商用特權終極破壁版】：四大用戶資產與交易 API 路由 (支援 body 憑證解鎖) 👑
 // =========================================================================
 
-// =========================================================================
-// 🚀 【商用特權正式版】：四大用戶資產與交易 API 路由 (強制鎖定真房間版) 👑
-// =========================================================================
-
-// 1. 獲取用戶最新帳戶點數資產與 VIP 訂閱剩餘天數狀態 🔄
-app.get('/api/user/profile', authenticateToken, async (req, res) => {
+// 【核心解密輔助晶片】：支援從 Header、Query 以及 Body Payload 全量安全提取 Token
+function extractUserIdFromPayload(req) {
+  // 🎯 破壁關鍵：Header 被 file:// 沒收沒關係，自動轉向檢查 req.body.token 的安全艙！
+  let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token);
+  if (!authHeader) return null;
+  
+  // 終極文字清洗，物理火化重複的 Bearer 與內嵌畸形引號
+  let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
+  if (tokenString.startsWith('Bearer ')) tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
+  if (tokenString.startsWith('Bearer')) tokenString = tokenString.replace(/^Bearer/, "").trim();
+  if (tokenString.includes(' ')) tokenString = tokenString.split(' ');
+  
   try {
-    const sessionUserId = req.user && req.user.userId;
-    if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的身分憑證權限鎖" });
+    const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
+    return String(decoded.userId || decoded._id || decoded.id).trim();
+  } catch (e) {
+    return null;
+  }
+}
+
+// 1. 獲取用戶最新帳戶點數資產與 VIP 狀態 🔄 (為了相容電腦 file:// 網頁端讀取，升級為 POST body 接收)
+app.post('/api/user/profile-v2', async (req, res) => {
+  try {
+    const sessionUserId = extractUserIdFromPayload(req);
+    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
     
-    // 強制轉型純字串查詢，防止快取劫持
-    const user = await User.findById(String(sessionUserId).trim()).select('-password');
+    const user = await User.findById(sessionUserId).select('-password');
     if (!user) return res.status(404).json({ success: false, message: "找不到該會員資料" });
     
     return res.json({ success: true, user: user });
@@ -1229,17 +1244,16 @@ app.get('/api/user/profile', authenticateToken, async (req, res) => {
   }
 });
 
-// 2. 儲值點數 🪙
-app.post('/api/user/buy-points', authenticateToken, async (req, res) => {
+// 2. 儲值點數 🪙 (強制鎖定真房間版)
+app.post('/api/user/buy-points', async (req, res) => {
   try {
-    const sessionUserId = req.user && req.user.userId;
-    if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的憑證" });
+    const sessionUserId = extractUserIdFromPayload(req);
+    if (!sessionUserId) return res.status(401).json({ success: false, message: "驗證令牌失效或已過期，請重新登入！" });
     
-    // 強制在金流路由中進行字串化自癒防禦，粉碎 undefined 轉 NaN 盲點
-    const user = await User.findById(String(sessionUserId).trim());
+    const user = await User.findById(sessionUserId);
     if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
     
-    // 自癒防禦：若資料庫內 points 欄位為空或 undefined，強制初始化為 0 再進行加法
+    // 預防防禦：若資料庫內 points 為空，強制校正初始化為 0 再進行加法
     user.points = (Number(user.points) || 0) + 100;
     await user.save();
     
@@ -1252,12 +1266,12 @@ app.post('/api/user/buy-points', authenticateToken, async (req, res) => {
 });
 
 // 3. 點數消耗抵扣 ── 開啟 30 天 VIP 尊榮無限海選訂閱 👑
-app.post('/api/user/subscribe-vip', authenticateToken, async (req, res) => {
+app.post('/api/user/subscribe-vip', async (req, res) => {
   try {
-    const sessionUserId = req.user && req.user.userId;
-    if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的憑證" });
+    const sessionUserId = extractUserIdFromPayload(req);
+    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
     
-    const user = await User.findById(String(sessionUserId).trim());
+    const user = await User.findById(sessionUserId);
     if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
     
     const SUBSCRIBE_COST = 150; 
@@ -1280,12 +1294,12 @@ app.post('/api/user/subscribe-vip', authenticateToken, async (req, res) => {
 });
 
 // 4. 會員自主管理：主動終止/取消 VIP 包月訂閱狀態 🛑
-app.post('/api/user/cancel-vip', authenticateToken, async (req, res) => {
+app.post('/api/user/cancel-vip', async (req, res) => {
   try {
-    const sessionUserId = req.user && req.user.userId;
-    if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的憑證" });
+    const sessionUserId = extractUserIdFromPayload(req);
+    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
     
-    const user = await User.findById(String(sessionUserId).trim());
+    const user = await User.findById(sessionUserId);
     if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
     
     user.subscriptionExpiresAt = null;
@@ -1298,12 +1312,12 @@ app.post('/api/user/cancel-vip', authenticateToken, async (req, res) => {
 });
 
 // 5. 處理前端點擊「單次解鎖 (10點)」實體按鈕的扣點權限請求 🪙
-app.post('/api/user/single-unlock', authenticateToken, async (req, res) => {
+app.post('/api/user/single-unlock', async (req, res) => {
   try {
-    const sessionUserId = req.user && req.user.userId;
-    if (!sessionUserId) return res.status(400).json({ success: false, message: "無效的憑證" });
+    const sessionUserId = extractUserIdFromPayload(req);
+    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
     
-    const user = await User.findById(String(sessionUserId).trim());
+    const user = await User.findById(sessionUserId);
     if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
     
     const UNLOCK_COST = 10; 
