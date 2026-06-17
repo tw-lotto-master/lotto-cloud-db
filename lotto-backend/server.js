@@ -62,13 +62,17 @@ function authenticateToken(req, res, next) {
       tokenString = authHeader.split(' ')[1];
     }
     const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
-    req.user = decoded;
+    // ================== 節點一取代範圍開始 ==================
+    // 兼容處理 decoded 物件中可能同時存在 _id 或 userId 的情況，強制對齊原廠
+    req.user = {
+      userId: decoded.userId || decoded._id || decoded.id
+    };
     next();
   } catch (err) {
     return res.status(401).json({ success: false, message: '驗證令牌失效或已過期' });
   }
 }
-
+// ================== 節點一取代範圍結束 ==================
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, password } = req.body;
