@@ -414,7 +414,7 @@ const currentTime = new Date();
  const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
  targetUser.subscriptionExpiresAt > currentTime;
  
- // 🎯【核心補正】：將前端單次點數解鎖標籤，物理對齊至尊榮通行層級，確保 15 大防線訊號不連號中斷
+ // 🎯 只在原始代碼上方，物理補接這個前端本來就有發射的單次付費特權標籤
  const isSingleUnlocked = cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true';
 
  // 核心特權分流控制線 🎯
