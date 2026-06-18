@@ -411,11 +411,14 @@ return res.end();
 const currentTime = new Date();
      // ================== 取代範圍開始 ==================
     // 檢查是否處於包月/包年 VIP 訂閱有效期內 👑
-    const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
-    targetUser.subscriptionExpiresAt > currentTime;
-    
-    // 核心特權分流控制線 🎯
-    if (hasActiveSubscription) {
+ const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
+ targetUser.subscriptionExpiresAt > currentTime;
+ 
+ // 🎯【核心補正】：將前端單次點數解鎖標籤，物理對齊至尊榮通行層級，確保 15 大防線訊號不連號中斷
+ const isSingleUnlocked = cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true';
+
+ // 核心特權分流控制線 🎯
+ if (hasActiveSubscription || isSingleUnlocked) {
       console.log(` VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。 👑 `);
     } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
       console.log(` 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬 `);
