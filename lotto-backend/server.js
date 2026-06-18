@@ -409,62 +409,38 @@ res.write(JSON.stringify({ success: false, message: "雲端找不到該會員帳
 return res.end();
 }
 const currentTime = new Date();
- // =========================================================================
- // 【超導特權標籤分流晶片】：精確對齊前端，擊穿 58%/75% 憋字與 0組熔斷 🚀
- // =========================================================================
- const hasActiveSubscription = targetUser.subscriptionExpiresAt && targetUser.subscriptionExpiresAt > currentTime;
- 
- // 全局演算法權限判定變數（注入底層，防止 0 組提早熔斷）
- let hasHighLevelPrivilege = false; 
- let userVipTag = "STANDARD";
- 
- if (hasActiveSubscription || targetUser.isPaidMember === true) {
-     console.log(` VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。 👑`);
-     hasHighLevelPrivilege = true;
-     userVipTag = "VIP_PREMIUM";
-     
-     // 物理沖刷：對齊前端權限亮燈
-     res.write(JSON.stringify({ isPointsUpdated: true, currentPoints: targetUser.points, reason: "VIP_PREMIUM_PASS", vipTag: userVipTag }) + "\n\n");
- } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
-     console.log(` 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬`);
-     userVipTag = "AD_UNLOCKED";
- } else if (cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true') {
-     console.log(` 一般會員 [${targetUser.username}] 已在前端單次解鎖，直接授權高級通道。 ⚡`);
-     hasHighLevelPrivilege = true;
-     userVipTag = "SINGLE_PAID";
-     
-     res.write(JSON.stringify({ isPointsUpdated: true, currentPoints: targetUser.points, vipTag: userVipTag }) + "\n\n");
- } else {
-     // 未滿足上述任何特權標籤，執行後台自動扣點機制 🪙
-     const OPERATION_COST = 10;
-     if ((Number(targetUser.points) || 0) < OPERATION_COST) {
-         res.write(JSON.stringify({ 
-             success: false, 
-             status: "EARLY_MELTDOWN",
-             code: "CONFIG_MISMATCH",
-             message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值、看影片解鎖，或開通單次特權！` 
-         }) + "\n\n");
-         return res.end();
-     }
-     
-     // 執行安全扣點
-     targetUser.points = (Number(targetUser.points) || 0) - OPERATION_COST;
-     targetUser.markModified('points');
-     await targetUser.save();
-     
-     console.log(` 隱藏扣點成功！用戶 [${targetUser.username}] 消耗 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點 🪙`);
-     hasHighLevelPrivilege = true; // 扣點成功，強制開通高階窮舉特權，消滅 0 組熔斷！
-     userVipTag = "SINGLE_PAID";
-     
-     // 雙換行加上強效發射，擊穿 Render 雲端快取憋字
-     res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points, vipTag: userVipTag, action: "ROUTE_ALIGN" }) + "\n\n");
- }
- 
- // 每一次權限判定結束，立刻物理沖刷通訊管道，防止 0% 卡死
- if (typeof res.flush === 'function') res.flush();
- if (typeof res.flushHeaders === 'function') res.flushHeaders();
- // =========================================================================
-
+     // ================== 取代範圍開始 ==================
+    // 檢查是否處於包月/包年 VIP 訂閱有效期內 👑
+    const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
+    targetUser.subscriptionExpiresAt > currentTime;
+    
+    // 核心特權分流控制線 🎯
+    if (hasActiveSubscription) {
+      console.log(` VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。 👑 `);
+    } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
+      console.log(` 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬 `);
+    } else {
+      // 一般會員 ── 默默在背景執行單次扣 10 點全功能開放！ 🪙
+      const OPERATION_COST = 10;
+      if ((targetUser.points || 0) < OPERATION_COST) {
+        res.write(JSON.stringify({ 
+          success: false, 
+          message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
+        }) + "\n");
+        return res.end();
+      }
+      
+      // 執行扣點並即時同步存檔至 MongoDB
+      targetUser.points = (targetUser.points || 0) - OPERATION_COST;
+      await targetUser.save();
+      console.log(` 隱藏扣點成功！用戶 [${targetUser.username}] 消耗 🪙 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
+      
+      // 【終極解鎖補丁】：強制加上雙換行 \n\n，配合物理沖刷，徹底擊穿 Express 快取憋字阻斷！
+      res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
+      if (typeof res.flush === 'function') res.flush();
+      if (typeof res.flushHeaders === 'function') res.flushHeaders();
+    } // 完美閉合非訂閱用戶的 else 大口袋！ 🔒
+    // ================== 取代範圍結束 ==================
 
     
     const lottoType = cfg.lottoType || "39_5";
@@ -651,8 +627,7 @@ const currentTime = new Date();
           totalScanned++;
           if (totalScanned % 15000 === 0) {
             let percent = Math.min(100, Math.floor((totalScanned / 575757) * 100));
-            res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n\n");
-if (typeof res.flush === 'function') res.flush();
+            res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
             // 核心給予 1 毫秒物理喘息，交還 Node.js 執行緒控制權
             await new Promise(resolve => setTimeout(resolve, 1));
           } // 閉合調速閥沖刷 if
@@ -995,8 +970,7 @@ else {
             if (totalScanned % 150000 === 0) {
               let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
               if (percent !== lastReportedPercent) {
-                res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n\n");
-if (typeof res.flush === 'function') res.flush();
+                res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
                 lastReportedPercent = percent;
               } // 閉合百分比不重複刷新 if
               // 給予 Node.js 執行緒 1 毫秒物理喘息，打破大口袋阻斷，前台WebView絕不卡 0%！
