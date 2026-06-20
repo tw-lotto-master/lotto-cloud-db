@@ -486,12 +486,10 @@ const currentTime = new Date();
         // 動態編譯本輪海選玩家有勾選的 539 倒排索引遮罩鎖
         let active539Bits = 0; 
         let required539Mask = 0; 
-       // 🛡️ 唯讀記憶體硬體清洗補丁：強制將開關還原為最嚴格的布林判定，剔除任何潛在的字串 `"false"` 污染！
-if (cfg.f8_on) { active539Bits |= (1 << 0); required539Mask |= (1 << 0); }
-if (cfg.f11_on) { activeFilterBits |= (1 << 1); required539Mask |= (1 << 1); } 
-if (cfg.f12_on) { activeFilterBits |= (1 << 2); required539Mask |= (1 << 2); } 
-if (cfg.f14_on) { activeFilterBits |= (1 << 3); required539Mask |= (1 << 3); } 
-
+        if (cfg.f8_on) { active539Bits |= (1 << 0); required539Mask |= (1 << 0); }
+        if (cfg.f11_on) { active539Bits |= (1 << 1); required539Mask |= (1 << 1); } 
+        if (cfg.f12_on) { active539Bits |= (1 << 2); required539Mask |= (1 << 2); } 
+        if (cfg.f14_on) { active539Bits |= (1 << 3); required539Mask |= (1 << 3); }
         
         // 🚀【物理降維大革命】：拋棄五層巢狀迴圈！改採單層超導物理指針遍歷大池！
         for (let k = 0; k < 575757; k++) {
@@ -665,18 +663,18 @@ if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
         } // 閉合 if (!isSmartMode)
 // ───【分流 B：聰明包牌模式 (539純淨餘數跨組優先滾動 & 自適應串流版)】───
 else {
- const localOutputSet = new Set();
- 
- let shuffledIndices539 = [];
- for (let i = 0; i < totalSurvivorCombs; i++) {
- shuffledIndices539.push(i);
- }
- for (let i = shuffledIndices539.length - 1; i > 0; i--) {
- const j = Math.floor(Math.random() * (i + 1));
- const temp = shuffledIndices539[i];
- shuffledIndices539[i] = shuffledIndices539[j];
- shuffledIndices539[j] = temp;
- }
+    const localOutputSet = new Set();
+    
+    let shuffledIndices539 = [];
+    for (let i = 0; i < totalSurvivorCombs; i++) {
+        shuffledIndices539.push(i);
+    }
+    for (let i = shuffledIndices539.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = shuffledIndices539[i];
+        shuffledIndices539[i] = shuffledIndices539[j];
+        shuffledIndices539[j] = temp;
+    }
 
     let currentPoolIdx = 0;
     let batchCounter = 0;          
@@ -853,21 +851,18 @@ else {
         let currentPointerIdx = 0;
         let activeFilterBits = 0; 
         let requiredFeatureMask = 0; 
-        // 🛡️ 唯讀記憶體硬體解鎖：強制剔除任何字串污染、未定義污染！
-// 只有在前端明確傳送 true 或者是布林值成立時才准開啟。
-if (cfg.f8_on) { activeFilterBits |= (1 << 0); requiredFeatureMask |= (1 << 0); }
-if (cfg.f11_on) { activeFilterBits |= (1 << 1); requiredFeatureMask |= (1 << 1); } 
-if (cfg.f12_on) { activeFilterBits |= (1 << 2); requiredFeatureMask |= (1 << 2); } 
-if (cfg.f14_on) { activeFilterBits |= (1 << 3); requiredFeatureMask |= (1 << 3);
-
+        if (cfg.f8_on) { activeFilterBits |= (1 << 0); requiredFeatureMask |= (1 << 0); }
+        if (cfg.f11_on) { activeFilterBits |= (1 << 1); requiredFeatureMask |= (1 << 1); } 
+        if (cfg.f12_on) { activeFilterBits |= (1 << 2); requiredFeatureMask |= (1 << 2); } 
+        if (cfg.f14_on) { activeFilterBits |= (1 << 3); requiredFeatureMask |= (1 << 3); } 
         
         const checkHistoryGeiLei = (cfg.f15_on === true || cfg.f15_on === 'true'); 
         
         // 【大樂透高速通道】：切片非同步海選核心晶片
         async function runSliceChunk(startK, endK) {
-         for (let k = startK; k < endK; k++) {
- if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) {
- break;
+          for (let k = startK; k < endK; k++) {
+            if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) {
+              break;
             } // 閉合生還指標溢出中斷 if
             
             let matrixId = globalLotto49Indices[currentPointerIdx++];
@@ -1038,15 +1033,16 @@ else {
     const localOutputSet49 = new Set();
     
     // 1. 全量指針矩陣隨機洗牌
-   let shuffledIndices = survivorPoolIndices; 
- 
- // 使用高時脈原生洗牌，精準跑通千萬大池
- for (let i = totalSurvivorCombs - 1; i > 0; i--) {
-  const j = Math.floor(Math.random() * (i + 1));
-  const temp = shuffledIndices[i];
-  shuffledIndices[i] = shuffledIndices[j];
-  shuffledIndices[j] = temp;
- }
+    let shuffledIndices = [];
+    for (let i = 0; i < totalSurvivorCombs; i++) {
+        shuffledIndices.push(survivorPoolIndices[i]);
+    }
+    for (let i = shuffledIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = shuffledIndices[i];
+        shuffledIndices[i] = shuffledIndices[j];
+        shuffledIndices[j] = temp;
+    }
 
     let currentPoolIdx = 0;
     let batchCounter = 0;          
