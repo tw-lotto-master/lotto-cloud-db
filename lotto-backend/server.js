@@ -351,17 +351,13 @@ function init539StaticFeatures(historyDB) {
   } // 閉合 i1
   
   let unique539GeiLei = new Set();
-  historyDB.forEach(h => {
-    let nums = h.slice(0, 5).map(Number).sort((a, b) => a - b);
-    if (nums.length < 5) return;
-    for (let i = 0; i < 5; i++) {
-      let sub4 = nums.filter((_, idx) => idx !== i);
-      for (let ball = 1; ball <= 39; ball++) {
-        if (nums.includes(ball)) continue;
-        unique539GeiLei.add([...sub4, ball].sort((a,b)=>a-b).join(','));
-      } // 閉合 ball
-    } // 閉合 sub4 i
-  }); // 閉合 historyDB.forEach
+ historyDB.forEach(h => {
+     let nums = h.slice(0, 5).map(Number).sort((a, b) => a - b);
+     if (nums.length < 5) return;
+     
+     // 🛡️ 只將 5 碼完全契合的歷史真實中獎號碼加入地雷庫
+     unique539GeiLei.add(nums.join(','));
+ }); 
   
   for (let i = 0; i < 575757; i++) {
     let bp = i * 5;
