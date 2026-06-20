@@ -670,18 +670,20 @@ if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
         } // 閉合 if (!isSmartMode)
 // ───【分流 B：聰明包牌模式 (539純淨餘數跨組優先滾動 & 自適應串流版)】───
 else {
-    const localOutputSet = new Set();
-    
-    let shuffledIndices539 = [];
-    for (let i = 0; i < totalSurvivorCombs; i++) {
-        shuffledIndices539.push(i);
-    }
-    for (let i = shuffledIndices539.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const temp = shuffledIndices539[i];
-        shuffledIndices539[i] = shuffledIndices539[j];
-        shuffledIndices539[j] = temp;
-    }
+ const localOutputSet = new Set();
+ 
+ // 🛡️ 雙彩超導變數對齊補丁：將 shuffledIndices539 強制改名為 shuffledIndices
+ // 完美對齊 PDF 第 12、13、14 頁底層所有寫死的 shuffledIndices.push 邏輯，徹底消滅未定義當機！
+ let shuffledIndices = []; 
+ for (let i = 0; i < totalSurvivorCombs; i++) {
+ shuffledIndices.push(i);
+ }
+ for (let i = shuffledIndices.length - 1; i > 0; i--) {
+ const j = Math.floor(Math.random() * (i + 1));
+ const temp = shuffledIndices[i];
+ shuffledIndices[i] = shuffledIndices[j];
+ shuffledIndices[j] = temp;
+ }
 
     let currentPoolIdx = 0;
     let batchCounter = 0;          
