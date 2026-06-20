@@ -970,12 +970,14 @@ async function runSliceChunk(startK, endK) {
             } // 閉合生還指標加入 if
             // ===【核心解鎖調速閥：大樂透實時非同步推進控制，物理總量精確分母對齊】===
             totalScanned++; 
-            if (totalScanned % 150000 === 0) {
-              let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
-              if (percent !== lastReportedPercent) {
-                res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                lastReportedPercent = percent;
-              } // 閉合百分比不重複刷新 if
+             if (totalScanned % 150000 === 0) {
+  let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
+  if (percent !== lastReportedPercent) {
+   res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+   // 🛡️ 強制穿透 Express 網路背壓，每 15 萬圈強制把數據吐給手機！
+   if (typeof res.flush === 'function') res.flush(); 
+   lastReportedPercent = percent;
+  } // 閉合百分比不重複刷新 if
               // 給予 Node.js 執行緒 1 毫秒物理喘息，打破大口袋阻斷，前台WebView絕不卡 0%！
               await new Promise(resolve => setTimeout(resolve, 1));
             } // 閉合 150000 次降頻沖刷 if
