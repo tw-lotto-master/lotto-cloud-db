@@ -875,9 +875,9 @@ if (runF14) { activeFilterBits |= (1 << 3); requiredFeatureMask |= (1 << 3); }
         
         // 【大樂透高速通道】：切片非同步海選核心晶片
         async function runSliceChunk(startK, endK) {
-          for (let k = startK; k < endK; k++) {
-            if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) {
-              break;
+         for (let k = startK; k < endK; k++) {
+ if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) {
+ break;
             } // 閉合生還指標溢出中斷 if
             
             let matrixId = globalLotto49Indices[currentPointerIdx++];
@@ -1048,16 +1048,15 @@ else {
     const localOutputSet49 = new Set();
     
     // 1. 全量指針矩陣隨機洗牌
-    let shuffledIndices = [];
-    for (let i = 0; i < totalSurvivorCombs; i++) {
-        shuffledIndices.push(survivorPoolIndices[i]);
-    }
-    for (let i = shuffledIndices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const temp = shuffledIndices[i];
-        shuffledIndices[i] = shuffledIndices[j];
-        shuffledIndices[j] = temp;
-    }
+   let shuffledIndices = survivorPoolIndices; 
+ 
+ // 使用高時脈原生洗牌，精準跑通千萬大池
+ for (let i = totalSurvivorCombs - 1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  const temp = shuffledIndices[i];
+  shuffledIndices[i] = shuffledIndices[j];
+  shuffledIndices[j] = temp;
+ }
 
     let currentPoolIdx = 0;
     let batchCounter = 0;          
