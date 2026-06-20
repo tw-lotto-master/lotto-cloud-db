@@ -486,10 +486,17 @@ const currentTime = new Date();
         // 動態編譯本輪海選玩家有勾選的 539 倒排索引遮罩鎖
         let active539Bits = 0; 
         let required539Mask = 0; 
-        if (cfg.f8_on) { active539Bits |= (1 << 0); required539Mask |= (1 << 0); }
-        if (cfg.f11_on) { active539Bits |= (1 << 1); required539Mask |= (1 << 1); } 
-        if (cfg.f12_on) { active539Bits |= (1 << 2); required539Mask |= (1 << 2); } 
-        if (cfg.f14_on) { active539Bits |= (1 << 3); required539Mask |= (1 << 3); }
+       // 🛡️ 唯讀記憶體硬體清洗補丁：強制將開關還原為最嚴格的布林判定，剔除任何潛在的字串 `"false"` 污染！
+const run539F8  = (cfg.f8_on === true  || cfg.f8_on === 'true');
+const run539F11 = (cfg.f11_on === true || cfg.f11_on === 'true');
+const run539F12 = (cfg.f12_on === true || cfg.f12_on === 'true'); // 🛡️ 斬斷條件 12 在背景偷偷拖後腿的可能
+const run539F14 = (cfg.f14_on === true || cfg.f14_on === 'true');
+
+if (run539F8)  { active539Bits |= (1 << 0); required539Mask |= (1 << 0); }
+if (run539F11) { active539Bits |= (1 << 1); required539Mask |= (1 << 1); } 
+if (run539F12) { active539Bits |= (1 << 2); required539Mask |= (1 << 2); } 
+if (run539F14) { active539Bits |= (1 << 3); required539Mask |= (1 << 3); } 
+
         
         // 🚀【物理降維大革命】：拋棄五層巢狀迴圈！改採單層超導物理指針遍歷大池！
         for (let k = 0; k < 575757; k++) {
@@ -851,10 +858,18 @@ else {
         let currentPointerIdx = 0;
         let activeFilterBits = 0; 
         let requiredFeatureMask = 0; 
-        if (cfg.f8_on) { activeFilterBits |= (1 << 0); requiredFeatureMask |= (1 << 0); }
-        if (cfg.f11_on) { activeFilterBits |= (1 << 1); requiredFeatureMask |= (1 << 1); } 
-        if (cfg.f12_on) { activeFilterBits |= (1 << 2); requiredFeatureMask |= (1 << 2); } 
-        if (cfg.f14_on) { activeFilterBits |= (1 << 3); requiredFeatureMask |= (1 << 3); } 
+        // 🛡️ 唯讀記憶體硬體解鎖：強制剔除任何字串污染、未定義污染！
+// 只有在前端明確傳送 true 或者是布林值成立時才准開啟。
+const runF8  = (cfg.f8_on === true  || cfg.f8_on === 'true');
+const runF11 = (cfg.f11_on === true || cfg.f11_on === 'true');
+const runF12 = (cfg.f12_on === true || cfg.f12_on === 'true'); // 🛡️ 徹底斷絕條件 12 默認必運作的後路
+const runF14 = (cfg.f14_on === true || cfg.f14_on === 'true');
+
+if (runF8)  { activeFilterBits |= (1 << 0); requiredFeatureMask |= (1 << 0); }
+if (runF11) { activeFilterBits |= (1 << 1); requiredFeatureMask |= (1 << 1); } 
+if (runF12) { activeFilterBits |= (1 << 2); requiredFeatureMask |= (1 << 2); } 
+if (runF14) { activeFilterBits |= (1 << 3); requiredFeatureMask |= (1 << 3); } 
+
         
         const checkHistoryGeiLei = (cfg.f15_on === true || cfg.f15_on === 'true'); 
         
