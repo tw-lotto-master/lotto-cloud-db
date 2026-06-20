@@ -973,16 +973,18 @@ async function runSliceChunk(startK, endK) {
             } // 閉合生還指標加入 if
             // ===【核心解鎖調速閥：大樂透實時非同步推進控制，物理總量精確分母對齊】===
             totalScanned++; 
-             if (totalScanned % 150000 === 0) {
-  let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
-    
+if (totalScanned % 100000 === 0) { // ⚡ 調密進度點名區間，改為 10 萬圈
+    let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
     if (percent !== lastReportedPercent) {
         res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
         lastReportedPercent = percent;
-    } // 閉合百分比不重複刷新 if
-              // 給予 Node.js 執行緒 1 毫秒物理喘息，打破大口袋阻斷，前台WebView絕不卡 0%！
-              await new Promise(resolve => setTimeout(resolve, 1));
-            } // 閉合 150000 次降頻沖刷 if
+        // 🛡️ 雙彩超導流式強刷補丁：在大數據密集運算帶，強制釋放 2 毫秒物理時鐘，等手機前端 DOM 渲染完畢，絕不准超車！
+        await new Promise(resolve => setTimeout(resolve, 2)); 
+    } else {
+        // 常態釋放 Node.js 微任務控制權，維持高併發流暢度
+        await new Promise(resolve => setImmediate(resolve));
+    }
+} // 閉合 150000 次降頻沖刷 if
             
           } // 🔒 完美閉合單個 Chunk 的物理遍歷 for 迴圈大門！
         } // 🔒 完美物理閉合 async function runSliceChunk 核心宣告大門！
