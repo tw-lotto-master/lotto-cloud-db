@@ -852,13 +852,15 @@ else {
         const checkHistoryGeiLei = (cfg.f15_on === true || cfg.f15_on === 'true'); 
         
         // 【大樂透高速通道】：切片非同步海選核心晶片
-        async function runSliceChunk(startK, endK) {
-          for (let k = startK; k < endK; k++) {
-            if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) {
-              break;
-            } // 閉合生還指標溢出中斷 if
-            
-            let matrixId = globalLotto49Indices[currentPointerIdx++];
+        // ➡️ 【後台 Page 15】精準替換後代碼：
+async function runSliceChunk(startK, endK) {
+ for (let k = startK; k < endK; k++) {
+ // 🛡️ 雙彩超導物理鎖：徹底拔除 targetCount * 6 限制！強迫大口袋 100% 跑完全量運算！
+ if (currentPointerIdx >= matrixLength) {
+ break;
+ }
+ let matrixId = globalLotto49Indices[currentPointerIdx++];
+
             
             // 【晶片級特徵預點名】：倒排索引秒速排除不合規組合，跳過無效號碼解壓
             let currentFeature = 0;
@@ -1016,19 +1018,16 @@ else {
           } // 閉合 if (!isSmartMode)
 // ───【分流 B：聰明包牌模式 (純淨餘數跨組優先滾動 & 自適應串流版)】───
 else {
-    const localOutputSet49 = new Set();
-    
-    // 1. 全量指針矩陣隨機洗牌
-    let shuffledIndices = [];
-    for (let i = 0; i < totalSurvivorCombs; i++) {
-        shuffledIndices.push(survivorPoolIndices[i]);
-    }
-    for (let i = shuffledIndices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const temp = shuffledIndices[i];
-        shuffledIndices[i] = shuffledIndices[j];
-        shuffledIndices[j] = temp;
-    }
+ const localOutputSet49 = new Set();
+ 
+ // 🛡️ 雙彩超導原生通道修復：取消陣列複製，直接對原始生還池進行就地洗牌，消滅 99% 崩潰！
+ let shuffledIndices = survivorPoolIndices;
+ for (let i = totalSurvivorCombs - 1; i > 0; i--) {
+ const j = Math.floor(Math.random() * (i + 1));
+ const temp = shuffledIndices[i];
+ shuffledIndices[i] = shuffledIndices[j];
+ shuffledIndices[j] = temp;
+ }
 
     let currentPoolIdx = 0;
     let batchCounter = 0;          
