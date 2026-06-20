@@ -635,11 +635,7 @@ if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
  
  // 核心給予 1 毫秒物理喘息，交還 Node.js 執行緒控制權
  await new Promise(resolve => setTimeout(resolve, 1));
- }
-
-            // 核心給予 1 毫秒物理喘息，交還 Node.js 執行緒控制權
-            await new Promise(resolve => setTimeout(resolve, 1));
-          } // 閉合調速閥沖刷 if
+ } // 閉合調速閥沖刷 if
         } // 🔒 完美物理閉合 539 全池單層單線高速遍歷 for 迴圈！
       } catch (err539) {
         console.error(" 539海選分流內部異常：", err539.message);
