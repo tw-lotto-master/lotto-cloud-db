@@ -588,18 +588,13 @@ const currentTime = new Date();
             if (maxConsecutive >= (cfg.f7_len || 3)) isCombValid = false;
           } // 閉合 if (isCombValid && cfg.f7_on)
           
-          if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
+          // 【條件 9】：鄰號夾擊防線控制
+if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
     let nCnt = 0;
-    // 記憶體高速通道核對
-    for (let m = 0; m < 5; m++) {
-        if (neighborSet.has(comb[m])) nCnt++;
-    }
-    // 🛡️ 安全門檻防禦：如果前端沒傳，預設上限為 2。含有超過 2 個鄰號才剔除。
-    let f9MaxLimit = isNaN(parseInt(cfg.f9_count, 10)) ? 2 : parseInt(cfg.f9_count, 10);
-    if (f9MaxLimit <= 0) f9MaxLimit = 2;
-
-    if (nCnt > f9MaxLimit) isCombValid = false; // 超過鄰號上限才淘汰，恢復正常篩選！
-} // 閉合 if (isCombValid && cfg.f9_on...)
+    comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
+    if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
+}
+ // 閉合 if (isCombValid && cfg.f9_on...)
           
           // 【條件 10】：上期獎號連莊封殺牆
           if (isCombValid && cfg.f10_on && cfg.lastPeriod && cfg.lastPeriod.length > 0) {
@@ -942,14 +937,8 @@ else {
             // 【條件 9】：鄰號夾擊防線控制
             if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
     let nCnt = 0;
-    for (let m = 0; m < 6; m++) {
-        if (neighborSet.has(comb[m])) nCnt++;
-    }
-    // 🛡️ 安全門檻防禦
-    let f9MaxLimit = isNaN(parseInt(cfg.f9_count, 10)) ? 2 : parseInt(cfg.f9_count, 10);
-    if (f9MaxLimit <= 0) f9MaxLimit = 2;
-
-    if (nCnt > f9MaxLimit) isCombValid = false; // 超過鄰號上限才淘汰，符合組數恢復跳動！
+    comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
+    if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
 } // 閉合 if (isCombValid && cfg.f9_on...)
             
             // 【條件 10】：上期獎號連莊封殺牆
