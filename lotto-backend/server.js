@@ -625,13 +625,18 @@ if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
           } // 閉合生還索引存入 if
           
           // ===【智控動態調速閥：高頻 15000 次沖刷一次，解鎖 0% 推進，保障登入接口不卡死】===
-          totalScanned++;
-          if (totalScanned % 150000 === 0) {
-    let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
-    if (survivorPoolIndices.length >= targetCount) { 
-        res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-        break; 
-    }
+           totalScanned++;
+ if (totalScanned % 150000 === 0) {
+ // 🛡️ 雙彩超導 539 進度物理鎖：一模一樣拔除進度區塊內的提早中斷 break！
+ // 確保不論生還池有沒有湊滿組數，539 必須完完整整、老老實實跑滿 575,757 全量大池，絕對不准中途偷跑結束！
+ let percent = Math.min(100, Math.floor((totalScanned / 575757) * 100)); // ⚡ 修正 539 進度條分母，精密對齊 539 總量 575757
+ 
+ res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+ 
+ // 核心給予 1 毫秒物理喘息，交還 Node.js 執行緒控制權
+ await new Promise(resolve => setTimeout(resolve, 1));
+ }
+
             // 核心給予 1 毫秒物理喘息，交還 Node.js 執行緒控制權
             await new Promise(resolve => setTimeout(resolve, 1));
           } // 閉合調速閥沖刷 if
