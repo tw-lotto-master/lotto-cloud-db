@@ -81,26 +81,28 @@ function authenticateToken(req, res, next) {
       return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
     }
     
-    // 強效文字清洗，物理火化重複的 Bearer 與畸形引號
-    let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
-    if (tokenString.startsWith('Bearer ')) {
-      tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
-    }
-    if (tokenString.startsWith('Bearer')) {
-      tokenString = tokenString.replace(/^Bearer/, "").trim();
-    }
+    // 強效文字清洗，物理火化重複的 Bearer 與畸形引號（修復 split(' ') 造成的陣列斷路）
+ let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
+ if (tokenString.startsWith('Bearer ')) {
+ tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
+ }
+ if (tokenString.startsWith('Bearer')) {
+ tokenString = tokenString.replace(/^Bearer/, "").trim();
+ }
+ if (Array.isArray(tokenString)) {
+ tokenString = tokenString[1] || tokenString[0];
+ } else if (tokenString.includes(' ')) {
+ tokenString = tokenString.split(' ')[1] || tokenString.split(' ')[0];
+ }
+ tokenString = String(tokenString).trim();
 
-    if (tokenString.includes(' ')) {
-      tokenString = tokenString.split(' ');
-    }
-
-    // 密碼學核心驗證
-    const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
-    
-    // 強制字串化自癒，擊穿 MongoDB 物件死鎖
-    req.user = {
-      userId: String(decoded.userId || decoded._id || decoded.id).trim()
-    };
+ // 密碼學核心驗證
+ const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
+ 
+ // 強制字串化自癒，擊穿 MongoDB 物件死鎖
+ req.user = {
+ userId: String(decoded.userId || decoded._id || decoded.id).trim()
+ };
     
     next();
   } catch (err) {
@@ -404,38 +406,51 @@ if (!targetUser) {
 res.write(JSON.stringify({ success: false, message: "雲端找不到該會員帳號，拒絕存取！" }) + "\n");
 return res.end();
 }
-const currentTime = new Date();
-     // ================== 取代範圍開始 ==================
-    // 檢查是否處於包月/包年 VIP 訂閱有效期內 👑
-    const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
-    targetUser.subscriptionExpiresAt > currentTime;
-    
-    // 核心特權分流控制線 🎯
-    if (hasActiveSubscription) {
-      console.log(` VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。 👑 `);
-    } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
-      console.log(` 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬 `);
-    } else {
-      // 一般會員 ── 默默在背景執行單次扣 10 點全功能開放！ 🪙
-      const OPERATION_COST = 10;
-      if ((targetUser.points || 0) < OPERATION_COST) {
-        res.write(JSON.stringify({ 
-          success: false, 
-          message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
-        }) + "\n");
-        return res.end();
-      }
-      
-      // 執行扣點並即時同步存檔至 MongoDB
-      targetUser.points = (targetUser.points || 0) - OPERATION_COST;
-      await targetUser.save();
-      console.log(` 隱藏扣點成功！用戶 [${targetUser.username}] 消耗 🪙 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
-      
-      // 【終極解鎖補丁】：強制加上雙換行 \n\n，配合物理沖刷，徹底擊穿 Express 快取憋字阻斷！
-      res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
-      if (typeof res.flush === 'function') res.flush();
-      if (typeof res.flushHeaders === 'function') res.flushHeaders();
-    } // 完美閉合非訂閱用戶的 else 大口袋！ 🔒
+const currentTime = Date.now(); // 統一改用最高精度的數字時間戳
+ // ================== 取代範圍開始 ==================
+ // 【即時強撞庫防線】：重新撈取最新資料庫狀態，擊穿重新整理與登入快取死線
+ const freshUser = await User.findById(sessionUserId);
+ if (!freshUser) {
+ res.write(JSON.stringify({ success: false, message: "用戶帳號已在其他終端變更！" }) + "\n");
+ return res.end();
+ }
+
+ // 強制 new Date().getTime() 密碼學轉換，確保 Mongoose 的 ISODate 與數字時間戳 100% 正確比對
+ const hasActiveSubscription = freshUser.subscriptionExpiresAt && 
+ (new Date(freshUser.subscriptionExpiresAt).getTime() > currentTime);
+ 
+ // 核心特權分流控制線 🎯
+ if (hasActiveSubscription) {
+ console.log(` VIP訂閱會員 [${freshUser.username}] 尊榮通行，免扣點海選。 `); 👑
+ } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true' || req.query.isAdUnlocked === 'true') {
+ console.log(` 一般會員 [${freshUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬 `);
+ } else {
+     // 一般會員 ── 默默在背景執行單次扣 10 點全功能開放！ 🪙
+ const OPERATION_COST = 10;
+ 
+ // 【最高權限原子防重扣鎖】：唯有當點數大於等於 10 時才執行扣除，並發連擊會因條件不符返回 null
+ const updatePointsResult = await User.findOneAndUpdate(
+ { _id: freshUser._id, points: { $gte: OPERATION_COST } },
+ { $inc: { points: -OPERATION_COST } },
+ { new: true }
+ );
+
+ if (!updatePointsResult) {
+ // 瞬間擊穿並發：點數不足，或者前一次高頻連擊請求已經搶先扣點成功
+ res.write(JSON.stringify({ 
+ success: false, 
+ message: `點數不足或重複扣點阻斷！VIP 篩選需消耗 ${OPERATION_COST} 點。請前往儲值！` 
+ }) + "\n");
+ return res.end();
+ }
+ 
+ console.log(` [原子鎖通車] 用戶 [${freshUser.username}] 成功扣除 🪙 ${OPERATION_COST} 點，賸餘點數：${updatePointsResult.points} 點`);
+ 
+ // 【終極解鎖補丁】：強制加上雙換行 \n\n，配合物理沖刷，徹底擊穿 Express 快取憋字阻斷！
+ res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: updatePointsResult.points }) + "\n\n");
+ if (typeof res.flush === 'function') res.flush();
+ if (typeof res.flushHeaders === 'function') res.flushHeaders();
+ } // 完美閉合非訂閱用戶的 else 大口袋！ 🔒
     // ================== 取代範圍結束 ==================
 
     
@@ -1249,11 +1264,18 @@ app.post('/api/user/profile-v2', async (req, res) => {
     const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
     const sessionUserId = String(decoded.userId || decoded._id || decoded.id).trim();
     
-    // 精確隔離：使用大寫 User 查詢，存放至小寫常數中
-    const userProfile = await User.findById(sessionUserId).select('-password');
-    if (!userProfile) return res.status(404).json({ success: false, message: "找不到該會員資料" });
-    
-    return res.json({ success: true, user: userProfile });
+   // 精確隔離：使用大寫 User 查詢，存放至小寫常數中
+ const userProfile = await User.findById(sessionUserId).select('-password');
+ if (!userProfile) return res.status(404).json({ success: false, message: "找不到該會員資料" });
+ 
+ // 【特權欄位完全對齊外露】：解決前端重新整理時讀取不到 isPaidMember 與 points 的對齊錯位 Bug
+ return res.json({ 
+ success: true, 
+ isPaidMember: userProfile.isPaidMember === true, 
+ points: userProfile.points || 0,
+ subscriptionExpiresAt: userProfile.subscriptionExpiresAt,
+ user: userProfile 
+ });
   } catch (err) {
     return res.status(500).json({ success: false, message: "資產讀取異常" });
   }
