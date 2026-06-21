@@ -67,7 +67,7 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // ================== 後台終極雙棲沙盒免疫中間件開始 ==================
-ffunction authenticateToken(req, res, next) {
+function authenticateToken(req, res, next) {
     if (req.method === 'OPTIONS') {
         return next();
     }
