@@ -67,34 +67,41 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // ================== 後台終極雙棲沙盒免疫中間件開始 ==================
-function authenticateToken(req, res, next) {
+ffunction authenticateToken(req, res, next) {
     if (req.method === 'OPTIONS') {
         return next();
     }
     
-    // 【終極冷啟動破壁防護盾】：當場直接在最外層給予 200 竣工返回，絕不允許它向下驚動 MongoDB 觸發 500 熔斷！
+    // 【商業級冷啟動阻斷晶片】：精準捕捉 WAKEUP_PING 訊號或喚醒路徑，直接在外層綠燈放行，絕對不允許它向下驚動資料庫，杜絕 500 熔斷！
     let authHeaderCheck = req.headers.authorization || req.headers.Authorization || req.query.token || "";
-    if (authHeaderCheck === 'WAKEUP_PING' || req.headers.authorization === 'WAKEUP_PING' || req.url.includes('tickets/list' && authHeaderCheck === 'WAKEUP_PING')) {
-        console.log("✨ [冷啟動攔截] 成功在中間件阻斷 WAKEUP_PING，免死金牌放行！");
-        return res.json({ success: true, message: "Render 喚醒成功！", savedTickets: [] });
+    if (authHeaderCheck === 'WAKEUP_PING' || req.headers.authorization === 'WAKEUP_PING' || req.url.includes('tickets/list')) {
+        if (authHeaderCheck === 'WAKEUP_PING' || req.headers.authorization === 'WAKEUP_PING') {
+            return res.json({ success: true, message: "Render 商用超導大腦喚醒成功！", savedTickets: [] });
+        }
     }
 
     try {
         let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token;
         
         if (!authHeader) {
-            console.log(" ❌ [攔截] 前端未攜帶標頭且網址無備用憑證，拒絕存取"); 
+            console.log(" ❌ [權限攔截] 前端未攜帶標頭且網址無備用憑證，拒絕存取"); 
             return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
         }
         
         // 強效文字清洗，物理火化重複的 Bearer 與畸形引號
         let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
         if (tokenString.startsWith('Bearer ')) {
-            tokenString = tokenString.slice(7).trim();
+            tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
         }
         if (tokenString.startsWith('Bearer')) {
-            tokenString = tokenString.slice(6).trim();
+            tokenString = tokenString.replace(/^Bearer/, "").trim();
         }
+        if (Array.isArray(tokenString)) {
+            tokenString = tokenString[1] || tokenString[0];
+        } else if (tokenString.includes(' ')) {
+            tokenString = tokenString.split(' ')[1] || tokenString.split(' ')[0];
+        }
+        tokenString = String(tokenString).trim();
         
         // 密碼學核心驗證
         const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
