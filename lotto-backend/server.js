@@ -68,53 +68,49 @@ const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // ================== 後台終極雙棲沙盒免疫中間件開始 ==================
 function authenticateToken(req, res, next) {
- if (req.method === 'OPTIONS') {
- return next();
- }
- try {
- // 【終極核心自癒】：雙軌制並進！Header 被 file:// 沒收時，自動改從網址 Query (?token=) 提取憑證
- let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token;
- 
- // 【商用冷啟動安全放行鎖】：識別 WAKEUP_PING 訊號，直接高鐵通行，全面封殺 401 背景紅字！
- if (authHeader === 'WAKEUP_PING' || (req.headers.authorization === 'WAKEUP_PING')) {
-     req.user = { userId: "WAKEUP_ANONYMOUS" };
-     return next();
- }
- 
- if (!authHeader) {
-      console.log("❌ [攔截] 前端未攜帶標頭且網址無備用憑證，拒絕存取");
-      return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
+    if (req.method === 'OPTIONS') {
+        return next();
     }
     
-    // 強效文字清洗，物理火化重複的 Bearer 與畸形引號（修復 split(' ') 造成的陣列斷路）
- let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
- if (tokenString.startsWith('Bearer ')) {
- tokenString = tokenString.replace(/^Bearer\s+/, "").trim();
- }
- if (tokenString.startsWith('Bearer')) {
- tokenString = tokenString.replace(/^Bearer/, "").trim();
- }
- if (Array.isArray(tokenString)) {
- tokenString = tokenString[1] || tokenString[0];
- } else if (tokenString.includes(' ')) {
- tokenString = tokenString.split(' ')[1] || tokenString.split(' ')[0];
- }
- tokenString = String(tokenString).trim();
+    // 【終極冷啟動破壁防護盾】：當場直接在最外層給予 200 竣工返回，絕不允許它向下驚動 MongoDB 觸發 500 熔斷！
+    let authHeaderCheck = req.headers.authorization || req.headers.Authorization || req.query.token || "";
+    if (authHeaderCheck === 'WAKEUP_PING' || req.headers.authorization === 'WAKEUP_PING' || req.url.includes('tickets/list' && authHeaderCheck === 'WAKEUP_PING')) {
+        console.log("✨ [冷啟動攔截] 成功在中間件阻斷 WAKEUP_PING，免死金牌放行！");
+        return res.json({ success: true, message: "Render 喚醒成功！", savedTickets: [] });
+    }
 
- // 密碼學核心驗證
- const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
- 
- // 強制字串化自癒，擊穿 MongoDB 物件死鎖
- req.user = {
- userId: String(decoded.userId || decoded._id || decoded.id).trim()
- };
-    
-    next();
-  } catch (err) {
-    console.error("🚨 [後台報錯] JWT 雙軌核對失敗，原因：", err.message);
-    return res.status(401).json({ success: false, message: '驗證令牌失效或已過期' });
-  }
+    try {
+        let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token;
+        
+        if (!authHeader) {
+            console.log(" ❌ [攔截] 前端未攜帶標頭且網址無備用憑證，拒絕存取"); 
+            return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
+        }
+        
+        // 強效文字清洗，物理火化重複的 Bearer 與畸形引號
+        let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
+        if (tokenString.startsWith('Bearer ')) {
+            tokenString = tokenString.slice(7).trim();
+        }
+        if (tokenString.startsWith('Bearer')) {
+            tokenString = tokenString.slice(6).trim();
+        }
+        
+        // 密碼學核心驗證
+        const decoded = jwt.verify(tokenString, 'FREE_LOTTO_SECRET_2026');
+        
+        // 強制字串化自癒，擊穿 MongoDB 物件死鎖
+        req.user = {
+            userId: String(decoded.userId || decoded._id || decoded.id).trim()
+        };
+        
+        next();
+    } catch (err) {
+        console.error(" 🚨 [後台報錯] JWT 雙軌核對失敗，原因：", err.message); 
+        return res.status(401).json({ success: false, message: '驗證令牌失效或已過期' });
+    }
 }
+
 // ================== 後台沙盒免疫中間件結束 ==================
 
 
