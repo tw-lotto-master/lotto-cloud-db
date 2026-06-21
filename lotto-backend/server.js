@@ -67,6 +67,7 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // ================== 後台終極雙棲沙盒免疫中間件開始 ==================
+// ====== 請將 server.js 第 70 行開始的開頭精確更正為以下純淨語法 ======
 function authenticateToken(req, res, next) {
     if (req.method === 'OPTIONS') {
         return next();
@@ -79,6 +80,8 @@ function authenticateToken(req, res, next) {
             return res.json({ success: true, message: "Render 商用超導大腦喚醒成功！", savedTickets: [] });
         }
     }
+// ... 底下維持不變
+
 
     try {
         let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token;
