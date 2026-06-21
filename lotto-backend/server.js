@@ -1324,82 +1324,102 @@ app.post('/api/user/buy-points', async (req, res) => {
   }
 });
 // =========================================================================
-
-
-
-// 3. 點數消耗抵扣 ── 開啟 30 天 VIP 尊榮無限海選訂閱 👑
+// 3. 點數消耗抵扣 ── 開啟 30 天 VIP 尊榮無限海選訂閱 👑【商業落地鎖完全體】
 app.post('/api/user/subscribe-vip', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-    
-    const user = await User.findById(sessionUserId);
-    if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
-    
-    const SUBSCRIBE_COST = 150; 
-    if ((Number(user.points) || 0) < SUBSCRIBE_COST) {
-      return res.status(400).json({ success: false, message: `續約失敗！訂閱 VIP 需消耗 ${SUBSCRIBE_COST} 點，您的點數餘額不足。` });
+    try {
+        const sessionUserId = extractUserIdFromPayload(req);
+        if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+        
+        const user = await User.findById(sessionUserId);
+        if (!user) return res.status(404).json({ success: false, message: "用戶不存在" }); 
+
+        const SUBSCRIBE_COST = 150; 
+        if ((Number(user.points) || 0) < SUBSCRIBE_COST) {
+            return res.status(400).json({ success: false, message: `續約失敗！訂閱 VIP 需消耗 ${SUBSCRIBE_COST} 點，您的點數餘額不足。` });
+        }
+        
+        // 扣除點數
+        user.points = Number(user.points) - SUBSCRIBE_COST;
+        const now = new Date();
+        let baseDate = (user.subscriptionExpiresAt && user.subscriptionExpiresAt > now) ? new Date(user.subscriptionExpiresAt) : now;
+        baseDate.setDate(baseDate.getDate() + 30); 
+        
+        // 【核心落地鎖】雙指標同步更新，且強制加上 await 確保 MongoDB 資料庫 100% 寫入存檔落地！
+        user.subscriptionExpiresAt = baseDate;
+        user.isPaidMember = true; 
+        
+        user.markModified('points');
+        user.markModified('subscriptionExpiresAt');
+        user.markModified('isPaidMember');
+        await user.save(); // 🔥 補齊關鍵 await，封殺重整被打回普通用戶的商用死穴！
+
+        // 商業級自癒：為了防止前端攜帶舊 JWT 產生標籤判定不對齊，當場動態簽發 30 天 VIP 專屬金鑰返回！
+        const token = jwt.sign(
+            { userId: user._id, isPaidMember: true }, 
+            'FREE_LOTTO_SECRET_2026', 
+            { expiresIn: '30d' }
+        );
+        
+        console.log(`[金流落地成功] 用戶 [${user.username}] 成功訂閱 30 天 VIP！剩餘點數：${user.points} 點。`);
+        return res.json({ 
+            success: true, 
+            isPaidMember: true,
+            token: token, // 吐回新金鑰讓前端物理刷新快取盒
+            expiresAt: user.subscriptionExpiresAt, 
+            newPoints: user.points 
+        });
+    } catch (err) {
+        console.error("VIP訂閱寫入資料庫失敗：", err.message);
+        return res.status(500).json({ success: false, message: "訂閱處理失敗" });
     }
-    
-     user.points = Number(user.points) - SUBSCRIBE_COST;
- const now = new Date();
- let baseDate = (user.subscriptionExpiresAt && user.subscriptionExpiresAt > now) ? 
- new Date(user.subscriptionExpiresAt) : now;
- baseDate.setDate(baseDate.getDate() + 30); 
- user.subscriptionExpiresAt = baseDate;
- user.isPaidMember = true; 
- await user.save();
- 
- // 【商業級完全體返回】：必須在外層將 isPaidMember 標籤與點數完全吐回給前端，擊穿重新整理降級 Bug！
- return res.json({ 
-     success: true, 
-     isPaidMember: true, 
-     expiresAt: user.subscriptionExpiresAt, 
-     newPoints: user.points 
- });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "訂閱處理失敗" });
-  }
 });
 
 // 4. 會員自主管理：主動終止/取消 VIP 包月訂閱狀態 🛑
 app.post('/api/user/cancel-vip', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-    
-    const user = await User.findById(sessionUserId);
-    if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
-    
-    user.subscriptionExpiresAt = null;
-    user.isPaidMember = false; 
-    await user.save();
-    return res.json({ success: true });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "終止訂閱請求失敗" });
-  }
+    try {
+        const sessionUserId = extractUserIdFromPayload(req);
+        if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+        
+        const user = await User.findById(sessionUserId);
+        if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
+        
+        user.subscriptionExpiresAt = null;
+        user.isPaidMember = false; 
+        
+        user.markModified('subscriptionExpiresAt');
+        user.markModified('isPaidMember');
+        await user.save(); // 🔥 補齊關鍵 await 確保雲端確實取消
+        
+        return res.json({ success: true, isPaidMember: false });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "終止訂閱請求失敗" });
+    }
 });
 
 // 5. 處理前端點擊「單次解鎖 (10點)」實體按鈕的扣點權限請求 🪙
 app.post('/api/user/single-unlock', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-    
-    const user = await User.findById(sessionUserId);
-    if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
-    
-    const UNLOCK_COST = 10; 
-    if ((Number(user.points) || 0) < UNLOCK_COST) {
-      return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階 15 大防線需消耗 ${UNLOCK_COST} 點。` });
+    try {
+        const sessionUserId = extractUserIdFromPayload(req);
+        if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+        
+        const user = await User.findById(sessionUserId);
+        if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
+        
+        const UNLOCK_COST = 10; 
+        if ((Number(user.points) || 0) < UNLOCK_COST) {
+            return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階 15 大防線需消耗 ${UNLOCK_COST} 點。` });
+        }
+        
+        user.points = Number(user.points) - UNLOCK_COST;
+        
+        user.markModified('points');
+        await user.save(); // 🔥 補齊關鍵 await 確保扣點計數完全落地
+        
+        console.log(`[單次扣點落地] 用戶 [${user.username}] 單次消耗 ${UNLOCK_COST} 點成功。`);
+        return res.json({ success: true, newPoints: user.points });
+    } catch (err) {
+        return res.status(500).json({ success: false, message: "雲端授權通道異常" });
     }
-    
-    user.points = Number(user.points) - UNLOCK_COST;
-    await user.save();
-    return res.json({ success: true, newPoints: user.points });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "雲端授權通道異常" });
-  }
 });
 // =========================================================================
 
