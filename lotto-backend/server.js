@@ -421,7 +421,7 @@ const currentTime = Date.now(); // 統一改用最高精度的數字時間戳
  
  // 核心特權分流控制線 🎯
  if (hasActiveSubscription) {
- console.log(` VIP訂閱會員 [${freshUser.username}] 尊榮通行，免扣點海選。 `); 👑
+ console.log(` VIP訂閱會員 [${freshUser.username}] 尊榮通行，免扣點海選。 👑 `);
  } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true' || req.query.isAdUnlocked === 'true') {
  console.log(` 一般會員 [${freshUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬 `);
  } else {
