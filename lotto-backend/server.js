@@ -545,7 +545,7 @@ const currentTime = new Date();
                    .add(Math.min(5, Math.ceil(i3 / 8)))
                    .add(Math.min(5, Math.ceil(i4 / 8)))
                    .add(Math.min(5, Math.ceil(i5 / 8)));
-            if (zoneSet.size !== cfg.f3_req) {
+            if (zoneSet.size !== cfg.f3_count) {
               isCombValid = false;
             } // 閉合區塊落點要求 if
           } // 閉合 if (isCombValid && cfg.f3_on)
@@ -838,6 +838,8 @@ else {
         let f4_max = parseInt(cfg.f4_max, 10) || 2;
         let f6_low = cfg.f6_on ? (parseInt(cfg.f6_low, 10) || 110) : 21;
         let f6_high = cfg.f6_on ? (parseInt(cfg.f6_high, 10) || 210) : 279;
+        let f3_count = parseInt(cfg.f3_count, 10) || 4;
+        let f13_min = parseInt(cfg.f13_min, 10) || 6;
         const matrixLength = 13983816; 
         const chunkSize = 3495954; 
         let currentPointerIdx = 0;
@@ -901,7 +903,7 @@ else {
             if (isCombValid && cfg.f3_on) {
               let zoneSet = new Set();
               zoneSet.add(Math.min(5, Math.ceil(i1 / 10))).add(Math.min(5, Math.ceil(i2 / 10))).add(Math.min(5, Math.ceil(i3 / 10))).add(Math.min(5, Math.ceil(i4 / 10))).add(Math.min(5, Math.ceil(i5 / 10))).add(Math.min(5, Math.ceil(i6 / 10)));
-              if (zoneSet.size !== cfg.f3_req) isCombValid = false;
+              if (zoneSet.size !== cfg.f3_count) isCombValid = false;
             } // 閉合 if (isCombValid && cfg.f3_on)
             // 【條件 4】：同尾數重複個數上限過濾
             if (isCombValid && cfg.f4_on) {
@@ -950,7 +952,7 @@ else {
             if (isCombValid && cfg.f13_on) {
               let diffs = new Set();
               for (let m = 0; m < 5; m++) { for (let n = m + 1; n < 6; n++) { diffs.add(Math.abs(comb[m] - comb[n])); } }
-              if ((diffs.size - 5) < cfg.f13_min) isCombValid = false;
+              if ((diffs.size - 5) < f13_min) isCombValid = false;
             } // 閉合 if (isCombValid && cfg.f13_on)
             
             // 🚀【超導部隊 15】：大樂透歷史地雷極速常數查表判定，完全無開銷！
