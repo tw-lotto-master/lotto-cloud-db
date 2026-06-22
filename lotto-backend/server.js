@@ -592,7 +592,7 @@ const currentTime = new Date();
           if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
             let nCnt = 0;
             comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
-            if (nCnt < (cfg.f9_count || 2)) isCombValid = false;
+            if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
           } // 閉合 if (isCombValid && cfg.f9_on...)
           
           // 【條件 10】：上期獎號連莊封殺牆
@@ -937,7 +937,7 @@ else {
             if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
               let nCnt = 0;
               comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
-              if (nCnt < (cfg.f9_count || 2)) isCombValid = false;
+              if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
             } // 閉合 if (isCombValid && cfg.f9_on...)
             
             // 【條件 10】：上期獎號連莊封殺牆
