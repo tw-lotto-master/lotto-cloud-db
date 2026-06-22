@@ -1339,20 +1339,54 @@ app.post('/api/user/subscribe-vip', async (req, res) => {
 
 // 4. 會員自主管理：主動終止/取消 VIP 包月訂閱狀態 🛑
 app.post('/api/user/cancel-vip', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-    
-    const user = await User.findById(sessionUserId);
-    if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
-    
-    user.subscriptionExpiresAt = null;
-    user.isPaidMember = false; 
-    await user.save();
-    return res.json({ success: true });
-  } catch (err) {
-    return res.status(500).json({ success: false, message: "終止訂閱請求失敗" });
-  }
+    try {
+        // 雙軌憑證安全解壓 ── 同步相容前端發射的 Headers Bearer 與 body Payload
+        let rawToken = req.body.token || "";
+        
+        if (!rawToken && req.headers.authorization) {
+            rawToken = req.headers.authorization.replace(/^Bearer\s+/, "");
+        }
+        
+        // 真空清洗
+        rawToken = String(rawToken).trim().replace(/['"\r\n\t]/g, '');
+        
+        if (!rawToken) {
+            return res.status(401).json({ success: false, message: "身分驗證憑證已失效(無Token)" });
+        }
+
+        // 核心解密：直接解開 Token 晶片，安全提取真實的 userId
+        const jwt = require('jsonwebtoken');
+        let decoded;
+        try {
+            decoded = jwt.verify(rawToken, 'FREE_LOTTO_SECRET_2026');
+        } catch(jwtErr) {
+            return res.status(401).json({ success: false, message: "金鑰認證失敗，請重新登入" });
+        }
+
+        if (!decoded || !decoded.userId) {
+            return res.status(401).json({ success: false, message: "憑證結構異常，阻斷攔截" });
+        }
+
+        // 現撈資料庫，實體精準銷帳
+        const user = await User.findById(decoded.userId.trim());
+        if (!user) {
+            return res.status(404).json({ success: false, message: "雲端資料庫找不到該操盤手帳戶" });
+        }
+
+        // 🌟 雙重強迫鎖死落地，徹底火化 true 狀態
+        user.subscriptionExpiresAt = null;
+        user.isPaidMember = false;
+        await user.save(); // 100% 寫入實體硬碟
+
+        console.log(` 💎 [終止訂閱成功] 帳戶 [${user.username}] 已正式降級為普通用戶，MongoDB 同步刷新！`);
+        
+        // 必須在確定存檔成功後，才在 if 內層發射真實的 success: true
+        return res.json({ success: true, message: "訂閱已成功終止，特權重鎖" });
+
+    } catch (err) {
+        console.error(" [終止核心崩潰] 嚴重錯誤：", err.message);
+        return res.status(500).json({ success: false, message: "伺服器底層內核阻斷錯誤" });
+    }
 });
 
 // 5. 處理前端點擊「單次解鎖 (10點)」實體按鈕的扣點權限請求 🪙
