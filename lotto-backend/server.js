@@ -131,12 +131,20 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ success: false, message: '帳密錯誤' });
     } // 閉合 if (!user...)
     
-    const token = jwt.sign(
-  { userId: user._id }, 
-  'FREE_LOTTO_SECRET_2026', // 💡 直接鎖死特權密鑰字串
-  { expiresIn: '30d' }
-); // 閉合 jwt.sign
-    res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
+        // 🌟 核心修復：Token 內絕對不包裝易變的 isPaidMember 狀態，防止時區與升級降級打架！
+        const token = jwt.sign(
+            { userId: String(user._id).trim() }, 
+            'FREE_LOTTO_SECRET_2026', 
+            { expiresIn: '30d' }
+        );
+        
+        // 畫面直接動態回傳最新 MongoDB 資料庫內的真實權限狀態，杜絕精神分裂
+        res.json({ 
+            success: true, 
+            token, 
+            username: user.username, 
+            isPaidMember: (user.isPaidMember === true) 
+        });
   } catch (err) { 
     res.status(500).json({ success: false, message: '登入驗證異常' }); 
   } // 閉合 try-catch
@@ -409,38 +417,46 @@ res.write(JSON.stringify({ success: false, message: "雲端找不到該會員帳
 return res.end();
 }
 const currentTime = new Date();
-     // ================== 取代範圍開始 ==================
-    // 檢查是否處於包月/包年 VIP 訂閱有效期內 👑
-    const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
-    targetUser.subscriptionExpiresAt > currentTime;
-    
-    // 核心特權分流控制線 🎯
-    if (hasActiveSubscription) {
-      console.log(` VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。 👑 `);
-    } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
-      console.log(` 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬 `);
-    } else {
-      // 一般會員 ── 默默在背景執行單次扣 10 點全功能開放！ 🪙
-      const OPERATION_COST = 10;
-      if ((targetUser.points || 0) < OPERATION_COST) {
-        res.write(JSON.stringify({ 
-          success: false, 
-          message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
-        }) + "\n");
-        return res.end();
-      }
-      
-      // 執行扣點並即時同步存檔至 MongoDB
-      targetUser.points = (targetUser.points || 0) - OPERATION_COST;
-      await targetUser.save();
-      console.log(` 隱藏扣點成功！用戶 [${targetUser.username}] 消耗 🪙 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
-      
-      // 【終極解鎖補丁】：強制加上雙換行 \n\n，配合物理沖刷，徹底擊穿 Express 快取憋字阻斷！
-      res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
-      if (typeof res.flush === 'function') res.flush();
-      if (typeof res.flushHeaders === 'function') res.flushHeaders();
-    } // 完美閉合非訂閱用戶的 else 大口袋！ 🔒
-    // ================== 取代範圍結束 ==================
+        // =========================================================================
+        // 👑 【後端變現與防重複扣點特權核心補丁】 ── 全面通電隔離 👑
+        // =========================================================================
+        const nowTime = new Date();
+        const hasActiveSubscription = targetUser.subscriptionExpiresAt && targetUser.subscriptionExpiresAt > nowTime;
+        
+        // 雙保險通車鎖：採信月費訂閱，或前端發射過來的單次扣點解鎖憑證、或廣告體驗憑證
+        const isVipPass = (
+            hasActiveSubscription || 
+            cfg.isPaidMember === true || 
+            cfg.isSingleUnlockedCurrentRound === true || 
+            cfg.isAdUnlocked === true ||
+            cfg.isAdUnlocked === 'true'
+        );
+
+        if (isVipPass) {
+            console.log(` [特權放行] 會員 [${targetUser.username}] 通過雙保險權限鎖，免扣點海選通車！`);
+        } else {
+            // 🛑 未具備任何特權憑證，進入實體背景單次扣點防禦渠道
+            const OPERATION_COST = 10;
+            if ((targetUser.points || 0) < OPERATION_COST) {
+                res.write(JSON.stringify({ 
+                    success: false, 
+                    status: 402, // 對齊前端點數不足狀態碼
+                    message: `點數不足！VIP精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
+                }) + "\n");
+                return res.end();
+            }
+
+            // 安全扣點，100% 防止底層 NaN 污染
+            targetUser.points = Math.max(0, (Number(targetUser.points) || 0) - OPERATION_COST);
+            await targetUser.save(); // 強制落地
+            console.log(` [背景扣點成功] 用戶 [${targetUser.username}] 單次消費 ${OPERATION_COST} 點，賸餘：${targetUser.points} 點`);
+
+            // 發射標準點數刷新訊號，並立刻沖刷快取，絕不污染下方的進度條 Stream 
+            res.write(JSON.stringify({ isPointsUpdated: true, status: "AUTH_SUCCESS", remainingPoints: targetUser.points }) + "\n");
+            if (typeof res.flush === 'function') res.flush();
+        }
+        // =========================================================================
+
 
     
     const lottoType = cfg.lottoType || "39_5";
