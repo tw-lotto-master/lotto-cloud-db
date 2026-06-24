@@ -327,16 +327,16 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
       res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: true }) + "\n");
     }
 
-    // ─── 多維環境變數參數動態對齊 🛠️ ───
+        // ─── 多維環境變數參數動態對齊 (由前端 cfg 直接傳遞，禁用 document) 🛠️ ───
     const lottoType = cfg.lottoType || "39_5";
     const maxNumber = lottoType === "49_6" ? 49 : 39;
     const requiredCount = lottoType === "49_6" ? 6 : 5;
-    const limitOutput = Math.min(100, cfg.count || 5); 
+    const limitOutput = Math.min(100, cfg.count || 5); // 滿血解鎖最高 100 組
     const vipMode = cfg.vipMode || 'smart';
 
     // ─── 16大平行獨立防線快取參數清洗 🎯 ───
     const f1_set = new Set(cfg.f1_set || []);
-    const vipFavSet = new Set(cfg.vip_fav_set || []); // 條件 16 皇家喜愛號
+    const vipFavSet = new Set(cfg.vip_fav_set || []); // 條件 16 皇家喜愛號直接從 cfg 提煉 👑
 
     const historyDB = globalHistoryDB || [];
     const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
@@ -498,7 +498,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
 
         // ───【條件 14】：質數/合數比例過濾 ───
         if (isCombValid && cfg.f14_on) {
-          const primes =;
+          const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
           let pCnt = current.filter(num => primes.includes(num)).length;
           if (cfg.f14_kill && pCnt >= 4) isCombValid = false;
         }
