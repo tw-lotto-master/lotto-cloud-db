@@ -343,8 +343,8 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
     
     let lastPeriod = [];
     const neighborSet = new Set();
-    if (historyDB && historyDB.length > 0) {
-      lastPeriod = historyDB.map(Number);
+     if (historyDB && historyDB.length > 0) {
+      lastPeriod = historyDB[historyDB.length - 1].map(Number); 
       let range = parseInt(cfg.f9_range, 10) || 1;
       lastPeriod.forEach(val => {
         for (let d = -range; d <= range; d++) { if (d !== 0) neighborSet.add(val + d); }
