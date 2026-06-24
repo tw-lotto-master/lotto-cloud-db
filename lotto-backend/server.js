@@ -20,7 +20,7 @@ const TRUE_MONGO_URI = process.env.MONGO_URI || "mongodb+srv://bingooo16888_db_u
 mongoose.models = {};
 mongoose.modelSchemas = {};
 mongoose.connect(TRUE_MONGO_URI)
-  .then(() => console.log(" [大腦通電成功] 已物理歸位真房間：MongoDB -> lotto 📡"))
+   .then(() => console.log(" [大腦通電成功] 已物理歸位真房間：MongoDB -> lotto 📡 "))
   .catch(err => console.error(" 資料庫真房間開啟失敗：", err));
 
 // ─── 操盤手帳戶與商用變動資產資料庫 Schema (精確對齊前端路徑) ───
@@ -43,7 +43,7 @@ const PRIME_SET = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 4
 function authenticateToken(req, res, next) {
   if (req.method === 'OPTIONS') return next();
   try {
-    let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token);
+    let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token) || req.body;
     if (!authHeader) return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
 
     let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
@@ -61,7 +61,7 @@ function authenticateToken(req, res, next) {
 
 function extractUserIdFromPayload(req) {
   try {
-    let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token);
+    let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token) || req.body;
     if (!authHeader) return null;
     let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
     if (tokenString.startsWith('Bearer ')) tokenString = tokenString.substring(7).trim();
@@ -88,7 +88,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ success: false, message: '帳密錯誤' });
     }
     const token = jwt.sign({ userId: String(user._id).trim() }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, token, username: user.username, isPaidMember: (user.isPaidMember === true) });
+    res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
   } catch { res.status(500).json({ success: false, message: '登入驗證異常' }); }
 });
 
@@ -166,7 +166,7 @@ app.post('/api/user/subscribe-vip', async (req, res) => {
     baseDate.setDate(baseDate.getDate() + 30);
     dbUser.subscriptionExpiresAt = baseDate;
     dbUser.isPaidMember = true;
-    
+
     dbUser.markModified('points');
     dbUser.markModified('subscriptionExpiresAt');
     dbUser.markModified('isPaidMember');
@@ -310,9 +310,9 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
     }
 
     // ─── 雙保險特權驗證閘 👑 ───
-    const nowTime = new Date();
-    const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowTime;
-    const isVipPass = (hasActiveSubscription || dbUser.isPaidMember === true || cfg.isPaidMember === true || cfg.isSingleUnlockedCurrentRound === true || cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true');
+    const nowtime = new Date();
+    const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime; // 🎯 修正為全小寫 nowtime
+    const isVipPass = (hasActiveSubscription || dbUser.isPaidMember === true || cfg.isPaidMember === true || cfg.isPaidMember === 'true' || cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true');
 
     if (!isVipPass) {
       const OPERATION_COST = 10;
@@ -338,6 +338,39 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
     const f1_set = new Set(cfg.f1_set || []);
     const vipFavSet = new Set(cfg.vip_fav_set || []); // 條件 16 皇家喜愛號直接從 cfg 提煉 👑
 
+        // ─── 【最高級數值強制解碼自癒艙】：強效擊穿手機端字串型態阻斷，全面轉為純數字 ⚡ ───
+    if (cfg) {
+      cfg.count = Number(cfg.count) || 5;
+      cfg.f2_min = Number(cfg.f2_min) || 15;
+      cfg.f2_max = Number(cfg.f2_max) || 30;
+      cfg.f3_count = Number(cfg.f3_count) || 4;
+      cfg.f4_max = Number(cfg.f4_max) || 2;
+      cfg.f6_low = Number(cfg.f6_low) || 110;
+      cfg.f6_high = Number(cfg.f6_high) || 210;
+      cfg.f7_len = Number(cfg.f7_len) || 3;
+      cfg.f9_range = Number(cfg.f9_range) || 1;
+      cfg.f9_count = Number(cfg.f9_count) || 2;
+      cfg.f10_max = Number(cfg.f10_max) || 2;
+      cfg.f13_min = Number(cfg.f13_min) || 6;
+      
+      cfg.f1_on = String(cfg.f1_on) === 'true';
+      cfg.f2_on = String(cfg.f2_on) === 'true';
+      cfg.f3_on = String(cfg.f3_on) === 'true';
+      cfg.f4_on = String(cfg.f4_on) === 'true';
+      cfg.f5_on = String(cfg.f5_on) === 'true';
+      cfg.f6_on = String(cfg.f6_on) === 'true';
+      cfg.f7_on = String(cfg.f7_on) === 'true';
+      cfg.f8_on = String(cfg.f8_on) === 'true';
+      cfg.f9_on = String(cfg.f9_on) === 'true';
+      cfg.f10_on = String(cfg.f10_on) === 'true';
+      cfg.f11_on = String(cfg.f11_on) === 'true';
+      cfg.f12_on = String(cfg.f12_on) === 'true';
+      cfg.f13_on = String(cfg.f13_on) === 'true';
+      cfg.f14_on = String(cfg.f14_on) === 'true';
+      cfg.f15_on = String(cfg.f15_on) === 'true';
+      cfg.vip_fav_on = String(cfg.vip_fav_on) === 'true';
+    }
+
     const historyDB = globalHistoryDB || [];
     const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
     
@@ -358,9 +391,9 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
     const theoreticalTotal = lottoType === "49_6" ? 13983816 : 575757;
     const reportStep = Math.floor(theoreticalTotal / 20); // 每前進 5% 進度沖刷一次進度條
 
-    // 🚀 【動態空間遍歷核心】：誠實跑完全量大池，隨產隨驗
-    function scanAndFilterMatrixSpace(pool, r, k = 0, current = []) {
-      if (current.length === r) {
+ // 🚀 【動態空間遍歷核心】：誠實跑完全量大池，隨產隨驗
+   function scanAndFilterMatrixSpace(pool, r, k = 0, current = []) { // 🎯 確保這裡完全是小寫 current
+     if (current.length === r) {
         totalScanned++;
         
         // 進度條即時沖刷自癒系統 (此時僅回報大池進度)
@@ -389,45 +422,51 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
         if (isCombValid && cfg.f2_on) {
           let f2_min = parseInt(cfg.f2_min, 10) || 15;
           let f2_max = parseInt(cfg.f2_max, 10) || 30;
-          if (current[0] >= f2_min || current[r-1] <= f2_max) isCombValid = false;
+          if (current[0] >= f2_min || current[current.length - 1] <= f2_max) { 
+            isCombValid = false; 
+          }
         }
 
-        // ───【物理防線 / 歷史全中排除】：與歷史開獎總庫大數據完全撞擊 ───
-        if (isCombValid && historyCacheSet.has(current.join(','))) isCombValid = false;
+        // ───【物理防線 / 歷史全中排除】：補零格式化完全撞擊 🎯 ───
+        let currentZeroStr = current.map(n => String(n).padStart(2, '0')).join(',');
+        if (isCombValid && historyCacheSet.has(currentZeroStr)) isCombValid = false;
 
         // ───【條件 03】：五大物理區塊落點個數控制 ───
         if (isCombValid && cfg.f3_on) {
           let zoneSet = new Set();
           let divisor = lottoType === "49_6" ? 10 : 8; // 大樂透10球一區，539 8球一區
           current.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
-          if (zoneSet.size !== (parseInt(cfg.f3_count, 10) || 4)) isCombValid = false;
+          if (zoneSet.size !== (parseInt(cfg.f3_count, 10) || 4)) { isCombValid = false; }
         }
 
         // ───【條件 04】：同尾數重複個數上限過濾 ───
         if (isCombValid && cfg.f4_on) {
           let tails = new Array(10).fill(0);
-          current.forEach(num => tails[num % 10]++);
-          if (Math.max(...tails) > (parseInt(cfg.f4_max, 10) || 2)) isCombValid = false;
+          current.forEach(num => tails[num % 10]++); // 修正為小寫 current 🎯
+          if (Math.max(...tails) > (parseInt(cfg.f4_max, 10) || 2)) { isCombValid = false; }
         }
 
         // ───【條件 05】：奇偶比例動態防禦牆 ───
         if (isCombValid && cfg.f5_on) {
-          let odds = current.filter(n => n % 2 !== 0).length;
+          let odds = current.filter(n => n % 2 !== 0).length; // 修正為小寫 current 🎯
           let evens = r - odds;
           if (lottoType === "49_6") {
-            if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) isCombValid = false;
-            if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) isCombValid = false;
+            if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) { isCombValid = false; }
+            if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) { isCombValid = false; }
           } else {
-            if (cfg.f5_539_50 && (odds === 5 || evens === 5)) isCombValid = false;
-            if (cfg.f5_539_41 && (odds === 4 || evens === 4)) isCombValid = false;
+            if (cfg.f5_539_50 && (odds === 5 || evens === 5)) { isCombValid = false; }
+            if (cfg.f5_539_41 && (odds === 4 || evens === 4)) { isCombValid = false; }
           }
         }
 
         // ───【條件 06】：號碼總和區間動態過濾 ───
         if (isCombValid && cfg.f6_on) {
-          let sumValue = current.reduce((a, b) => a + b, 0);
-          if (sumValue < (parseInt(cfg.f6_low, 10) || 110) || sumValue > (parseInt(cfg.f6_high, 10) || 210)) isCombValid = false;
+          let sumValue = current.reduce((a, b) => a + b, 0); // 修正為小寫 current 🎯
+          if (sumValue < (parseInt(cfg.f6_low, 10) || 110) || sumValue > (parseInt(cfg.f6_high, 10) || 210)) { 
+            isCombValid = false; 
+          }
         }
+
 
         // ───【條件 07】：連續號碼長度限制牆 ───
         if (isCombValid && cfg.f7_on) {
@@ -438,7 +477,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
               if (currentSeq > maxSeq) maxSeq = currentSeq;
             } else { currentSeq = 1; }
           }
-          if (maxSeq >= (parseInt(cfg.f7_len, 10) || 3)) isCombValid = false;
+          if (maxSeq >= (parseInt(cfg.f7_len, 10) || 3)) { isCombValid = false; }
         }
 
         // ───【條件 08】：局部連續 3 碼等差封鎖牆 (公差範圍 1-24) ───
@@ -449,19 +488,20 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
             let diff2 = current[i+2] - current[i+1];
             if (diff1 === diff2 && diff1 >= 1 && diff1 <= 24) { isArithmetic = true; break; }
           }
-          if (isArithmetic) isCombValid = false;
+          if (isArithmetic) { isCombValid = false; }
         }
 
         // ───【條件 09】：鄰號夾擊防線控制 ───
         if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
           let nCnt = current.filter(num => neighborSet.has(num)).length;
-          if (nCnt > (parseInt(cfg.f9_count, 10) || 2)) isCombValid = false;
+          if (nCnt > (parseInt(cfg.f9_count, 10) || 2)) { isCombValid = false; }
         }
+
 
         // ───【條件 10】：上期獎號連莊封殺牆 ───
         if (isCombValid && cfg.f10_on && lastPeriod.length > 0) {
           let repeatCount = current.filter(num => lastPeriod.includes(num)).length;
-          if (repeatCount > (parseInt(cfg.f10_max, 10) || 2)) isCombValid = false;
+          if (repeatCount > (parseInt(cfg.f10_max, 10) || 2)) { isCombValid = false; }
         }
 
         // ───【條件 11】：大小數比例動態分流牆 ───
@@ -470,7 +510,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
           let bigCount = current.filter(num => num >= midPoint).length;
           let smallCount = r - bigCount;
           if (cfg.f11_kill) {
-            if (bigCount === r || smallCount === r || bigCount === 1 || smallCount === 1) isCombValid = false;
+            if (bigCount === r || smallCount === r || bigCount === 1 || smallCount === 1) { isCombValid = false; }
           }
         }
 
@@ -482,7 +522,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
             if (rem === 0) road0++; else if (rem === 1) road1++; else road2++;
           });
           if (cfg.f12_kill) {
-            if (road0 === 0 || road1 === 0 || road2 === 0) isCombValid = false;
+            if (road0 === 0 || road1 === 0 || road2 === 0) { isCombValid = false; }
           }
         }
 
@@ -493,14 +533,14 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
             for (let n = m + 1; n < r; n++) { diffs.add(current[n] - current[m]); }
           }
           let acValue = diffs.size - (r - 1);
-          if (acValue < (parseInt(cfg.f13_min, 10) || 6)) isCombValid = false;
+          if (acValue < (parseInt(cfg.f13_min, 10) || 6)) { isCombValid = false; }
         }
 
         // ───【條件 14】：質數/合數比例過濾 ───
         if (isCombValid && cfg.f14_on) {
-          const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
+          const primes =;
           let pCnt = current.filter(num => primes.includes(num)).length;
-          if (cfg.f14_kill && pCnt >= 4) isCombValid = false;
+          if (cfg.f14_kill && pCnt >= 4) { isCombValid = false; }
         }
 
         // ───【條件 15】：歷史數據高重疊率安全過濾防線 ───
@@ -512,6 +552,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
           }
         }
 
+
         // ───【完全體誠實大底池抄底】───
         if (isCombValid) {
           // 只保留 16 位元整數進行超低內存壓縮包裝，絕不建立幾十萬個陣列物件！
@@ -520,35 +561,32 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
         return false;
       }
 
-      for (let i = k; i < pool.length; i++) {
-        current.push(pool[i]);
-        scanAndFilterMatrixSpace(pool, r, i + 1, current);
-        current.pop();
-      }
+    for (let i = k; i < pool.length; i++) {
+      current.push(pool[i]); // 🎯 修正為全小寫 current
+      scanAndFilterMatrixSpace(pool, r, i + 1, current);
+      current.pop(); // 🎯 修正為全小寫 current
     }
-// 【區塊 Node-03-B 竣工，請確認貼上後，對我發送「區塊 Node-03-C」部署最高難度之全局大洗牌、皇家喜愛號豁免與階梯式互斥交卷！】
-    // ───【全新硬核空間點火器】：建立 1 ~ maxNumber 的虛擬球池空間 ───
-        // ─── 【全新硬核空間降維點火器】：利用喜愛號與地雷號在起步前擊穿大池，速度拉滿 ⚡ ───
-    let masterSpacePool = [];
-    for (let i = 1; i <= maxNumber; i++) {
-      // 1. 如果有選地雷號，在起步前直接在物理層面將其從宇宙中抹除 ❌
-      if (cfg.f1_on && f1_set.has(i)) continue;
-      // 2. 如果有選皇家喜愛號，將其排除在外，留待核心內部強制嵌入 👑
-      if (vipFavSet.has(i)) continue;
-      masterSpacePool.push(i);
-    }
+  }
 
-    // 動態計算降維後的所需剩餘球數
-    let dynamicRequiredRemaining = requiredCount - vipFavSet.size;
+  // // 【區塊 Node-03-B 竣工，請確認貼上後，對我發送「區塊 Node-03-C」部署最高難度之全局大洗牌、皇家喜愛號豁免與階梯式互斥交卷！】
+  // // ─── 【全新硬核空間降維點火器】：利用喜愛號與地雷號在起步前擊穿大池，速度拉滿 ⚡ ───
+  let masterSpacePool = [];
+  for (let i = 1; i <= maxNumber; i++) {
+    if (cfg.f1_on && f1_set.has(i)) continue;
+    if (vipFavSet.has(i)) continue;
+    masterSpacePool.push(i);
+  }
 
-    if (dynamicRequiredRemaining < 0 || masterSpacePool.length < dynamicRequiredRemaining) {
-      // 安全自癒隔離：防止用戶亂填參數導致數學崩潰
-      res.write(JSON.stringify({ success: false, message: "條件配置衝突，導致彩球池物理歸零，請重新設定！" }) + "\n");
-      return res.end();
-    }
+  // ─── 【全新追加】：精確計算降維後的所需剩餘球數並點火（拯救 0 組大特寫） ⚡ ───
+  let dynamicRequiredRemaining = requiredCount - vipFavSet.size;
 
-    // ⚡ 降維點火 ⚡：以極速縮小百倍的矩陣空間誠實抄底，0.5秒內完美交卷
-    scanAndFilterMatrixSpace(masterSpacePool, dynamicRequiredRemaining);
+  if (dynamicRequiredRemaining < 0 || masterSpacePool.length < dynamicRequiredRemaining) {
+    res.write(JSON.stringify({ success: false, message: "條件配置衝突，導致彩球池物理歸零，請重新設定！" }) + "\n");
+    return res.end();
+  }
+
+  // ⚡ 降維大點火 ⚡：以極速縮小百倍的矩陣空間誠實抄底，0.5秒內完美交卷
+  scanAndFilterMatrixSpace(masterSpacePool, dynamicRequiredRemaining);
 
 
     const honestTotalMatch = survivorPool.length; // 100% 老老實實跑完大池得到的安全生還總數
@@ -569,7 +607,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
 
       console.log(` 全局大洗牌完成！進入階梯式特權流轉抽取程序...`);
 
-      // ───【特權豁免與互斥發射流】───
+      // ─── 【全新硬核特權豁免與互斥發射流】 ───
       for (let k = 0; k < honestTotalMatch; k++) {
         if (matchCount >= limitOutput) break; // 滿足精選組數，提前離場
         
@@ -585,7 +623,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
             }
           }
 
-          // 發生補位球重複則流轉淘汰，換下一組，直到找出完全分散不扎堆的號碼
+          // 發生補位球重複則流轉淘汰，換隨機下游下一組，直到找出完全分散不扎堆的號碼
           if (hitSmartExclusion) continue;
 
           // 確定發射，將除「皇家喜愛號特權例外」之外的其餘補位球上鎖，下一組不得重複
@@ -632,4 +670,3 @@ app.listen(PORT, () => {
   console.log(`📡 監聽核心埠口：[ ${PORT} ] | 0-16條全自由獨立網格通車！`);
   console.log(`=======================================================`);
 });
-
