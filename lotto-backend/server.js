@@ -538,7 +538,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
 
         // ───【條件 14】：質數/合數比例過濾 ───
         if (isCombValid && cfg.f14_on) {
-          const primes =;
+          const primes = [ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47 ];
           let pCnt = current.filter(num => primes.includes(num)).length;
           if (cfg.f14_kill && pCnt >= 4) { isCombValid = false; }
         }
