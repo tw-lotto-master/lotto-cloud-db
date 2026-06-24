@@ -405,38 +405,38 @@ res.write(JSON.stringify({ success: false, message: "雲端找不到該會員帳
 return res.end();
 }
 const currentTime = new Date();
-     // ================== 取代範圍開始 ==================
-    // 檢查是否處於包月/包年 VIP 訂閱有效期內 👑
-    const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
-    targetUser.subscriptionExpiresAt > currentTime;
-    
-    // 核心特權分流控制線 🎯
-    if (hasActiveSubscription) {
-      console.log(` VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。 👑 `);
-    } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
-      console.log(` 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬 `);
-    } else {
-      // 一般會員 ── 默默在背景執行單次扣 10 點全功能開放！ 🪙
-      const OPERATION_COST = 10;
-      if ((targetUser.points || 0) < OPERATION_COST) {
+     /// ================== 取代範圍開始 ==================
+// 檢查是否處於包月/包年 VIP 訂閱有效期內
+const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
+                             targetUser.subscriptionExpiresAt > currentTime;
+
+// 核心特權分流控制線 (100%對齊前端單次解鎖狀態)
+if (hasActiveSubscription || cfg.isPaidMember === true) {
+    console.log(` VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。 `);
+    res.write(JSON.stringify({ status: "AUTH_SUCCESS", reason: "VIP_PREMIUM_PASS", currentPoints: targetUser.points }) + "\n\n");
+} else if (cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true') {
+    console.log(` 用戶 [${targetUser.username}] 經由單次扣點解鎖通道通行。 🪙 `);
+    res.write(JSON.stringify({ status: "AUTH_SUCCESS", reason: "SINGLE_UNLOCK_PASS", currentPoints: targetUser.points }) + "\n\n");
+} else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
+    console.log(` 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬 `);
+} else {
+    const OPERATION_COST = 10;
+    if ((targetUser.points || 0) < OPERATION_COST) {
         res.write(JSON.stringify({ 
-          success: false, 
-          message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
+            success: false, 
+            message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。` 
         }) + "\n");
         return res.end();
-      }
-      
-      // 執行扣點並即時同步存檔至 MongoDB
-      targetUser.points = (targetUser.points || 0) - OPERATION_COST;
-      await targetUser.save();
-      console.log(` 隱藏扣點成功！用戶 [${targetUser.username}] 消耗 🪙 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
-      
-      // 【終極解鎖補丁】：強制加上雙換行 \n\n，配合物理沖刷，徹底擊穿 Express 快取憋字阻斷！
-      res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
-      if (typeof res.flush === 'function') res.flush();
-      if (typeof res.flushHeaders === 'function') res.flushHeaders();
-    } // 完美閉合非訂閱用戶的 else 大口袋！ 🔒
-    // ================== 取代範圍結束 ==================
+    }
+
+    targetUser.points = (targetUser.points || 0) - OPERATION_COST;
+    await targetUser.save();
+    console.log(` 隱藏扣點成功！用戶 [${targetUser.username}] 消耗 ${OPERATION_COST} 點`);
+    res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
+    if (typeof res.flush === 'function') res.flush();
+}
+// ================== 取代範圍結束 ==================
+
 
     
     const lottoType = cfg.lottoType || "39_5";
@@ -853,7 +853,9 @@ else {
         
         // 【大樂透高速通道】：切片非同步海選核心晶片
         // ➡️ 【後台 Page 15】精準替換後代碼：
-async function runSliceChunk(startK, endK) {
+let continuousRejectCount = 0; 
+
+  async function runSliceChunk(startK, endK) {
  for (let k = startK; k < endK; k++) {
  // 🛡️ 雙彩超導物理鎖：徹底拔除 targetCount * 6 限制！強迫大口袋 100% 跑完全量運算！
  if (currentPointerIdx >= matrixLength) {
@@ -870,8 +872,17 @@ async function runSliceChunk(startK, endK) {
             if (globalLotto49FilterBit3[matrixId] === 1) currentFeature |= (1 << 3); 
             
             if ((currentFeature & activeFilterBits) !== requiredFeatureMask) {
-              continue; // 特徵點名未通關，光速跳過
-            } // 閉合連鎖特徵預點名核對 if
+    // 雙彩超導自癒晶片：在 58%~80% 區間瘋狂跳過時累加計數器
+    continuousRejectCount++;
+    if (continuousRejectCount >= 30000) {
+        // 連續互鎖淘汰達 3 萬組，強制放鬆執行緒 1 毫秒
+        // 這能強迫 Express 進行物理沖刷，打斷憋字死鎖，徹底擊穿提早熔斷！
+        await new Promise(resolve => setTimeout(resolve, 1));
+        continuousRejectCount = 0;
+    }
+    continue; // 特徵點名未通關，光速跳過
+}
+continuousRejectCount = 0; // 只要有一組號碼順利通關通過防線，立刻重置計數 // 閉合連鎖特徵預點名核對 if
             let bytePos = matrixId * 6;
             let i1 = globalLotto49Matrix[bytePos];
             let i2 = globalLotto49Matrix[bytePos + 1];
@@ -970,18 +981,16 @@ async function runSliceChunk(startK, endK) {
             } // 閉合生還指標加入 if
             // ===【核心解鎖調速閥：大樂透實時非同步推進控制，物理總量精確分母對齊】===
             totalScanned++; 
-totalScanned++; 
-if (totalScanned % 150000 === 0) {
-    // 🛡️ 雙彩超導進度物理鎖：徹底拔除進度區塊內的提早中斷 break！
-    // 確保不論生還池有沒有湊滿組數，大口袋必須老老實實跑滿 1,400 萬組全量，不准半路偷跑結束！
-    let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
-    
-    if (percent !== lastReportedPercent) {
-        res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-        lastReportedPercent = percent;
-    }
-    await new Promise(resolve => setTimeout(resolve, 1));
-} // 閉合 150000 次降頻沖刷 if
+if (totalScanned % 80000 === 0) { // 降頻最佳化：從 15 萬次縮小到 8 萬次，讓串流推動更綿密順暢
+ let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
+
+ if (percent !== lastReportedPercent) {
+     // 強制加上物理雙換行符號 \n\n，擊穿手機 WebView 緩衝牆
+     res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n\n");
+     lastReportedPercent = percent;
+ }
+ await new Promise(resolve => setTimeout(resolve, 1));
+}
             
           } // 🔒 完美閉合單個 Chunk 的物理遍歷 for 迴圈大門！
         } // 🔒 完美物理閉合 async function runSliceChunk 核心宣告大門！
