@@ -641,13 +641,12 @@ const currentTime = new Date();
           
           // ===【智控動態調速閥：高頻 15000 次沖刷一次，解鎖 0% 推進，保障登入接口不卡死】===
           totalScanned++;
-          if (totalScanned % 15000 === 0) {
-            let percent = Math.min(100, Math.floor((totalScanned / 575757) * 100));
-            res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-            // 核心給予 1 毫秒物理喘息，交還 Node.js 執行緒控制權
-            await new Promise(resolve => setTimeout(resolve, 1));
-          } // 閉合調速閥沖刷 if
-        } // 🔒 完美物理閉合 539 全池單層單線高速遍歷 for 迴圈！
+  if (totalScanned % 5000 === 0) {
+    let percent = Math.min(99, Math.floor((totalScanned / 575757) * 100));
+    res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+    await new Promise(resolve => setTimeout(resolve, 1));
+  }
+} // 完美物理閉合 539 全池單層單線高速遍歷 for 迴圈！ 🔒
       } catch (err539) {
         console.error(" 539海選分流內部異常：", err539.message);
       } // 完美閉合 539 獨立自癒防禦門 catch
@@ -727,89 +726,44 @@ else {
             }
         }
 
-        if (!hasDupNumber) {
-            currentGroupPool.push([i1, i2, i3, i4, i5]);
-            localOutputSet.add(combKey);
-            vipSmartMask |= (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5));
-            
-            batchCounter++;
-            continuousFailCount = 0;
-            
-            if (currentGroupPool.length === currentTargetGroupSize || batchCounter === targetCount) {
-                let chunkText = ``;
-                currentGroupPool.forEach((comb) => {
-                    vipValidPool.push(comb);
-                    chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-                });
-                
-                res.write(JSON.stringify({ 
-                    isProgress: true, 
-                    percent: Math.min(Math.floor((vipValidPool.length / targetCount) * 100), 99), 
-                    currentMatch: vipValidPool.length,
-                    appendOutput: chunkText 
-                }) + "\n");
-                
-                // 🧠【計算 539 純淨餘數】：
-                let currentGroupUsedBalls = [];
-                currentGroupPool.forEach(comb => currentGroupUsedBalls.push(...comb));
-                
-                let allVipAllowedBalls = [];
-                for (let k = 0; k < totalSurvivorCombs; k++) {
-                    let bp = survivorPoolIndices[shuffledIndices539[k]] * 5;
-                    for (let m = 0; m < 5; m++) {
-                        let ball = survivorPoolIndices[bp + m];
-                        if (ball && !allVipAllowedBalls.includes(ball)) allVipAllowedBalls.push(ball);
-                    }
-                    if (allVipAllowedBalls.length >= 39) break;
-                }
-                
-                priorityBallsFromPrevious539 = allVipAllowedBalls.filter(ball => !currentGroupUsedBalls.includes(ball));
-                
-                vipSmartMask = 0n;
-                currentGroupPool = [];
-                currentTargetGroupSize = 6;
-            }
-        } else {
-            continuousFailCount++;
-            
-            if (continuousFailCount > 800 && currentGroupPool.length > 0) {
-                if (currentTargetGroupSize > Math.max(2, currentGroupPool.length)) {
-                    currentTargetGroupSize = currentGroupPool.length; 
-                    console.log(`⚠️ 【539自適應退縮】空間飽和，強行退縮至: ${currentTargetGroupSize} 組交卷！`);
-                    
-                    let chunkText = ``;
-                    currentGroupPool.forEach((comb) => {
-                        vipValidPool.push(comb);
-                        chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-                    });
-                    
-                    res.write(JSON.stringify({ 
-                        isProgress: true, 
-                        percent: Math.min(Math.floor((vipValidPool.length / targetCount) * 100), 99), 
-                        currentMatch: vipValidPool.length,
-                        appendOutput: chunkText 
-                    }) + "\n");
-                    
-                    let used = [];
-                    currentGroupPool.forEach(c => used.push(...c));
-                    let allAllowed = [];
-                    for (let k = 0; k < Math.min(2000, totalSurvivorCombs); k++) {
-                        let bp = survivorPoolIndices[shuffledIndices539[k]] * 5;
-                        for (let m = 0; m < 5; m++) {
-                            let ball = survivorPoolIndices[bp + m];
-                            if (ball && !allAllowed.includes(ball)) allAllowed.push(ball);
-                        }
-                    }
-                    priorityBallsFromPrevious539 = allAllowed.filter(b => !used.includes(b));
-                    
-                    vipSmartMask = 0n;
-                    currentGroupPool = [];
-                    currentTargetGroupSize = 6;
-                    continuousFailCount = 0;
-                }
-            }
+         if (!hasDupNumber) {
+      currentGroupPool.push([i1, i2, i3, i4, i5]);
+      localOutputSet.add(combKey);
+      vipSmartMask |= (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5));
+      batchCounter++;
+      continuousFailCount = 0;
+      if (currentGroupPool.length === currentTargetGroupSize || batchCounter === targetCount) {
+        let chunkText = ``;
+        currentGroupPool.forEach((comb) => {
+          vipValidPool.push(comb);
+          chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
+        });
+        res.write(JSON.stringify({ isProgress: true, percent: Math.min(Math.floor((vipValidPool.length / targetCount) * 100), 99), currentMatch: vipValidPool.length, appendOutput: chunkText }) + "\n");
+        let currentGroupUsedBalls = [];
+        currentGroupPool.forEach(comb => currentGroupUsedBalls.push(...comb));
+        let allVipAllowedBalls = [];
+        for (let k = 0; k < totalSurvivorCombs; k++) {
+          let bp = survivorPoolIndices[shuffledIndices539[k]] * 5;
+          for (let m = 0; m < 5; m++) {
+            let ball = survivorPoolIndices[bp + m];
+            if (ball && !allVipAllowedBalls.includes(ball)) allVipAllowedBalls.push(ball);
+          }
+          if (allVipAllowedBalls.length >= 39) break;
         }
+        priorityBallsFromPrevious539 = allVipAllowedBalls.filter(ball => !currentGroupUsedBalls.includes(ball));
+        vipSmartMask = 0n;
+        currentGroupPool = [];
+        currentTargetGroupSize = 6;
+      }
+    } else {
+      continuousFailCount++;
+      // 升級防線：放寬小池塘碰撞限制至 50,000 次，若真耗盡則平滑微調，絕不強行結束串流離場
+      if (continuousFailCount > 50000 && currentGroupPool.length > 0) {
+        vipSmartMask = 0n;
+        continuousFailCount = 0;
+      }
     }
+  }
     
     if (currentGroupPool.length > 0) {
         let chunkText = ``;
@@ -984,16 +938,15 @@ else {
               survivorPoolIndices.push(matrixId);
             } // 閉合生還指標加入 if
             // ===【核心解鎖調速閥：大樂透實時非同步推進控制，物理總量精確分母對齊】===
-            totalScanned++; 
-            if (totalScanned % 150000 === 0) {
-              let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
-              if (percent !== lastReportedPercent) {
-                res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                lastReportedPercent = percent;
-              } // 閉合百分比不重複刷新 if
-              // 給予 Node.js 執行緒 1 毫秒物理喘息，打破大口袋阻斷，前台WebView絕不卡 0%！
-              await new Promise(resolve => setTimeout(resolve, 1));
-            } // 閉合 150000 次降頻沖刷 if
+           totalScanned++; 
+  if (totalScanned % 20000 === 0) {
+    let percent = Math.min(99, Math.floor((totalScanned / 13983816) * 100));
+    if (percent !== lastReportedPercent) {
+      res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+      lastReportedPercent = percent;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1));
+  }
             
           } // 🔒 完美閉合單個 Chunk 的物理遍歷 for 迴圈大門！
         } // 🔒 完美物理閉合 async function runSliceChunk 核心宣告大門！
@@ -1086,104 +1039,53 @@ else {
         
         // 2. 【餘數優先抽取權】：如果上一組有留下沒被抽到的餘數號碼，我們強制進行碰撞優選
         // 只有當前大組剛開始（還沒抽滿前幾組）且有優先號碼時，若這組不包含任何優先號碼，我們給予微量跳過擾動，讓含有餘數號碼的組合被頂上最前面
-        if (!hasDupNumber && priorityBallsFromPrevious.length > 0 && currentGroupPool.length < 2) {
-            let hasPriorityBall = [i1, i2, i3, i4, i5, i6].some(num => priorityBallsFromPrevious.includes(num));
-            // 隨機擾動鎖：若不含優先餘數號，有 75% 機率丟回池子後面排隊，強制讓有餘數號的組合優先超車
-            if (!hasPriorityBall && Math.random() < 0.75 && continuousFailCount < 200) {
-                shuffledIndices.push(matrixId); // 送回大池尾部重新滾動
-                continuousFailCount++;
-                continue;
-            }
-        }
-
-        if (!hasDupNumber) {
-            currentGroupPool.push([i1, i2, i3, i4, i5, i6]);
-            localOutputSet49.add(combKey);
-            vipSmartMask49 |= (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5)) | (1n << BigInt(i6));
-            
-            batchCounter++;
-            continuousFailCount = 0; 
-            
-            // 🎯 當前大組（6組）滿額或達到用戶總目標，執行即時交卷與餘數計算
-            if (currentGroupPool.length === currentTargetGroupSize || batchCounter === targetCount) {
-                let chunkText = ``;
-                currentGroupPool.forEach((comb) => {
-                    vipValidPool.push(comb);
-                    chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-                });
-                
-                res.write(JSON.stringify({ 
-                    isProgress: true, 
-                    percent: Math.min(Math.floor((vipValidPool.length / targetCount) * 100), 99), 
-                    currentMatch: vipValidPool.length,
-                    appendOutput: chunkText 
-                }) + "\n");
-                
-                // 🧠【計算純淨餘數】：找出本大組內「到底有哪些合規號碼完全沒被選到過」
-                let currentGroupUsedBalls = [];
-                currentGroupPool.forEach(comb => currentGroupUsedBalls.push(...comb));
-                
-                // 從「生還池內所有出現過的號碼（即合規安全號）」中，剔除掉本輪已經用掉的
-                let allVipAllowedBalls = [];
-                for (let k = 0; k < totalSurvivorCombs; k++) {
-                    let bp = shuffledIndices[k] * 6;
-                    for (let m = 0; m < 6; m++) {
-                        let ball = globalLotto49Matrix[bp + m];
-                        if (!allVipAllowedBalls.includes(ball)) allVipAllowedBalls.push(ball);
-                    }
-                    if (allVipAllowedBalls.length >= 49) break; // 頂規優化速度
-                }
-                
-                // 篩選出純淨餘數（3或4個號碼）
-                priorityBallsFromPrevious = allVipAllowedBalls.filter(ball => !currentGroupUsedBalls.includes(ball));
-                
-                // 瞬間重置大組宇宙
-                vipSmartMask49 = 0n;
-                currentGroupPool = [];
-                currentTargetGroupSize = 6; // 重設回黃金 6 組大關
-            }
-        } else {
-            continuousFailCount++;
-            
-            // 當在剩餘池中連續碰撞 1000 次都湊不滿 6 組，啟動自適應自癒退縮，將已有組數打包強行交卷
-            if (continuousFailCount > 1000 && currentGroupPool.length > 0) {
-                if (currentTargetGroupSize > Math.max(2, currentGroupPool.length)) {
-                    currentTargetGroupSize = currentGroupPool.length; 
-                    console.log(`⚠️ 【大樂透自適應退縮】生還空間收縮，強行退縮至: ${currentTargetGroupSize} 組交卷！`);
-                    
-                    let chunkText = ``;
-                    currentGroupPool.forEach((comb) => {
-                        vipValidPool.push(comb);
-                        chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-                    });
-                    
-                    res.write(JSON.stringify({ 
-                        isProgress: true, 
-                        percent: Math.min(Math.floor((vipValidPool.length / targetCount) * 100), 99), 
-                        currentMatch: vipValidPool.length,
-                        appendOutput: chunkText 
-                    }) + "\n");
-                    
-                    // 退縮時一樣計算殘留餘數流轉
-                    let used = [];
-                    currentGroupPool.forEach(c => used.push(...c));
-                    let allAllowed = [];
-                    for (let k = 0; k < Math.min(2000, totalSurvivorCombs); k++) {
-                        let bp = shuffledIndices[k] * 6;
-                        for (let m = 0; m < 6; m++) {
-                            if (!allAllowed.includes(globalLotto49Matrix[bp + m])) allAllowed.push(globalLotto49Matrix[bp + m]);
-                        }
-                    }
-                    priorityBallsFromPrevious = allAllowed.filter(b => !used.includes(b));
-                    
-                    vipSmartMask49 = 0n;
-                    currentGroupPool = [];
-                    currentTargetGroupSize = 6;
-                    continuousFailCount = 0;
-                }
-            }
-        }
+         if (!hasDupNumber && priorityBallsFromPrevious.length > 0 && currentGroupPool.length < 2) {
+      let hasPriorityBall = [i1, i2, i3, i4, i5, i6].some(num => priorityBallsFromPrevious.includes(num));
+      // 擾動隔離優化：機率從 75% 降至 15%，防止在乾涸生還池中發生無意義的原地算力拉扯
+      if (!hasPriorityBall && Math.random() < 0.15 && continuousFailCount < 200) {
+        shuffledIndices.push(matrixId);
+        continuousFailCount++;
+        continue;
+      }
     }
+    if (!hasDupNumber) {
+      currentGroupPool.push([i1, i2, i3, i4, i5, i6]);
+      localOutputSet49.add(combKey);
+      vipSmartMask49 |= (1n << BigInt(i1)) | (1n << BigInt(i2)) | (1n << BigInt(i3)) | (1n << BigInt(i4)) | (1n << BigInt(i5)) | (1n << BigInt(i6));
+      batchCounter++;
+      continuousFailCount = 0; 
+      if (currentGroupPool.length === currentTargetGroupSize || batchCounter === targetCount) {
+        let chunkText = ``;
+        currentGroupPool.forEach((comb) => {
+          vipValidPool.push(comb);
+          chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
+        });
+        res.write(JSON.stringify({ isProgress: true, percent: Math.min(Math.floor((vipValidPool.length / targetCount) * 100), 99), currentMatch: vipValidPool.length, appendOutput: chunkText }) + "\n");
+        let currentGroupUsedBalls = [];
+        currentGroupPool.forEach(comb => currentGroupUsedBalls.push(...comb));
+        let allVipAllowedBalls = [];
+        for (let k = 0; k < totalSurvivorCombs; k++) {
+          let bp = shuffledIndices[k] * 6;
+          for (let m = 0; m < 6; m++) {
+            let ball = globalLotto49Matrix[bp + m];
+            if (!allVipAllowedBalls.includes(ball)) allVipAllowedBalls.push(ball);
+          }
+          if (allVipAllowedBalls.length >= 49) break;
+        }
+        priorityBallsFromPrevious = allVipAllowedBalls.filter(ball => !currentGroupUsedBalls.includes(ball));
+        vipSmartMask49 = 0n;
+        currentGroupPool = [];
+        currentTargetGroupSize = 6;
+      }
+    } else {
+      continuousFailCount++;
+      // 核心自癒：解除 1000 次限制，拉高至 50,000 次安全硬緩衝。撞號時瞬間清洗大組互斥遮罩，強推運算
+      if (continuousFailCount > 50000) {
+        vipSmartMask49 = 0n;
+        continuousFailCount = 0;
+      }
+    }
+  }
     
     // 碎組最終收網通道
     if (currentGroupPool.length > 0) {
