@@ -131,20 +131,12 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ success: false, message: '帳密錯誤' });
     } // 閉合 if (!user...)
     
-        // 🌟 核心修復：Token 內絕對不包裝易變的 isPaidMember 狀態，防止時區與升級降級打架！
-        const token = jwt.sign(
-            { userId: String(user._id).trim() }, 
-            'FREE_LOTTO_SECRET_2026', 
-            { expiresIn: '30d' }
-        );
-        
-        // 畫面直接動態回傳最新 MongoDB 資料庫內的真實權限狀態，杜絕精神分裂
-        res.json({ 
-            success: true, 
-            token, 
-            username: user.username, 
-            isPaidMember: (user.isPaidMember === true) 
-        });
+    const token = jwt.sign(
+  { userId: user._id }, 
+  'FREE_LOTTO_SECRET_2026', // 💡 直接鎖死特權密鑰字串
+  { expiresIn: '30d' }
+); // 閉合 jwt.sign
+    res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
   } catch (err) { 
     res.status(500).json({ success: false, message: '登入驗證異常' }); 
   } // 閉合 try-catch
@@ -359,17 +351,13 @@ function init539StaticFeatures(historyDB) {
   } // 閉合 i1
   
   let unique539GeiLei = new Set();
-  historyDB.forEach(h => {
-    let nums = h.slice(0, 5).map(Number).sort((a, b) => a - b);
-    if (nums.length < 5) return;
-    for (let i = 0; i < 5; i++) {
-      let sub4 = nums.filter((_, idx) => idx !== i);
-      for (let ball = 1; ball <= 39; ball++) {
-        if (nums.includes(ball)) continue;
-        unique539GeiLei.add([...sub4, ball].sort((a,b)=>a-b).join(','));
-      } // 閉合 ball
-    } // 閉合 sub4 i
-  }); // 閉合 historyDB.forEach
+ historyDB.forEach(h => {
+     let nums = h.slice(0, 5).map(Number).sort((a, b) => a - b);
+     if (nums.length < 5) return;
+     
+     // 🛡️ 只將 5 碼完全契合的歷史真實中獎號碼加入地雷庫
+     unique539GeiLei.add(nums.join(','));
+ }); 
   
   for (let i = 0; i < 575757; i++) {
     let bp = i * 5;
@@ -417,46 +405,38 @@ res.write(JSON.stringify({ success: false, message: "雲端找不到該會員帳
 return res.end();
 }
 const currentTime = new Date();
-        // =========================================================================
-        // 👑 【後端變現與防重複扣點特權核心補丁】 ── 全面通電隔離 👑
-        // =========================================================================
-        const nowTime = new Date();
-        const hasActiveSubscription = targetUser.subscriptionExpiresAt && targetUser.subscriptionExpiresAt > nowTime;
-        
-        // 雙保險通車鎖：採信月費訂閱，或前端發射過來的單次扣點解鎖憑證、或廣告體驗憑證
-        const isVipPass = (
-            hasActiveSubscription || 
-            cfg.isPaidMember === true || 
-            cfg.isSingleUnlockedCurrentRound === true || 
-            cfg.isAdUnlocked === true ||
-            cfg.isAdUnlocked === 'true'
-        );
-
-        if (isVipPass) {
-            console.log(` [特權放行] 會員 [${targetUser.username}] 通過雙保險權限鎖，免扣點海選通車！`);
-        } else {
-            // 🛑 未具備任何特權憑證，進入實體背景單次扣點防禦渠道
-            const OPERATION_COST = 10;
-            if ((targetUser.points || 0) < OPERATION_COST) {
-                res.write(JSON.stringify({ 
-                    success: false, 
-                    status: 402, // 對齊前端點數不足狀態碼
-                    message: `點數不足！VIP精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
-                }) + "\n");
-                return res.end();
-            }
-
-            // 安全扣點，100% 防止底層 NaN 污染
-            targetUser.points = Math.max(0, (Number(targetUser.points) || 0) - OPERATION_COST);
-            await targetUser.save(); // 強制落地
-            console.log(` [背景扣點成功] 用戶 [${targetUser.username}] 單次消費 ${OPERATION_COST} 點，賸餘：${targetUser.points} 點`);
-
-            // 發射標準點數刷新訊號，並立刻沖刷快取，絕不污染下方的進度條 Stream 
-            res.write(JSON.stringify({ isPointsUpdated: true, status: "AUTH_SUCCESS", remainingPoints: targetUser.points }) + "\n");
-            if (typeof res.flush === 'function') res.flush();
-        }
-        // =========================================================================
-
+     // ================== 取代範圍開始 ==================
+    // 檢查是否處於包月/包年 VIP 訂閱有效期內 👑
+    const hasActiveSubscription = targetUser.subscriptionExpiresAt && 
+    targetUser.subscriptionExpiresAt > currentTime;
+    
+    // 核心特權分流控制線 🎯
+    if (hasActiveSubscription) {
+      console.log(` VIP訂閱會員 [${targetUser.username}] 尊榮通行，免扣點海選。 👑 `);
+    } else if (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true') {
+      console.log(` 一般會員 [${targetUser.username}] 觀看廣告成功，進入中階體驗通道。 🎬 `);
+    } else {
+      // 一般會員 ── 默默在背景執行單次扣 10 點全功能開放！ 🪙
+      const OPERATION_COST = 10;
+      if ((targetUser.points || 0) < OPERATION_COST) {
+        res.write(JSON.stringify({ 
+          success: false, 
+          message: `點數不足！VIP 精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
+        }) + "\n");
+        return res.end();
+      }
+      
+      // 執行扣點並即時同步存檔至 MongoDB
+      targetUser.points = (targetUser.points || 0) - OPERATION_COST;
+      await targetUser.save();
+      console.log(` 隱藏扣點成功！用戶 [${targetUser.username}] 消耗 🪙 ${OPERATION_COST} 點，賸餘點數：${targetUser.points} 點`);
+      
+      // 【終極解鎖補丁】：強制加上雙換行 \n\n，配合物理沖刷，徹底擊穿 Express 快取憋字阻斷！
+      res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: targetUser.points }) + "\n\n");
+      if (typeof res.flush === 'function') res.flush();
+      if (typeof res.flushHeaders === 'function') res.flushHeaders();
+    } // 完美閉合非訂閱用戶的 else 大口袋！ 🔒
+    // ================== 取代範圍結束 ==================
 
     
     const lottoType = cfg.lottoType || "39_5";
@@ -502,10 +482,10 @@ const currentTime = new Date();
         // 動態編譯本輪海選玩家有勾選的 539 倒排索引遮罩鎖
         let active539Bits = 0; 
         let required539Mask = 0; 
-        if (cfg.f8_on) { active539Bits |= (1 << 0); required539Mask |= (1 << 0); }
-        if (cfg.f11_on) { active539Bits |= (1 << 1); required539Mask |= (1 << 1); } 
-        if (cfg.f12_on) { active539Bits |= (1 << 2); required539Mask |= (1 << 2); } 
-        if (cfg.f14_on) { active539Bits |= (1 << 3); required539Mask |= (1 << 3); }
+if (cfg.f8_on) { active539Bits |= (1 << 0); required539Mask |= (1 << 0); }
+if (cfg.f11_on) { active539Bits |= (1 << 1); required539Mask |= (1 << 1); } 
+if (cfg.f12_on) { active539Bits |= (1 << 2); required539Mask |= (1 << 2); } 
+if (cfg.f14_on) { active539Bits |= (1 << 3); required539Mask |= (1 << 3); } 
         
         // 🚀【物理降維大革命】：拋棄五層巢狀迴圈！改採單層超導物理指針遍歷大池！
         for (let k = 0; k < 575757; k++) {
@@ -561,7 +541,7 @@ const currentTime = new Date();
                    .add(Math.min(5, Math.ceil(i3 / 8)))
                    .add(Math.min(5, Math.ceil(i4 / 8)))
                    .add(Math.min(5, Math.ceil(i5 / 8)));
-            if (zoneSet.size !== cfg.f3_count) {
+            if (zoneSet.size !== cfg.f3_req) {
               isCombValid = false;
             } // 閉合區塊落點要求 if
           } // 閉合 if (isCombValid && cfg.f3_on)
@@ -605,11 +585,12 @@ const currentTime = new Date();
           } // 閉合 if (isCombValid && cfg.f7_on)
           
           // 【條件 9】：鄰號夾擊防線控制
-          if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
-            let nCnt = 0;
-            comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
-            if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
-          } // 閉合 if (isCombValid && cfg.f9_on...)
+if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
+    let nCnt = 0;
+    comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
+    if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
+}
+ // 閉合 if (isCombValid && cfg.f9_on...)
           
           // 【條件 10】：上期獎號連莊封殺牆
           if (isCombValid && cfg.f10_on && cfg.lastPeriod && cfg.lastPeriod.length > 0) {
@@ -640,13 +621,17 @@ const currentTime = new Date();
           } // 閉合生還索引存入 if
           
           // ===【智控動態調速閥：高頻 15000 次沖刷一次，解鎖 0% 推進，保障登入接口不卡死】===
-          totalScanned++;
-          if (totalScanned % 15000 === 0) {
-            let percent = Math.min(100, Math.floor((totalScanned / 575757) * 100));
-            res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-            // 核心給予 1 毫秒物理喘息，交還 Node.js 執行緒控制權
-            await new Promise(resolve => setTimeout(resolve, 1));
-          } // 閉合調速閥沖刷 if
+           totalScanned++;
+ if (totalScanned % 150000 === 0) {
+ // 🛡️ 雙彩超導 539 進度物理鎖：一模一樣拔除進度區塊內的提早中斷 break！
+ // 確保不論生還池有沒有湊滿組數，539 必須完完整整、老老實實跑滿 575,757 全量大池，絕對不准中途偷跑結束！
+ let percent = Math.min(100, Math.floor((totalScanned / 575757) * 100)); // ⚡ 修正 539 進度條分母，精密對齊 539 總量 575757
+ 
+ res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+ 
+ // 核心給予 1 毫秒物理喘息，交還 Node.js 執行緒控制權
+ await new Promise(resolve => setTimeout(resolve, 1));
+ } // 閉合調速閥沖刷 if
         } // 🔒 完美物理閉合 539 全池單層單線高速遍歷 for 迴圈！
       } catch (err539) {
         console.error(" 539海選分流內部異常：", err539.message);
@@ -854,8 +839,6 @@ else {
         let f4_max = parseInt(cfg.f4_max, 10) || 2;
         let f6_low = cfg.f6_on ? (parseInt(cfg.f6_low, 10) || 110) : 21;
         let f6_high = cfg.f6_on ? (parseInt(cfg.f6_high, 10) || 210) : 279;
-        let f3_count = parseInt(cfg.f3_count, 10) || 4;
-        let f13_min = parseInt(cfg.f13_min, 10) || 6;
         const matrixLength = 13983816; 
         const chunkSize = 3495954; 
         let currentPointerIdx = 0;
@@ -869,13 +852,15 @@ else {
         const checkHistoryGeiLei = (cfg.f15_on === true || cfg.f15_on === 'true'); 
         
         // 【大樂透高速通道】：切片非同步海選核心晶片
-        async function runSliceChunk(startK, endK) {
-          for (let k = startK; k < endK; k++) {
-            if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) {
-              break;
-            } // 閉合生還指標溢出中斷 if
-            
-            let matrixId = globalLotto49Indices[currentPointerIdx++];
+        // ➡️ 【後台 Page 15】精準替換後代碼：
+async function runSliceChunk(startK, endK) {
+ for (let k = startK; k < endK; k++) {
+ // 🛡️ 雙彩超導物理鎖：徹底拔除 targetCount * 6 限制！強迫大口袋 100% 跑完全量運算！
+ if (currentPointerIdx >= matrixLength) {
+ break;
+ }
+ let matrixId = globalLotto49Indices[currentPointerIdx++];
+
             
             // 【晶片級特徵預點名】：倒排索引秒速排除不合規組合，跳過無效號碼解壓
             let currentFeature = 0;
@@ -919,7 +904,7 @@ else {
             if (isCombValid && cfg.f3_on) {
               let zoneSet = new Set();
               zoneSet.add(Math.min(5, Math.ceil(i1 / 10))).add(Math.min(5, Math.ceil(i2 / 10))).add(Math.min(5, Math.ceil(i3 / 10))).add(Math.min(5, Math.ceil(i4 / 10))).add(Math.min(5, Math.ceil(i5 / 10))).add(Math.min(5, Math.ceil(i6 / 10)));
-              if (zoneSet.size !== cfg.f3_count) isCombValid = false;
+              if (zoneSet.size !== cfg.f3_req) isCombValid = false;
             } // 閉合 if (isCombValid && cfg.f3_on)
             // 【條件 4】：同尾數重複個數上限過濾
             if (isCombValid && cfg.f4_on) {
@@ -953,10 +938,10 @@ else {
             } // 閉合 if (isCombValid && cfg.f7_on)
             // 【條件 9】：鄰號夾擊防線控制
             if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
-              let nCnt = 0;
-              comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
-              if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f9_on...)
+    let nCnt = 0;
+    comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
+    if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
+} // 閉合 if (isCombValid && cfg.f9_on...)
             
             // 【條件 10】：上期獎號連莊封殺牆
             if (isCombValid && cfg.f10_on && cfg.lastPeriod && cfg.lastPeriod.length > 0) {
@@ -968,7 +953,7 @@ else {
             if (isCombValid && cfg.f13_on) {
               let diffs = new Set();
               for (let m = 0; m < 5; m++) { for (let n = m + 1; n < 6; n++) { diffs.add(Math.abs(comb[m] - comb[n])); } }
-              if ((diffs.size - 5) < f13_min) isCombValid = false;
+              if ((diffs.size - 5) < cfg.f13_min) isCombValid = false;
             } // 閉合 if (isCombValid && cfg.f13_on)
             
             // 🚀【超導部隊 15】：大樂透歷史地雷極速常數查表判定，完全無開銷！
@@ -985,15 +970,18 @@ else {
             } // 閉合生還指標加入 if
             // ===【核心解鎖調速閥：大樂透實時非同步推進控制，物理總量精確分母對齊】===
             totalScanned++; 
-            if (totalScanned % 150000 === 0) {
-              let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
-              if (percent !== lastReportedPercent) {
-                res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                lastReportedPercent = percent;
-              } // 閉合百分比不重複刷新 if
-              // 給予 Node.js 執行緒 1 毫秒物理喘息，打破大口袋阻斷，前台WebView絕不卡 0%！
-              await new Promise(resolve => setTimeout(resolve, 1));
-            } // 閉合 150000 次降頻沖刷 if
+totalScanned++; 
+if (totalScanned % 150000 === 0) {
+    // 🛡️ 雙彩超導進度物理鎖：徹底拔除進度區塊內的提早中斷 break！
+    // 確保不論生還池有沒有湊滿組數，大口袋必須老老實實跑滿 1,400 萬組全量，不准半路偷跑結束！
+    let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
+    
+    if (percent !== lastReportedPercent) {
+        res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+        lastReportedPercent = percent;
+    }
+    await new Promise(resolve => setTimeout(resolve, 1));
+} // 閉合 150000 次降頻沖刷 if
             
           } // 🔒 完美閉合單個 Chunk 的物理遍歷 for 迴圈大門！
         } // 🔒 完美物理閉合 async function runSliceChunk 核心宣告大門！
@@ -1033,19 +1021,16 @@ else {
           } // 閉合 if (!isSmartMode)
 // ───【分流 B：聰明包牌模式 (純淨餘數跨組優先滾動 & 自適應串流版)】───
 else {
-    const localOutputSet49 = new Set();
-    
-    // 1. 全量指針矩陣隨機洗牌
-    let shuffledIndices = [];
-    for (let i = 0; i < totalSurvivorCombs; i++) {
-        shuffledIndices.push(survivorPoolIndices[i]);
-    }
-    for (let i = shuffledIndices.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        const temp = shuffledIndices[i];
-        shuffledIndices[i] = shuffledIndices[j];
-        shuffledIndices[j] = temp;
-    }
+ const localOutputSet49 = new Set();
+ 
+ // 🛡️ 雙彩超導原生通道修復：取消陣列複製，直接對原始生還池進行就地洗牌，消滅 99% 崩潰！
+ let shuffledIndices = survivorPoolIndices;
+ for (let i = totalSurvivorCombs - 1; i > 0; i--) {
+ const j = Math.floor(Math.random() * (i + 1));
+ const temp = shuffledIndices[i];
+ shuffledIndices[i] = shuffledIndices[j];
+ shuffledIndices[j] = temp;
+ }
 
     let currentPoolIdx = 0;
     let batchCounter = 0;          
@@ -1339,54 +1324,20 @@ app.post('/api/user/subscribe-vip', async (req, res) => {
 
 // 4. 會員自主管理：主動終止/取消 VIP 包月訂閱狀態 🛑
 app.post('/api/user/cancel-vip', async (req, res) => {
-    try {
-        // 雙軌憑證安全解壓 ── 同步相容前端發射的 Headers Bearer 與 body Payload
-        let rawToken = req.body.token || "";
-        
-        if (!rawToken && req.headers.authorization) {
-            rawToken = req.headers.authorization.replace(/^Bearer\s+/, "");
-        }
-        
-        // 真空清洗
-        rawToken = String(rawToken).trim().replace(/['"\r\n\t]/g, '');
-        
-        if (!rawToken) {
-            return res.status(401).json({ success: false, message: "身分驗證憑證已失效(無Token)" });
-        }
-
-        // 核心解密：直接解開 Token 晶片，安全提取真實的 userId
-        const jwt = require('jsonwebtoken');
-        let decoded;
-        try {
-            decoded = jwt.verify(rawToken, 'FREE_LOTTO_SECRET_2026');
-        } catch(jwtErr) {
-            return res.status(401).json({ success: false, message: "金鑰認證失敗，請重新登入" });
-        }
-
-        if (!decoded || !decoded.userId) {
-            return res.status(401).json({ success: false, message: "憑證結構異常，阻斷攔截" });
-        }
-
-        // 現撈資料庫，實體精準銷帳
-        const user = await User.findById(decoded.userId.trim());
-        if (!user) {
-            return res.status(404).json({ success: false, message: "雲端資料庫找不到該操盤手帳戶" });
-        }
-
-        // 🌟 雙重強迫鎖死落地，徹底火化 true 狀態
-        user.subscriptionExpiresAt = null;
-        user.isPaidMember = false;
-        await user.save(); // 100% 寫入實體硬碟
-
-        console.log(` 💎 [終止訂閱成功] 帳戶 [${user.username}] 已正式降級為普通用戶，MongoDB 同步刷新！`);
-        
-        // 必須在確定存檔成功後，才在 if 內層發射真實的 success: true
-        return res.json({ success: true, message: "訂閱已成功終止，特權重鎖" });
-
-    } catch (err) {
-        console.error(" [終止核心崩潰] 嚴重錯誤：", err.message);
-        return res.status(500).json({ success: false, message: "伺服器底層內核阻斷錯誤" });
-    }
+  try {
+    const sessionUserId = extractUserIdFromPayload(req);
+    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+    
+    const user = await User.findById(sessionUserId);
+    if (!user) return res.status(404).json({ success: false, message: "用戶不存在" });
+    
+    user.subscriptionExpiresAt = null;
+    user.isPaidMember = false; 
+    await user.save();
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: "終止訂閱請求失敗" });
+  }
 });
 
 // 5. 處理前端點擊「單次解鎖 (10點)」實體按鈕的扣點權限請求 🪙
