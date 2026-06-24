@@ -15,7 +15,7 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 
 const JWT_SECRET = 'FREE_LOTTO_SECRET_2026';
-const TRUE_MONGO_URI = "mongodb+srv://bingooo16888_db_user:bingo19880429@cluster0.t33ebvn.mongodb.net/lotto?retryWrites=true&w=majority&appName=Cluster0";
+const TRUE_MONGO_URI = process.env.MONGO_URI || "mongodb+srv://bingooo16888_db_user:bingo19880429@cluster0.t33ebvn.mongodb.net/lotto?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.models = {};
 mongoose.modelSchemas = {};
