@@ -385,35 +385,30 @@ function init539StaticFeatures(historyDB) {
   console.log(" 【539 竣工】：539 隨機洗牌桶與五大死條件特徵營隊全線就位通車！");
 } // 🔒 完美閉合 function init539StaticFeatures
 app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-
-    // === 【全域變數外掛化：徹底擊穿大口袋作用域阻斷，維持全線流暢推進】 ===
-    let totalScanned = 0;
-    let matchCount = 0;
-    let lastReportedPercent = -1;
-    let vipValidPool = [];
-
-    try { // 【最外層最高生命線大口袋 try 起點】
-                const { cfg, globalHistoryDB } = req.body;
-        if (!cfg) {
-            res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
-            return res.end();
-        } // 閉合 if (!cfg)
-
-         // 🟢 完美融合：徹底修復用戶 ID 金鑰與雙軌制權限判定 Bug
- // 1. 精密對齊第 2 頁 jwt.sign 簽發的原始金鑰欄位 [userId]
+ res.setHeader('Content-Type', 'text/event-stream');
+ res.setHeader('Cache-Control', 'no-cache');
+ res.setHeader('Connection', 'keep-alive');
+ res.setHeader('Access-Control-Allow-Origin', '*');
+ 
+ let totalScanned = 0;
+ let matchCount = 0;
+ let lastReportedPercent = -1;
+ let vipValidPool = [];
+ try { 
+ const { cfg, globalHistoryDB } = req.body;
+ if (!cfg) {
+ res.write(`data: ${JSON.stringify({ success: false, message: "參數配置遺失" })}\n\n`);
+ return res.end();
+ } 
  const sessionUserId = req.user && req.user.userId; 
  if (!sessionUserId) {
- res.write(JSON.stringify({ success: false, status: 401, message: "身分驗證異常，安全權限鎖失效，請重新登入！" }) + "\n");
+ res.write(`data: ${JSON.stringify({ success: false, status: 401, message: "身分驗證異常，請重新登入！" })}\n\n`);
  return res.end();
  }
-      
+ 
 const targetUser = await User.findById(sessionUserId);
 if (!targetUser) {
-res.write(JSON.stringify({ success: false, message: "雲端找不到該會員帳號，拒絕存取！" }) + "\n");
+res.write(`data: ${JSON.stringify({ success: false, message: "雲端找不到該會員帳號，拒絕存取！" })}\n\n`);
 return res.end();
 }
 const currentTime = new Date();
@@ -437,24 +432,18 @@ const currentTime = new Date();
         } else {
             // 🛑 未具備任何特權憑證，進入實體背景單次扣點防禦渠道
             const OPERATION_COST = 10;
-            if ((targetUser.points || 0) < OPERATION_COST) {
-                res.write(JSON.stringify({ 
-                    success: false, 
-                    status: 402, // 對齊前端點數不足狀態碼
-                    message: `點數不足！VIP精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。請前往儲值或看影片解鎖體驗通道！` 
-                }) + "\n");
-                return res.end();
-            }
-
-            // 安全扣點，100% 防止底層 NaN 污染
-            targetUser.points = Math.max(0, (Number(targetUser.points) || 0) - OPERATION_COST);
-            await targetUser.save(); // 強制落地
-            console.log(` [背景扣點成功] 用戶 [${targetUser.username}] 單次消費 ${OPERATION_COST} 點，賸餘：${targetUser.points} 點`);
-
-            // 發射標準點數刷新訊號，並立刻沖刷快取，絕不污染下方的進度條 Stream 
-            res.write(JSON.stringify({ isPointsUpdated: true, status: "AUTH_SUCCESS", remainingPoints: targetUser.points }) + "\n");
-            if (typeof res.flush === 'function') res.flush();
-        }
+           if ((targetUser.points || 0) < OPERATION_COST) {
+ res.write(`data: ${JSON.stringify({ success: false, status: 402, message: `點數不足！VIP精準篩選需消耗 ${OPERATION_COST} 點。您目前餘額：${targetUser.points || 0} 點。` })}\n\n`);
+ return res.end();
+ }
+ targetUser.points = Math.max(0, (Number(targetUser.points) || 0) - OPERATION_COST);
+ await targetUser.save(); 
+ console.log(` [背景扣點成功] 用戶 [${targetUser.username}] 單次消費 ${OPERATION_COST} 點，賸餘：${targetUser.points} 點`);
+ 
+ // 【通車補丁】：封裝為標準 SSE 格式，補齊 \n\n 避免前端解碼憋字
+ res.write(`data: ${JSON.stringify({ isPointsUpdated: true, status: "AUTH_SUCCESS", remainingPoints: targetUser.points })}\n\n`);
+ if (typeof res.flush === 'function') res.flush();
+ }
         // =========================================================================
 
 
@@ -641,13 +630,14 @@ const currentTime = new Date();
           
           // ===【智控動態調速閥：高頻 15000 次沖刷一次，解鎖 0% 推進，保障登入接口不卡死】===
           totalScanned++;
-          if (totalScanned % 15000 === 0) {
-            let percent = Math.min(100, Math.floor((totalScanned / 575757) * 100));
-            res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-            // 核心給予 1 毫秒物理喘息，交還 Node.js 執行緒控制權
-            await new Promise(resolve => setTimeout(resolve, 1));
-          } // 閉合調速閥沖刷 if
-        } // 🔒 完美物理閉合 539 全池單層單線高速遍歷 for 迴圈！
+ if (totalScanned % 15000 === 0) {
+ let percent = Math.min(100, Math.floor((totalScanned / 575757) * 100));
+ // 【超導補丁】：改為標準動態 SSE 封裝，徹底解決 75% 前端憋字
+ res.write(`data: ${JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount })}\n\n`);
+ if (typeof res.flush === 'function') res.flush();
+ await new Promise(resolve => setTimeout(resolve, 1));
+ } 
+ } // 完美物理閉合 539 全池單層單線高速遍歷 for 迴圈！ 🔒
       } catch (err539) {
         console.error(" 539海選分流內部異常：", err539.message);
       } // 完美閉合 539 獨立自癒防禦門 catch
@@ -735,19 +725,16 @@ else {
             batchCounter++;
             continuousFailCount = 0;
             
-            if (currentGroupPool.length === currentTargetGroupSize || batchCounter === targetCount) {
-                let chunkText = ``;
-                currentGroupPool.forEach((comb) => {
-                    vipValidPool.push(comb);
-                    chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-                });
-                
-                res.write(JSON.stringify({ 
-                    isProgress: true, 
-                    percent: Math.min(Math.floor((vipValidPool.length / targetCount) * 100), 99), 
-                    currentMatch: vipValidPool.length,
-                    appendOutput: chunkText 
-                }) + "\n");
+           if (currentGroupPool.length === currentTargetGroupSize || batchCounter === targetCount) {
+ let chunkText = ``;
+ currentGroupPool.forEach((comb) => {
+ vipValidPool.push(comb);
+ chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
+ });
+ 
+ // 【超導補丁】：升級為 data 協定及雙換行
+ res.write(`data: ${JSON.stringify({ isProgress: true, percent: Math.min(Math.floor((vipValidPool.length / targetCount) * 100), 99), currentMatch: vipValidPool.length, appendOutput: chunkText })}\n\n`);
+ if (typeof res.flush === 'function') res.flush();
                 
                 // 🧠【計算 539 純淨餘數】：
                 let currentGroupUsedBalls = [];
@@ -812,14 +799,16 @@ else {
     }
     
     if (currentGroupPool.length > 0) {
-        let chunkText = ``;
-        currentGroupPool.forEach((comb) => {
-            vipValidPool.push(comb);
-            chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-        });
-        res.write(JSON.stringify({ isProgress: true, percent: 99, currentMatch: vipValidPool.length, appendOutput: chunkText }) + "\n");
-    }
-    shuffledIndices539 = [];
+ let chunkText = ``;
+ currentGroupPool.forEach((comb) => {
+ vipValidPool.push(comb);
+ chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
+ });
+ // 【超導補丁】：改為標準動態 SSE 封裝，防止 539 末尾憋字
+ res.write(`data: ${JSON.stringify({ isProgress: true, percent: 99, currentMatch: vipValidPool.length, appendOutput: chunkText })}\n\n`);
+ if (typeof res.flush === 'function') res.flush();
+ }
+ shuffledIndices539 = [];
     localOutputSet.clear();
 }
 
@@ -833,15 +822,17 @@ else {
       if (vipValidPool.length === 0) {
         res.write(JSON.stringify({ success: false, message: "符合防線有效組合為 0 組，請放寬過濾標準！" }) + "\n");
       } else {
-        let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
-        let outputText = `【VIP篩選完成】符合今彩 539 防線總組數：${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
-        vipValidPool.forEach((comb, idx) => { 
-          outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`; 
-        }); // 閉合 539 文字封裝 forEach
-        res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: vipValidPool.length }) + "\n");
-        res.write(JSON.stringify({ success: true, outputText: outputText }) + "\n");
-      } // 閉合發送結果分流 if-else
-      res.end();
+       let mName = (cfg.vipMode === 'smart') ? '聰明包牌' : '一般隨機';
+ let outputText = `【VIP篩選完成】符合今彩 539 防線總組數：${matchCount} 組\n【本次輸出模式】${mName}\n【本次輸出】精選出 ${vipValidPool.length} 組\n-------------------------\n`;
+ vipValidPool.forEach((comb, idx) => { 
+ outputText += `第 [${String(idx + 1).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`; 
+ }); 
+ 
+ // 【超導補丁】：交卷訊號標準化，雙發射融合，強制穿透前端解碼晶片
+ res.write(`data: ${JSON.stringify({ isProgress: true, percent: 100, currentMatch: vipValidPool.length })}\n\n`);
+ res.write(`data: ${JSON.stringify({ success: true, outputText: outputText })}\n\n`);
+ } 
+ res.end();
       return; // 🔒 539 超導專區物理交卷離場，阻斷下方大樂透
     } 
     
@@ -985,15 +976,16 @@ else {
             } // 閉合生還指標加入 if
             // ===【核心解鎖調速閥：大樂透實時非同步推進控制，物理總量精確分母對齊】===
             totalScanned++; 
-            if (totalScanned % 150000 === 0) {
-              let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
-              if (percent !== lastReportedPercent) {
-                res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                lastReportedPercent = percent;
-              } // 閉合百分比不重複刷新 if
-              // 給予 Node.js 執行緒 1 毫秒物理喘息，打破大口袋阻斷，前台WebView絕不卡 0%！
-              await new Promise(resolve => setTimeout(resolve, 1));
-            } // 閉合 150000 次降頻沖刷 if
+ if (totalScanned % 150000 === 0) {
+ let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
+ if (percent !== lastReportedPercent) {
+     // 【超導震盪補丁】：注入 data: 與 \n\n，強制穿透 WebView 核心
+     res.write(`data: ${JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount })}\n\n`);
+     if (typeof res.flush === 'function') res.flush();
+     lastReportedPercent = percent;
+ } 
+ await new Promise(resolve => setTimeout(resolve, 1));
+ } 
             
           } // 🔒 完美閉合單個 Chunk 的物理遍歷 for 迴圈大門！
         } // 🔒 完美物理閉合 async function runSliceChunk 核心宣告大門！
@@ -1187,14 +1179,16 @@ else {
     
     // 碎組最終收網通道
     if (currentGroupPool.length > 0) {
-        let chunkText = ``;
-        currentGroupPool.forEach((comb) => {
-            vipValidPool.push(comb);
-            chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
-        });
-        res.write(JSON.stringify({ isProgress: true, percent: 99, currentMatch: vipValidPool.length, appendOutput: chunkText }) + "\n");
-    }
-    shuffledIndices = [];
+ let chunkText = ``;
+ currentGroupPool.forEach((comb) => {
+ vipValidPool.push(comb);
+ chunkText += `第 [${String(vipValidPool.length).padStart(2, '0')}] 組：${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
+ });
+ // 【超導補丁】：大樂透碎組發射站注入雙換行符，絕不提早熔斷
+ res.write(`data: ${JSON.stringify({ isProgress: true, percent: 99, currentMatch: vipValidPool.length, appendOutput: chunkText })}\n\n`);
+ if (typeof res.flush === 'function') res.flush();
+ }
+ shuffledIndices = [];
     localOutputSet49.clear();
 }
 
