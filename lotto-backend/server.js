@@ -633,11 +633,17 @@ const currentTime = new Date();
             } // 閉合地雷查表判定 if
           } // 閉合 if (isCombValid && cfg.f15_on...)
           
-          // ───【539 降維海選生還計數與索引光速抄底】───
-          if (isCombValid) {
-            matchCount++;
-            survivorPoolIndices.push(i1, i2, i3, i4, i5);
-          } // 閉合生還索引存入 if
+// ───【539 降維海選生還計數與索引光速抄底】───
+ if (isCombValid) {
+     matchCount++;
+     survivorPoolIndices.push(i1, i2, i3, i4, i5);
+     
+     // 安全閥補丁：如果全不勾選導致生還池過大，收集到目標數量 50 倍的號碼即可自動截斷，拒絕撐爆內存
+     if (survivorPoolIndices.length >= Math.max(500, targetCount * 50 * 5)) {
+         totalScanned = 575757;
+         break;
+     }
+ } // 閉合生還索引存入 if
           
           // ===【智控動態調速閥：高頻 15000 次沖刷一次，解鎖 0% 推進，保障登入接口不卡死】===
           totalScanned++;
@@ -868,135 +874,128 @@ else {
         
         const checkHistoryGeiLei = (cfg.f15_on === true || cfg.f15_on === 'true'); 
         
-        // 【大樂透高速通道】：切片非同步海選核心晶片
-        async function runSliceChunk(startK, endK) {
-          for (let k = startK; k < endK; k++) {
-            if (survivorPoolIndices.length >= targetCount * 6 && currentPointerIdx >= matrixLength) {
-              break;
-            } // 閉合生還指標溢出中斷 if
-            
-            let matrixId = globalLotto49Indices[currentPointerIdx++];
-            
-            // 【晶片級特徵預點名】：倒排索引秒速排除不合規組合，跳過無效號碼解壓
-            let currentFeature = 0;
-            if (globalLotto49FilterBit0[matrixId] === 1) currentFeature |= (1 << 0); 
-            if (globalLotto49FilterBit1[matrixId] === 1) currentFeature |= (1 << 1); 
-            if (globalLotto49FilterBit2[matrixId] === 1) currentFeature |= (1 << 2); 
-            if (globalLotto49FilterBit3[matrixId] === 1) currentFeature |= (1 << 3); 
-            
-            if ((currentFeature & activeFilterBits) !== requiredFeatureMask) {
-              continue; // 特徵點名未通關，光速跳過
-            } // 閉合連鎖特徵預點名核對 if
-            let bytePos = matrixId * 6;
-            let i1 = globalLotto49Matrix[bytePos];
-            let i2 = globalLotto49Matrix[bytePos + 1];
-            let i3 = globalLotto49Matrix[bytePos + 2];
-            let i4 = globalLotto49Matrix[bytePos + 3];
-            let i5 = globalLotto49Matrix[bytePos + 4];
-            let i6 = globalLotto49Matrix[bytePos + 5];
-            
-            let comb = [i1, i2, i3, i4, i5, i6];
-            let isCombValid = true; 
-            
-            // 【條件 1】：排除特定地雷號碼
-            if (cfg.f1_on) {
-              if (f1_set.has(i1) || f1_set.has(i2) || f1_set.has(i3) || f1_set.has(i4) || f1_set.has(i5) || f1_set.has(i6)) {
-                isCombValid = false;
-              } // 閉合地雷球排除 if
-            } // 閉合 if (cfg.f1_on)
-            
-            // 【條件 2】：首尾邊界熱區控制
-            if (isCombValid && cfg.f2_on) {
-              if (i1 >= f2_min || i6 <= f2_max) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f2_on)
-            
-            // 【物理防線 2 / 歷史全中排除】：與大樂透歷史開獎進行完全重疊對撞
-            if (isCombValid) {
-              if (historyCacheSet.has(comb.join(','))) isCombValid = false;
-            } // 閉合 if (isCombValid)
-            
-            // 【條件 3】：五大物理區塊落點控制
-            if (isCombValid && cfg.f3_on) {
-              let zoneSet = new Set();
-              zoneSet.add(Math.min(5, Math.ceil(i1 / 10))).add(Math.min(5, Math.ceil(i2 / 10))).add(Math.min(5, Math.ceil(i3 / 10))).add(Math.min(5, Math.ceil(i4 / 10))).add(Math.min(5, Math.ceil(i5 / 10))).add(Math.min(5, Math.ceil(i6 / 10)));
-              if (zoneSet.size !== cfg.f3_count) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f3_on)
-            // 【條件 4】：同尾數重複個數上限過濾
-            if (isCombValid && cfg.f4_on) {
-              let tails = new Array(10).fill(0);
-              tails[i1 % 10]++; tails[i2 % 10]++; tails[i3 % 10]++; tails[i4 % 10]++; tails[i5 % 10]++; tails[i6 % 10]++;
-              if (Math.max(...tails) > f4_max) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f4_on)
-            
-            // 【條件 5】：奇偶比例動態防禦牆
-            if (isCombValid && cfg.f5_on) {
-              let oddCount = (i1 % 2) + (i2 % 2) + (i3 % 2) + (i4 % 2) + (i5 % 2) + (i6 % 2);
-              if (cfg.f5_lotto_60 && (oddCount === 6 || oddCount === 0)) isCombValid = false;
-              if (cfg.f5_lotto_51 && (oddCount === 5 || oddCount === 1)) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f5_on)
-            
-            // 【條件 6】：號碼總和區間動態過濾
-            if (isCombValid && cfg.f6_on) {
-              let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
-              if (sumValue < f6_low || sumValue > f6_high) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f6_on)
-            
-            // 【條件 7】：連續號碼長度限制牆
-            if (isCombValid && cfg.f7_on) {
-              let maxConsecutive = 1, currentConsecutive = 1;
-              for (let m = 0; m < comb.length - 1; m++) {
-                if (comb[m + 1] - comb[m] === 1) { currentConsecutive++; } 
-                else { if (currentConsecutive > maxConsecutive) maxConsecutive = currentConsecutive; currentConsecutive = 1; }
-              } // 閉合遍歷連續 if-else 陣列 for
-              if (currentConsecutive > maxConsecutive) maxConsecutive = currentConsecutive;
-              if (maxConsecutive >= (cfg.f7_len || 3)) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f7_on)
-            // 【條件 9】：鄰號夾擊防線控制
-            if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
-              let nCnt = 0;
-              comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
-              if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f9_on...)
-            
-            // 【條件 10】：上期獎號連莊封殺牆
-            if (isCombValid && cfg.f10_on && cfg.lastPeriod && cfg.lastPeriod.length > 0) {
-              let repeatCount = 0;
-              comb.forEach(num => { if (cfg.lastPeriod.includes(num)) repeatCount++; });
-              if (repeatCount > (cfg.f10_max || 2)) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f10_on...)
-            // 【條件 13】：數字複雜度 (AC值) 飄移精準海選過濾
-            if (isCombValid && cfg.f13_on) {
-              let diffs = new Set();
-              for (let m = 0; m < 5; m++) { for (let n = m + 1; n < 6; n++) { diffs.add(Math.abs(comb[m] - comb[n])); } }
-              if ((diffs.size - 5) < f13_min) isCombValid = false;
-            } // 閉合 if (isCombValid && cfg.f13_on)
-            
-            // 🚀【超導部隊 15】：大樂透歷史地雷極速常數查表判定，完全無開銷！
-            if (isCombValid && checkHistoryGeiLei) {
-              if (globalLotto49HistoryMask[matrixId] === 0) {
-                isCombValid = false; // 直接命中開機算好的裂變地雷死線，光速淘汰！
-              } // 閉合歷史地雷查表 if
-            } // 閉合 if (isCombValid && checkHistoryGeiLei)
-            
-            // ───【大樂透海選生還計數與精銳指針抄底】───
-            if (isCombValid) {
-              matchCount++; 
-              survivorPoolIndices.push(matrixId);
-            } // 閉合生還指標加入 if
-            // ===【核心解鎖調速閥：大樂透實時非同步推進控制，物理總量精確分母對齊】===
-            totalScanned++; 
-            if (totalScanned % 150000 === 0) {
-              let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
-              if (percent !== lastReportedPercent) {
-                res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
-                lastReportedPercent = percent;
-              } // 閉合百分比不重複刷新 if
-              // 給予 Node.js 執行緒 1 毫秒物理喘息，打破大口袋阻斷，前台WebView絕不卡 0%！
-              await new Promise(resolve => setTimeout(resolve, 1));
-            } // 閉合 150000 次降頻沖刷 if
-            
-          } // 🔒 完美閉合單個 Chunk 的物理遍歷 for 迴圈大門！
-        } // 🔒 完美物理閉合 async function runSliceChunk 核心宣告大門！
+ // =========================================================================
+ // 【大樂透超導全線通車安全閥補丁】── 徹底防止全不勾選時內存崩潰 👑
+ // =========================================================================
+ async function runSliceChunk(startK, endK) {
+     for (let k = startK; k < endK; k++) {
+         // 【核心熔斷保險絲】：如果全不勾選，或者生還池已經極度飽和（為防止洗牌擠爆記憶體，設定安全上限上限 20,000 組）
+         // 只要收集到足夠的候選組數（目標組數的20倍），就立刻封頂跳出，拒絕空轉 1,400 萬組！
+         if (survivorPoolIndices.length >= Math.max(1000, targetCount * 20)) {
+             currentPointerIdx = matrixLength; // 強制將全局指針拉到終點
+             break;
+         }
+         
+         if (currentPointerIdx >= matrixLength) break;
+         let matrixId = globalLotto49Indices[currentPointerIdx++];
+         
+         // 【晶片級特徵預點名】
+         let currentFeature = 0;
+         if (globalLotto49FilterBit0[matrixId] === 1) currentFeature |= (1 << 0); 
+         if (globalLotto49FilterBit1[matrixId] === 1) currentFeature |= (1 << 1); 
+         if (globalLotto49FilterBit2[matrixId] === 1) currentFeature |= (1 << 2); 
+         if (globalLotto49FilterBit3[matrixId] === 1) currentFeature |= (1 << 3); 
+         
+         if (activeFilterBits > 0 && (currentFeature & activeFilterBits) !== requiredFeatureMask) {
+             continue; // 只有在有勾選條件時，才進行特徵排除
+         }
+         
+         let bytePos = matrixId * 6;
+         let i1 = globalLotto49Matrix[bytePos];
+         let i2 = globalLotto49Matrix[bytePos + 1];
+         let i3 = globalLotto49Matrix[bytePos + 2];
+         let i4 = globalLotto49Matrix[bytePos + 3];
+         let i5 = globalLotto49Matrix[bytePos + 4];
+         let i6 = globalLotto49Matrix[bytePos + 5];
+         
+         let comb = [i1, i2, i3, i4, i5, i6];
+         let isCombValid = true; 
+         
+         // 【條件 1】：排除特定地雷號碼
+         if (cfg.f1_on) {
+             if (f1_set.has(i1) || f1_set.has(i2) || f1_set.has(i3) || f1_set.has(i4) || f1_set.has(i5) || f1_set.has(i6)) isCombValid = false;
+         }
+         // 【條件 2】：首尾邊界熱區控制
+         if (isCombValid && cfg.f2_on) {
+             if (i1 >= f2_min || i6 <= f2_max) isCombValid = false;
+         }
+         // 【歷史全中排除】
+         if (isCombValid) {
+             if (historyCacheSet.has(comb.join(','))) isCombValid = false;
+         }
+         // 【條件 3】：五大物理區塊落點控制
+         if (isCombValid && cfg.f3_on) {
+             let zoneSet = new Set();
+             zoneSet.add(Math.min(5, Math.ceil(i1 / 10))).add(Math.min(5, Math.ceil(i2 / 10))).add(Math.min(5, Math.ceil(i3 / 10))).add(Math.min(5, Math.ceil(i4 / 10))).add(Math.min(5, Math.ceil(i5 / 10))).add(Math.min(5, Math.ceil(i6 / 10)));
+             if (zoneSet.size !== cfg.f3_count) isCombValid = false;
+         }
+         // 【條件 4】：同尾數重複個數上限過濾
+         if (isCombValid && cfg.f4_on) {
+             let tails = new Array(10).fill(0);
+             tails[i1 % 10]++; tails[i2 % 10]++; tails[i3 % 10]++; tails[i4 % 10]++; tails[i5 % 10]++; tails[i6 % 10]++;
+             if (Math.max(...tails) > f4_max) isCombValid = false;
+         }
+         // 【條件 5】：奇偶比例防禦
+         if (isCombValid && cfg.f5_on) {
+             let oddCount = (i1 % 2) + (i2 % 2) + (i3 % 2) + (i4 % 2) + (i5 % 2) + (i6 % 2);
+             if (cfg.f5_lotto_60 && (oddCount === 6 || oddCount === 0)) isCombValid = false;
+             if (cfg.f5_lotto_51 && (oddCount === 5 || oddCount === 1)) isCombValid = false;
+         }
+         // 【條件 6】：號碼總和區間
+         if (isCombValid && cfg.f6_on) {
+             let sumValue = i1 + i2 + i3 + i4 + i5 + i6;
+             if (sumValue < f6_low || sumValue > f6_high) isCombValid = false;
+         }
+         // 【條件 7】：連續號碼限制
+         if (isCombValid && cfg.f7_on) {
+             let maxConsecutive = 1, currentConsecutive = 1;
+             for (let m = 0; m < comb.length - 1; m++) {
+                 if (comb[m + 1] - comb[m] === 1) { currentConsecutive++; } 
+                 else { if (currentConsecutive > maxConsecutive) maxConsecutive = currentConsecutive; currentConsecutive = 1; }
+             }
+             if (currentConsecutive > maxConsecutive) maxConsecutive = currentConsecutive;
+             if (maxConsecutive >= (cfg.f7_len || 3)) isCombValid = false;
+         }
+         // 【條件 9】：鄰號夾擊
+         if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
+             let nCnt = 0;
+             comb.forEach(num => { if (neighborSet.has(num)) nCnt++; });
+             if (nCnt > (cfg.f9_count || 2)) isCombValid = false;
+         }
+         // 【條件 10】：上期連莊
+         if (isCombValid && cfg.f10_on && cfg.lastPeriod && cfg.lastPeriod.length > 0) {
+             let repeatCount = 0;
+             comb.forEach(num => { if (cfg.lastPeriod.includes(num)) repeatCount++; });
+             if (repeatCount > (cfg.f10_max || 2)) isCombValid = false;
+         }
+         // 【條件 13】：AC值
+         if (isCombValid && cfg.f13_on) {
+             let diffs = new Set();
+             for (let m = 0; m < 5; m++) { for (let n = m + 1; n < 6; n++) { diffs.add(Math.abs(comb[m] - comb[n])); } }
+             if ((diffs.size - 5) < f13_min) isCombValid = false;
+         }
+         // 【條件 15】：歷史地雷查表
+         if (isCombValid && checkHistoryGeiLei) {
+             if (globalLotto49HistoryMask[matrixId] === 0) isCombValid = false;
+         }
+         
+         if (isCombValid) {
+             matchCount++; 
+             survivorPoolIndices.push(matrixId);
+         }
+         
+         totalScanned++; 
+         if (totalScanned % 150000 === 0) {
+             let percent = Math.min(100, Math.floor((totalScanned / 13983816) * 100));
+             if (percent !== lastReportedPercent) {
+                 res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: matchCount }) + "\n");
+                 lastReportedPercent = percent;
+             }
+             await new Promise(resolve => setTimeout(resolve, 1));
+         }
+     }
+ }
+
         // 【大樂透 1,400 萬核心通道・終極四分片點火對撞】
         if (lottoType === "49_6" || cfg.lottoType === "49_6") {
           console.log(" 【大樂透超導分流】：1,400 萬組一維核心矩陣切片開始對撞！ ");
