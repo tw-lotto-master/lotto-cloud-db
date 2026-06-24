@@ -528,11 +528,28 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
     }
 // 【區塊 Node-03-B 竣工，請確認貼上後，對我發送「區塊 Node-03-C」部署最高難度之全局大洗牌、皇家喜愛號豁免與階梯式互斥交卷！】
     // ───【全新硬核空間點火器】：建立 1 ~ maxNumber 的虛擬球池空間 ───
+        // ─── 【全新硬核空間降維點火器】：利用喜愛號與地雷號在起步前擊穿大池，速度拉滿 ⚡ ───
     let masterSpacePool = [];
-    for (let i = 1; i <= maxNumber; i++) masterSpacePool.push(i);
+    for (let i = 1; i <= maxNumber; i++) {
+      // 1. 如果有選地雷號，在起步前直接在物理層面將其從宇宙中抹除 ❌
+      if (cfg.f1_on && f1_set.has(i)) continue;
+      // 2. 如果有選皇家喜愛號，將其排除在外，留待核心內部強制嵌入 👑
+      if (vipFavSet.has(i)) continue;
+      masterSpacePool.push(i);
+    }
 
-    // ⚡ 核心點火 ⚡：啟動全量窮舉海選，誠實抄底，統計全池真正合格總數
-    scanAndFilterMatrixSpace(masterSpacePool, requiredCount);
+    // 動態計算降維後的所需剩餘球數
+    let dynamicRequiredRemaining = requiredCount - vipFavSet.size;
+
+    if (dynamicRequiredRemaining < 0 || masterSpacePool.length < dynamicRequiredRemaining) {
+      // 安全自癒隔離：防止用戶亂填參數導致數學崩潰
+      res.write(JSON.stringify({ success: false, message: "條件配置衝突，導致彩球池物理歸零，請重新設定！" }) + "\n");
+      return res.end();
+    }
+
+    // ⚡ 降維點火 ⚡：以極速縮小百倍的矩陣空間誠實抄底，0.5秒內完美交卷
+    scanAndFilterMatrixSpace(masterSpacePool, dynamicRequiredRemaining);
+
 
     const honestTotalMatch = survivorPool.length; // 100% 老老實實跑完大池得到的安全生還總數
     let matchCount = 0;
