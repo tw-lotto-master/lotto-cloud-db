@@ -44,12 +44,24 @@ const User = mongoose.models.User || mongoose.model('User', UserSchema);
 // 完整相容 1-49 質數快取矩陣 (對齊條件 14，強效防窮舉死鎖)
 const PRIME_SET = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
 
-// ─── 🟢 🎯 【全域頂層超高速海選引擎完全體】 ───
+// ─── 🟢 🎯 【最外層全域超高速海選引擎完全體】 ───
 function scanAndFilterMatrixSpace(pool, r, k = 0, current = []) {
+    
+    // 🟢 🎯 像素級修正：只有當 6 碼/5 碼完全生出來、準備進入 16 大防線檢查時，才去抓取全域快取資源，徹底打破開機 initialization 崩潰！
     if (current.length === r) {
         global.totalScanned++;
         
-        // ⚡ 進度條即時串流沖刷：利用全域指標直接發射，徹底擊穿卡死在 0% 轉圈圈的黑洞！
+        // 動態注入全域感測器資源，確保 100% 絕對不會因為 undefined 而休克斷流！
+        const cfg = global.currentCfg || {};
+        const f1_set = global.currentF1Set || new Set();
+        const vipFavSet = global.currentVipFavSet || new Set();
+        const historyCacheSet = global.currentHistoryCacheSet || new Set();
+        const lottoType = cfg.lottoType || "39_5";
+        const neighborSet = global.currentNeighborSet || new Set();
+        const lastPeriod = global.currentLastPeriod || [];
+        const historyDB = global.currentHistoryDB || [];
+
+        // ⚡ 進度條即時串流發射
         if (global.totalScanned % global.reportStep === 0 || global.totalScanned === global.theoreticalTotal) {
             let percent = Math.min(100, Math.floor((global.totalScanned / global.theoreticalTotal) * 100));
             if (global.currentRes) {
@@ -57,16 +69,8 @@ function scanAndFilterMatrixSpace(pool, r, k = 0, current = []) {
             }
         }
         
-        let isCombValid = true;
-        const cfg = global.currentCfg;
-        const f1_set = global.currentF1Set;
-        const vipFavSet = global.currentVipFavSet;
-        const historyCacheSet = global.currentHistoryCacheSet;
-        const lottoType = cfg.lottoType || "39_5";
-        const neighborSet = global.currentNeighborSet;
-        const lastPeriod = global.currentLastPeriod;
-        const historyDB = global.currentHistoryDB;
-        
+        let isCombValid = true; // 👈 完美向下銜接條件 01 到條件 15 的大底池防線...
+
         // ───【條件 01】：排除特定地雷號碼 ───
         if (isCombValid && cfg.f1_on && f1_set.size > 0) {
             for (let mine of f1_set) {
