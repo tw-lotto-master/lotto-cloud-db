@@ -335,7 +335,7 @@ console.log("【前端傳來的歷史庫數量】:", globalHistoryDB ? globalHis
                 }
             });
 
-          cfg = safeCfg; 
+         Object.assign(cfg, safeCfg); 
     
             // 2. 歷史開獎安全防禦：歷史庫數量 63315 筆非常完美，但為了安全依然綁定自癒
             const historyDB = globalHistoryDB || [];
