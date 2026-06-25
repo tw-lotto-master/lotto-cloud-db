@@ -338,16 +338,20 @@ console.log("【前端傳來的歷史庫數量】:", globalHistoryDB ? globalHis
          Object.assign(cfg, safeCfg); 
     
             // 2. 歷史開獎安全防禦：歷史庫數量 63315 筆非常完美，但為了安全依然綁定自癒
-            const historyDB = globalHistoryDB || [];
-            const historyCacheSet = new Set();
-            if (Array.isArray(historyDB) && historyDB.length > 0) {
-                historyDB.forEach(h => {
-                    if (h && (Array.isArray(h) || typeof h === 'string') && h.length >= requiredCount) {
-                        const arr = Array.isArray(h) ? h : String(h).split(',');
-                        historyCacheSet.add(arr.slice(0, requiredCount).map(n => String(n).padStart(2,'0')).sort().join(','));
-                    }
-                });
+           const historyDB = globalHistoryDB || [];
+const historyCacheSet = new Set();
+if (Array.isArray(historyDB) && historyDB.length > 0) {
+    historyDB.forEach(h => {
+        if (h && (Array.isArray(h) || typeof h === 'string')) {
+            const arr = Array.isArray(h) ? h : String(h).split(',');
+            // 動態判定長度：優先使用前端傳來的 requiredCount，若無則依據歷史號碼本身長度，徹底解除變數初始化順序相依！
+            let currentLen = (cfg && cfg.requiredCount) ? parseInt(cfg.requiredCount, 10) : (arr.length >= 6 ? 6 : 5);
+            if (arr.length >= currentLen) {
+                historyCacheSet.add(arr.slice(0, currentLen).map(n => String(n).padStart(2,'0')).sort().join(','));
             }
+        }
+    });
+} 
             
             // ────────────────────────────────────────────────────────────────────────
 
