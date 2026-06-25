@@ -420,17 +420,7 @@ console.log("【前端傳來的歷史庫數量】:", globalHistoryDB ? globalHis
       cfg.f15_on = String(cfg.f15_on) === 'true';
       cfg.vip_fav_on = String(cfg.vip_fav_on) === 'true';
     }
-
-    const historyDB = globalHistoryDB || [];
-    const historyCacheSet = new Set();
-if (Array.isArray(historyDB) && historyDB.length > 0) {
-    historyDB.forEach(h => {
-        if (h && h.length >= requiredCount) {
-            historyCacheSet.add(h.slice(0, requiredCount).sort((a,b)=>a-b).join(','));
-        }
-    });
-}
-    
+   
     let lastPeriod = [];
     const neighborSet = new Set();
      if (historyDB && historyDB.length > 0) {
