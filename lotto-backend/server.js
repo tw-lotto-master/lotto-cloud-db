@@ -372,7 +372,14 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
     }
 
     const historyDB = globalHistoryDB || [];
-    const historyCacheSet = new Set(historyDB.map(h => h.slice(0, requiredCount).sort((a,b)=>a-b).join(',')));
+    const historyCacheSet = new Set();
+if (Array.isArray(historyDB) && historyDB.length > 0) {
+    historyDB.forEach(h => {
+        if (h && h.length >= requiredCount) {
+            historyCacheSet.add(h.slice(0, requiredCount).sort((a,b)=>a-b).join(','));
+        }
+    });
+}
     
     let lastPeriod = [];
     const neighborSet = new Set();
@@ -420,12 +427,13 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
 
         // ───【條件 02】：首尾邊界熱區控制 ───
         if (isCombValid && cfg.f2_on) {
-          let f2_min = parseInt(cfg.f2_min, 10) || 15;
-          let f2_max = parseInt(cfg.f2_max, 10) || 30;
-          if (current[0] >= f2_min || current[current.length - 1] <= f2_max) { 
-            isCombValid = false; 
-          }
-        }
+        let f2_min = parseInt(cfg.f2_min, 10) || 15;
+        let f2_max = parseInt(cfg.f2_max, 10) || 30;
+       // 第一碼大於等於邊界，或者最後一碼小於等於邊界時，才屬於地雷區剔除
+       if (Number(current[0]) >= f2_min || Number(current[current.length - 1]) <= f2_max) { 
+           isCombValid = false; 
+         }
+      }
 
         // ───【物理防線 / 歷史全中排除】：補零格式化完全撞擊 🎯 ───
         let currentZeroStr = current.map(n => String(n).padStart(2, '0')).join(',');
