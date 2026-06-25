@@ -336,6 +336,12 @@ console.log("【前端傳來的歷史庫數量】:", globalHistoryDB ? globalHis
             });
 
          Object.assign(cfg, safeCfg); 
+
+      totalScanned = 0;             // 1. 強制總掃描計數器徹底歸零！擊穿提早結束的黑洞
+            survivorPool = [];            // 2. 強制全局生還桶徹底清空！拒絕上一輪殘留污染
+            smartExclusionSet = new Set(); // 3. 強制聰明包牌屏蔽標籤歸零
+            
+            console.log("🔥 【大腦點火自癒】全域運算計數器與生還桶已全面沖刷歸零！重新啟動全量大池海選...");
     
             // 2. 歷史開獎安全防禦：歷史庫數量 63315 筆非常完美，但為了安全依然綁定自癒
            const historyDB = globalHistoryDB || [];
