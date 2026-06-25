@@ -44,6 +44,168 @@ const User = mongoose.models.User || mongoose.model('User', UserSchema);
 // 完整相容 1-49 質數快取矩陣 (對齊條件 14，強效防窮舉死鎖)
 const PRIME_SET = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
 
+// ─── 🟢 🎯 【全域頂層超高速海選引擎完全體】 ───
+function scanAndFilterMatrixSpace(pool, r, k = 0, current = []) {
+    if (current.length === r) {
+        global.totalScanned++;
+        
+        // ⚡ 進度條即時串流沖刷：利用全域指標直接發射，徹底擊穿卡死在 0% 轉圈圈的黑洞！
+        if (global.totalScanned % global.reportStep === 0 || global.totalScanned === global.theoreticalTotal) {
+            let percent = Math.min(100, Math.floor((global.totalScanned / global.theoreticalTotal) * 100));
+            if (global.currentRes) {
+                global.currentRes.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: global.survivorPool.length }) + "\n");
+            }
+        }
+        
+        let isCombValid = true;
+        const cfg = global.currentCfg;
+        const f1_set = global.currentF1Set;
+        const vipFavSet = global.currentVipFavSet;
+        const historyCacheSet = global.currentHistoryCacheSet;
+        const lottoType = cfg.lottoType || "39_5";
+        const neighborSet = global.currentNeighborSet;
+        const lastPeriod = global.currentLastPeriod;
+        const historyDB = global.currentHistoryDB;
+        
+        // ───【條件 01】：排除特定地雷號碼 ───
+        if (isCombValid && cfg.f1_on && f1_set.size > 0) {
+            for (let mine of f1_set) {
+                if (current.includes(mine)) { isCombValid = false; break; }
+            }
+        }
+        // ───【條件 02】：首尾邊界熱區控制 ───
+        if (isCombValid && cfg.f2_on) {
+            let f2_min = parseInt(cfg.f2_min, 10) || 15;
+            let f2_max = parseInt(cfg.f2_max, 10) || 30;
+            if (Number(current[0]) >= f2_min || Number(current[current.length - 1]) <= f2_max) { 
+                isCombValid = false; 
+            }
+        }
+        // ───【物理防線 / 歷史全中排除】：補零格式化完全撞擊 ───
+        let currentZeroStr = current.map(n => String(n).padStart(2, '0')).join(',');
+        if (isCombValid && historyCacheSet.size > 0 && historyCacheSet.has(currentZeroStr)) {
+            isCombValid = false;
+        }
+        // ───【條件 03】：五大物理區塊落點個數控制 ───
+        if (isCombValid && cfg.f3_on) {
+            let zoneSet = new Set();
+            let divisor = lottoType === "49_6" ? 10 : 8;
+            current.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
+            if (zoneSet.size !== (parseInt(cfg.f3_count, 10) || 4)) { isCombValid = false; }
+        }
+        // ───【條件 04】：同尾數重複個數上限過濾 ───
+        if (isCombValid && cfg.f4_on) {
+            let tails = new Array(10).fill(0);
+            current.forEach(num => tails[num % 10]++);
+            if (Math.max(...tails) > (parseInt(cfg.f4_max, 10) || 2)) { isCombValid = false; }
+        }
+        // ───【條件 05】：奇偶比例動態防禦牆 ───
+        if (isCombValid && cfg.f5_on) {
+            let odds = current.filter(n => n % 2 !== 0).length;
+            let evens = r - odds;
+            if (lottoType === "49_6") {
+                if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) { isCombValid = false; }
+                if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) { isCombValid = false; }
+            } else {
+                if (cfg.f5_539_50 && (odds === 5 || evens === 5)) { isCombValid = false; }
+                if (cfg.f5_539_41 && (odds === 4 || evens === 4)) { isCombValid = false; }
+            }
+        }
+        // ───【條件 06】：號碼總和區間動態過濾 ───
+        if (isCombValid && cfg.f6_on) {
+            let sumValue = current.reduce((a, b) => a + b, 0);
+            if (sumValue < (parseInt(cfg.f6_low, 10) || 110) || sumValue > (parseInt(cfg.f6_high, 10) || 210)) { 
+                isCombValid = false; 
+            }
+        }
+        // ───【條件 07】：連續號碼長度限制牆 ───
+        if (isCombValid && cfg.f7_on) {
+            let maxSeq = 1, currentSeq = 1;
+            for (let m = 1; m < r; m++) {
+                if (current[m] === current[m-1] + 1) {
+                    currentSeq++;
+                    if (currentSeq > maxSeq) maxSeq = currentSeq;
+                } else { currentSeq = 1; }
+            }
+            if (maxSeq >= (parseInt(cfg.f7_len, 10) || 3)) { isCombValid = false; }
+        }
+        // ───【條件 08】：局部連續 3 碼等差封鎖牆 (公差範圍 1-24) ───
+        if (isCombValid && cfg.f8_on) {
+            let isArithmetic = false;
+            for (let i = 0; i <= r - 3; i++) {
+                let diff1 = current[i+1] - current[i];
+                let diff2 = current[i+2] - current[i+1];
+                if (diff1 === diff2 && diff1 >= 1 && diff1 <= 24) { isArithmetic = true; break; }
+            }
+            if (isArithmetic) { isCombValid = false; }
+        }
+        // ───【條件 09】：鄰號夾擊防線控制 ───
+        if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
+            let nCnt = current.filter(num => neighborSet.has(num)).length;
+            if (nCnt > (parseInt(cfg.f9_count, 10) || 2)) { isCombValid = false; }
+        }
+        // ───【條件 10】：上期獎號連莊封殺牆 ───
+        if (isCombValid && cfg.f10_on && lastPeriod.length > 0) {
+            let repeatCount = current.filter(num => lastPeriod.includes(num)).length;
+            if (repeatCount > (parseInt(cfg.f10_max, 10) || 2)) { isCombValid = false; }
+        }
+        // ───【條件 11】：大小數比例動態分流牆 ───
+        if (isCombValid && cfg.f11_on) {
+            let midPoint = lottoType === "49_6" ? 25 : 20;
+            let bigCount = current.filter(num => num >= midPoint).length;
+            let smallCount = r - bigCount;
+            if (cfg.f11_kill) {
+                if (bigCount === r || smallCount === r || bigCount === 1 || smallCount === 1) { isCombValid = false; }
+            }
+        }
+        // ───【條件 12】：除三餘數 (012路) 完全斷路封鎖牆 ───
+        if (isCombValid && cfg.f12_on) {
+            let road0 = 0, road1 = 0, road2 = 0;
+            current.forEach(num => {
+                let rem = num % 3;
+                if (rem === 0) road0++; else if (rem === 1) road1++; else road2++;
+            });
+            if (cfg.f12_kill) {
+                if (road0 === 0 || road1 === 0 || road2 === 0) { isCombValid = false; }
+            }
+        }
+        // ───【條件 13】：數字複雜度 (AC值) 飄移過濾 ───
+        if (isCombValid && cfg.f13_on) {
+            let diffs = new Set();
+            for (let m = 0; m < r; m++) {
+                for (let n = m + 1; n < r; n++) { diffs.add(current[n] - current[m]); }
+            }
+            let acValue = diffs.size - (r - 1);
+            if (acValue < (parseInt(cfg.f13_min, 10) || 6)) { isCombValid = false; }
+        }
+        // ───【條件 14】：質數/合數比例過濾 ───
+        if (isCombValid && cfg.f14_on) {
+            const primes =;
+            let pCnt = current.filter(num => primes.includes(num)).length;
+            if (cfg.f14_kill && pCnt >= 4) { isCombValid = false; }
+        }
+        // ───【條件 15】：歷史數據高重疊率安全過濾防線 ───
+        if (isCombValid && cfg.f15_on) {
+            const overlapLimit = lottoType === '49_6' ? 5 : 4;
+            for (let h of historyDB) {
+                let intersect = current.filter(num => h.includes(num)).length;
+                if (intersect >= overlapLimit) { isCombValid = false; break; }
+            }
+        }
+        
+        if (isCombValid) {
+            global.survivorPool.push([...current]);
+        }
+        return false;
+    }
+    
+    for (let i = k; i < pool.length; i++) {
+        current.push(pool[i]);
+        scanAndFilterMatrixSpace(pool, r, i + 1, current);
+        current.pop();
+    }
+}
+
 // ─── 中介軟體：雙軌沙盒憑證字串清洗驗證器 🔐 ───
 function authenticateToken(req, res, next) {
   if (req.method === 'OPTIONS') return next();
@@ -448,177 +610,24 @@ if (historyCacheSet.size === 0) {
         global.totalScanned = 0; 
         global.survivorPool = []; 
         global.smartExclusionSet = new Set(); 
-        
-        // 根據大樂透或 539 模式，動態設定全域理論總數與回報步長
         global.theoreticalTotal = lottoType === "49_6" ? 13983816 : 575757;
-        global.reportStep = lottoType === "49_6" ? 150000 : 5000; // 每進度 1%~5% 強制刷屏一次
+        global.reportStep = lottoType === "49_6" ? 150000 : 5000; 
         
-        // 為了讓下方的全域函數能拿到 res 物件發射 % 數，將當前路由的 res 強制鎖定在全域快取中
+        // 🟢 🎯 像素級對齊：將當前的資源，同步上鎖到全域大腦的傳感器中
         global.currentRes = res; 
+        global.currentCfg = cfg;
+        global.currentF1Set = f1_set;
+        global.currentVipFavSet = vipFavSet;
+        global.currentHistoryCacheSet = historyCacheSet;
+        global.currentNeighborSet = neighborSet;
+        global.currentLastPeriod = lastPeriod;
+        global.currentHistoryDB = historyDB;
 
-        let isCombValid = true;
+        // 🚀 全量硬核大點火！直接呼叫在最外層已經優化完畢的全域超高速函數！
+        scanAndFilterMatrixSpace(masterSpacePool, dynamicRequiredRemaining);
 
-
-        // ───【條件 01】：排除特定地雷號碼 ───
-        if (isCombValid && cfg.f1_on && f1_set.size > 0) {
-          for (let mine of f1_set) {
-            if (current.includes(mine)) { isCombValid = false; break; }
-          }
-        }
-
-        // ───【條件 02】：首尾邊界熱區控制 ───
-        if (isCombValid && cfg.f2_on) {
-        let f2_min = parseInt(cfg.f2_min, 10) || 15;
-        let f2_max = parseInt(cfg.f2_max, 10) || 30;
-       // 第一碼大於等於邊界，或者最後一碼小於等於邊界時，才屬於地雷區剔除
-       if (Number(current[0]) >= f2_min || Number(current[current.length - 1]) <= f2_max) { 
-           isCombValid = false; 
-         }
-      }
-
-        // ───【物理防線 / 歷史全中排除】：補零格式化完全撞擊 🎯 ───
-        let currentZeroStr = current.map(n => String(n).padStart(2, '0')).join(',');
-        if (isCombValid && historyCacheSet.size > 0 && historyCacheSet.has(currentZeroStr)) {
-    isCombValid = false;
-}
-
-        // ───【條件 03】：五大物理區塊落點個數控制 ───
-        if (isCombValid && cfg.f3_on) {
-          let zoneSet = new Set();
-          let divisor = lottoType === "49_6" ? 10 : 8; // 大樂透10球一區，539 8球一區
-          current.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
-          if (zoneSet.size !== (parseInt(cfg.f3_count, 10) || 4)) { isCombValid = false; }
-        }
-
-        // ───【條件 04】：同尾數重複個數上限過濾 ───
-        if (isCombValid && cfg.f4_on) {
-          let tails = new Array(10).fill(0);
-          current.forEach(num => tails[num % 10]++); // 修正為小寫 current 🎯
-          if (Math.max(...tails) > (parseInt(cfg.f4_max, 10) || 2)) { isCombValid = false; }
-        }
-
-        // ───【條件 05】：奇偶比例動態防禦牆 ───
-        if (isCombValid && cfg.f5_on) {
-          let odds = current.filter(n => n % 2 !== 0).length; // 修正為小寫 current 🎯
-          let evens = r - odds;
-          if (lottoType === "49_6") {
-            if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) { isCombValid = false; }
-            if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) { isCombValid = false; }
-          } else {
-            if (cfg.f5_539_50 && (odds === 5 || evens === 5)) { isCombValid = false; }
-            if (cfg.f5_539_41 && (odds === 4 || evens === 4)) { isCombValid = false; }
-          }
-        }
-
-        // ───【條件 06】：號碼總和區間動態過濾 ───
-        if (isCombValid && cfg.f6_on) {
-          let sumValue = current.reduce((a, b) => a + b, 0); // 修正為小寫 current 🎯
-          if (sumValue < (parseInt(cfg.f6_low, 10) || 110) || sumValue > (parseInt(cfg.f6_high, 10) || 210)) { 
-            isCombValid = false; 
-          }
-        }
-
-
-        // ───【條件 07】：連續號碼長度限制牆 ───
-        if (isCombValid && cfg.f7_on) {
-          let maxSeq = 1, currentSeq = 1;
-          for (let m = 1; m < r; m++) {
-            if (current[m] === current[m-1] + 1) {
-              currentSeq++;
-              if (currentSeq > maxSeq) maxSeq = currentSeq;
-            } else { currentSeq = 1; }
-          }
-          if (maxSeq >= (parseInt(cfg.f7_len, 10) || 3)) { isCombValid = false; }
-        }
-
-        // ───【條件 08】：局部連續 3 碼等差封鎖牆 (公差範圍 1-24) ───
-        if (isCombValid && cfg.f8_on) {
-          let isArithmetic = false;
-          for (let i = 0; i <= r - 3; i++) {
-            let diff1 = current[i+1] - current[i];
-            let diff2 = current[i+2] - current[i+1];
-            if (diff1 === diff2 && diff1 >= 1 && diff1 <= 24) { isArithmetic = true; break; }
-          }
-          if (isArithmetic) { isCombValid = false; }
-        }
-
-        // ───【條件 09】：鄰號夾擊防線控制 ───
-        if (isCombValid && cfg.f9_on && neighborSet.size > 0) {
-          let nCnt = current.filter(num => neighborSet.has(num)).length;
-          if (nCnt > (parseInt(cfg.f9_count, 10) || 2)) { isCombValid = false; }
-        }
-
-
-        // ───【條件 10】：上期獎號連莊封殺牆 ───
-        if (isCombValid && cfg.f10_on && lastPeriod.length > 0) {
-          let repeatCount = current.filter(num => lastPeriod.includes(num)).length;
-          if (repeatCount > (parseInt(cfg.f10_max, 10) || 2)) { isCombValid = false; }
-        }
-
-        // ───【條件 11】：大小數比例動態分流牆 ───
-        if (isCombValid && cfg.f11_on) {
-          let midPoint = lottoType === "49_6" ? 25 : 20;
-          let bigCount = current.filter(num => num >= midPoint).length;
-          let smallCount = r - bigCount;
-          if (cfg.f11_kill) {
-            if (bigCount === r || smallCount === r || bigCount === 1 || smallCount === 1) { isCombValid = false; }
-          }
-        }
-
-        // ───【條件 12】：除三餘數 (012路) 完全斷路封鎖牆 ───
-        if (isCombValid && cfg.f12_on) {
-          let road0 = 0, road1 = 0, road2 = 0;
-          current.forEach(num => {
-            let rem = num % 3;
-            if (rem === 0) road0++; else if (rem === 1) road1++; else road2++;
-          });
-          if (cfg.f12_kill) {
-            if (road0 === 0 || road1 === 0 || road2 === 0) { isCombValid = false; }
-          }
-        }
-
-        // ───【條件 13】：數字複雜度 (AC值) 飄移過濾 ───
-        if (isCombValid && cfg.f13_on) {
-          let diffs = new Set();
-          for (let m = 0; m < r; m++) {
-            for (let n = m + 1; n < r; n++) { diffs.add(current[n] - current[m]); }
-          }
-          let acValue = diffs.size - (r - 1);
-          if (acValue < (parseInt(cfg.f13_min, 10) || 6)) { isCombValid = false; }
-        }
-
-        // ───【條件 14】：質數/合數比例過濾 ───
-        if (isCombValid && cfg.f14_on) {
-          const primes = [ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47 ];
-          let pCnt = current.filter(num => primes.includes(num)).length;
-          if (cfg.f14_kill && pCnt >= 4) { isCombValid = false; }
-        }
-
-        // ───【條件 15】：歷史數據高重疊率安全過濾防線 ───
-        if (isCombValid && cfg.f15_on) {
-          const overlapLimit = lottoType === '49_6' ? 5 : 4;
-          for (let h of historyDB) {
-            let intersect = current.filter(num => h.includes(num)).length;
-            if (intersect >= overlapLimit) { isCombValid = false; break; }
-          }
-        }
-
-
-        // ───【完全體誠實大底池抄底】───
-        if (isCombValid) {
-          // 只保留 16 位元整數進行超低內存壓縮包裝，絕不建立幾十萬個陣列物件！
-          survivorPool.push([...current]);
-        }
-        return false;
-      }
-
-    for (let i = k; i < pool.length; i++) {
-      current.push(pool[i]); // 🎯 修正為全小寫 current
-      scanAndFilterMatrixSpace(pool, r, i + 1, current);
-      current.pop(); // 🎯 修正為全小寫 current
-    }
-  }
-
+        // 接收結果交卷
+        const honestTotalMatch = global.survivorPool.length;
   // // 【區塊 Node-03-B 竣工，請確認貼上後，對我發送「區塊 Node-03-C」部署最高難度之全局大洗牌、皇家喜愛號豁免與階梯式互斥交卷！】
   // // ─── 【全新硬核空間降維點火器】：利用喜愛號與地雷號在起步前擊穿大池，速度拉滿 ⚡ ───
   let masterSpacePool = [];
