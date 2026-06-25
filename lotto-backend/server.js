@@ -450,8 +450,8 @@ if (historyCacheSet.size === 0) {
     }
 // 【區塊 Node-03-A 竣工，請確認貼上後，對我發送「區塊 Node-03-B」進入搭載 0-16 大全自由網格的誠實大池生成器】
     // ───【核心運算計數器與生還大底池】───
-    let totalScanned = 0;     // 目前總掃描進度數
-    let survivorPool = [];    // 【全局生還桶】用於蒐集全池 100% 合格號碼之一維指標
+     totalScanned = 0;     // 目前總掃描進度數
+     survivorPool = [];    // 【全局生還桶】用於蒐集全池 100% 合格號碼之一維指標
     
     const theoreticalTotal = lottoType === "49_6" ? 13983816 : 575757;
     const reportStep = Math.floor(theoreticalTotal / 20); // 每前進 5% 進度沖刷一次進度條
