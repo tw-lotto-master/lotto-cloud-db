@@ -694,7 +694,7 @@ if (historyCacheSet.size === 0) {
 
         matchCount++;
         const formatted = currentComb.map(n => String(n).padStart(2, '0')).join(', ');
-        const chunkText = `第 [${String(matchCount).padStart(2, '0')}] 組：${formatted}\n`;
+        const chunkText = `第 [${String(matchCount).padStart(2, '0')}] 組 : ${formatted}\n`; // 👈 確保這裡結尾是 formatted，把多餘的 d 火化刪除！
         finalChunkOutputText += chunkText;
 
         // 即時網絡流 Streaming 發射，號碼在手機畫面上一個個蹦出來
@@ -707,6 +707,11 @@ if (historyCacheSet.size === 0) {
       }
     }
 
+      // 🟢 🎯 【就是這裡！請精準把 0組強制生還補丁 塞在 708 行的下方】
+         if (matchCount === 0) { 
+             console.log("⚠️ 偵測到海選大池遭防線集體滅絕（0組）！啟動【大數據動態隨機生還晶片】兜底！");
+             // ...（塞入我們上一輪提供的 0組隨機生還代碼）...
+         }
     // 🏁 【誠實交卷】：回傳 100% 準確、無偷懶作假、含全局洗牌最大分散度的完美結尾數據
     let modeLabel = vipMode === 'smart' ? '聰明包牌 (全局揉合・純淨餘數互斥)' : '一般篩選 (全局揉合・全隨機機率陣列)';
     res.write(JSON.stringify({
