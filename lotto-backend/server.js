@@ -340,18 +340,26 @@ console.log("【前端傳來的歷史庫數量】:", globalHistoryDB ? globalHis
             // 2. 歷史開獎安全防禦：歷史庫數量 63315 筆非常完美，但為了安全依然綁定自癒
            const historyDB = globalHistoryDB || [];
 const historyCacheSet = new Set();
+
 if (Array.isArray(historyDB) && historyDB.length > 0) {
     historyDB.forEach(h => {
         if (h && (Array.isArray(h) || typeof h === 'string')) {
             const arr = Array.isArray(h) ? h : String(h).split(',');
-            // 動態判定長度：優先使用前端傳來的 requiredCount，若無則依據歷史號碼本身長度，徹底解除變數初始化順序相依！
             let currentLen = (cfg && cfg.requiredCount) ? parseInt(cfg.requiredCount, 10) : (arr.length >= 6 ? 6 : 5);
             if (arr.length >= currentLen) {
+                // 強制補零並排序，確保與海選大底池結構 100% 像素級對齊
                 historyCacheSet.add(arr.slice(0, currentLen).map(n => String(n).padStart(2,'0')).sort().join(','));
             }
         }
     });
-} 
+}
+
+console.log("【海選前哨站】實體歷史 Set 封裝完畢，總快取筆數:", historyCacheSet.size);
+
+// ⚡ 核心兜底自癒補丁：如果快取庫在特定環境下解析成空（size為0），絕對不允許剔除任何大池號碼！
+if (historyCacheSet.size === 0) {
+    console.log("⚠️ 警告：發現歷史庫 Set 為空！啟動【全池免死金牌】，防止 0% 秒殺阻斷！");
+}
             
             // ────────────────────────────────────────────────────────────────────────
 
@@ -481,7 +489,9 @@ if (Array.isArray(historyDB) && historyDB.length > 0) {
 
         // ───【物理防線 / 歷史全中排除】：補零格式化完全撞擊 🎯 ───
         let currentZeroStr = current.map(n => String(n).padStart(2, '0')).join(',');
-        if (isCombValid && historyCacheSet.has(currentZeroStr)) isCombValid = false;
+        if (isCombValid && historyCacheSet.size > 0 && historyCacheSet.has(currentZeroStr)) {
+    isCombValid = false;
+}
 
         // ───【條件 03】：五大物理區塊落點個數控制 ───
         if (isCombValid && cfg.f3_on) {
