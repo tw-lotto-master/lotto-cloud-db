@@ -7,11 +7,16 @@ const cors = require('cors');
 const app = express();
 
 // ─── 滿血開啟 CORS 破壁跨網域晶片 ───
-app.use(cors({ 
-  origin: '*', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
-  allowedHeaders: ['Content-Type', 'Authorization'] 
+app.use(cors({
+    origin: function (origin, callback) {
+        // 全手機品牌完美通用動態自癒通道
+        callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
+
 app.use(express.json({ limit: '10mb' }));
 
 const JWT_SECRET = 'FREE_LOTTO_SECRET_2026';
@@ -306,6 +311,46 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
 console.log("====== 🚨 雲端大腦高階過濾對撞日誌 ======");
 console.log("【前端傳來的配置 cfg】:", JSON.stringify(cfg));
 console.log("【前端傳來的歷史庫數量】:", globalHistoryDB ? globalHistoryDB.length : 0);
+
+                // 🟢 🎯 【請精準塞在三大 console.log 的正下方】 ───
+            
+            // 1. 強制型態自癒清洗艙：管它前端傳來的是 true、"true" 還是沒傳，一律校準
+            const safeCfg = cfg || {};
+            
+            // 自癒相容性：如果前端有傳數值（如 f13_min），就自動強制將開關點火啟動！
+            if (safeCfg.f13_min !== undefined) safeCfg.f13_on = true;
+            if (safeCfg.f15_overlap_limit !== undefined) safeCfg.f15_on = true;
+            if (safeCfg.f2_min !== undefined || safeCfg.f2_max !== undefined) safeCfg.f2_on = safeCfg.f2_on ?? true;
+            if (safeCfg.f3_count !== undefined) safeCfg.f3_on = true;
+            if (safeCfg.f6_low !== undefined) safeCfg.f6_on = true;
+            if (safeCfg.f7_len !== undefined) safeCfg.f7_on = true;
+            if (safeCfg.f9_range !== undefined) safeCfg.f9_on = true;
+            if (safeCfg.f10_max !== undefined) safeCfg.f10_on = true;
+
+            // 將所有開關強制轉為純布林值，徹底消滅字串對撞
+            const keys = Object.keys(safeCfg);
+            keys.forEach(k => {
+                if (k.endsWith('_on') || k.endsWith('_kill')) {
+                    safeCfg[k] = (safeCfg[k] === true || safeCfg[k] === 'true');
+                }
+            });
+
+          cfg = safeCfg; 
+    
+            // 2. 歷史開獎安全防禦：歷史庫數量 63315 筆非常完美，但為了安全依然綁定自癒
+            const historyDB = globalHistoryDB || [];
+            const historyCacheSet = new Set();
+            if (Array.isArray(historyDB) && historyDB.length > 0) {
+                historyDB.forEach(h => {
+                    if (h && (Array.isArray(h) || typeof h === 'string') && h.length >= requiredCount) {
+                        const arr = Array.isArray(h) ? h : String(h).split(',');
+                        historyCacheSet.add(arr.slice(0, requiredCount).map(n => String(n).padStart(2,'0')).sort().join(','));
+                    }
+                });
+            }
+            
+            // ────────────────────────────────────────────────────────────────────────
+
   
     const sessionUserId = req.user && req.user.userId;
     const dbUser = await User.findById(sessionUserId);
