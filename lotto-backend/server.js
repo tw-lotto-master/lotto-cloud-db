@@ -467,12 +467,6 @@ if (historyCacheSet.size === 0) {
 
         let isCombValid = true;
 
-        // ───【條件 16】：VIP 皇家指定喜愛號（最高優先特權剪枝）───
-        if (vipFavSet.size > 0) {
-          for (let fNum of vipFavSet) {
-            if (!current.includes(fNum)) { isCombValid = false; break; }
-          }
-        }
 
         // ───【條件 01】：排除特定地雷號碼 ───
         if (isCombValid && cfg.f1_on && f1_set.size > 0) {
@@ -694,9 +688,24 @@ if (historyCacheSet.size === 0) {
           // 確定發射，將除「皇家喜愛號特權例外」之外的其餘補位球上鎖，下一組不得重複
           currentComb.forEach(num => { if (!vipFavSet.has(num)) smartExclusionSet.add(num); });
         }
-
+          
         matchCount++;
-        const formatted = currentComb.map(n => String(n).padStart(2, '0')).join(', ');
+
+// 🟢 🎯 像素級歸位：將原本在起步時拔掉的皇家喜愛號（如8號），在這裡重新融合進去，湊滿完美的 6 碼/5 碼發射！
+let finalBalls = [...currentComb];
+if (vipFavSet.size > 0) {
+    vipFavSet.forEach(num => {
+        let formattedNum = String(num).padStart(2, '0');
+        if (!finalBalls.includes(formattedNum) && !finalBalls.includes(Number(formattedNum))) {
+            finalBalls.push(formattedNum);
+        }
+    });
+}
+// 重新從小到大排序，確保格式像素級對齊
+finalBalls = finalBalls.map(Number).sort((a, b) => a - b).map(n => String(n).padStart(2, '0'));
+
+const formatted = finalBalls.join(', ');
+
         const chunkText = `第 [${String(matchCount).padStart(2, '0')}] 組 : ${formatted}\n`; // 👈 確保這裡結尾是 formatted，把多餘的 d 火化刪除！
         finalChunkOutputText += chunkText;
 
