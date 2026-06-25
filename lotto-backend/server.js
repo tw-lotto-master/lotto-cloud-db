@@ -623,11 +623,6 @@ if (historyCacheSet.size === 0) {
         global.currentLastPeriod = lastPeriod;
         global.currentHistoryDB = historyDB;
 
-        // 🚀 全量硬核大點火！直接呼叫在最外層已經優化完畢的全域超高速函數！
-        scanAndFilterMatrixSpace(masterSpacePool, dynamicRequiredRemaining);
-
-        // 接收結果交卷
-        const honestTotalMatch = global.survivorPool.length;
   // // 【區塊 Node-03-B 竣工，請確認貼上後，對我發送「區塊 Node-03-C」部署最高難度之全局大洗牌、皇家喜愛號豁免與階梯式互斥交卷！】
   // // ─── 【全新硬核空間降維點火器】：利用喜愛號與地雷號在起步前擊穿大池，速度拉滿 ⚡ ───
   let masterSpacePool = [];
@@ -639,7 +634,6 @@ if (historyCacheSet.size === 0) {
 
   // ─── 【全新追加】：精確計算降維後的所需剩餘球數並點火（拯救 0 組大特寫） ⚡ ───
   let dynamicRequiredRemaining = requiredCount - vipFavSet.size;
-
   if (dynamicRequiredRemaining < 0 || masterSpacePool.length < dynamicRequiredRemaining) {
     res.write(JSON.stringify({ success: false, message: "條件配置衝突，導致彩球池物理歸零，請重新設定！" }) + "\n");
     return res.end();
@@ -647,9 +641,7 @@ if (historyCacheSet.size === 0) {
 
   // ⚡ 降維大點火 ⚡：以極速縮小百倍的矩陣空間誠實抄底，0.5秒內完美交卷
   scanAndFilterMatrixSpace(masterSpacePool, dynamicRequiredRemaining);
-
-
-    const honestTotalMatch = survivorPool.length; // 100% 老老實實跑完大池得到的安全生還總數
+ const honestTotalMatch = global.survivorPool.length;
     let matchCount = 0;
     let finalChunkOutputText = "";
 
