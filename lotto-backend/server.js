@@ -336,12 +336,6 @@ console.log("【前端傳來的歷史庫數量】:", globalHistoryDB ? globalHis
             });
 
          Object.assign(cfg, safeCfg); 
-
-      totalScanned = 0;             // 1. 強制總掃描計數器徹底歸零！擊穿提早結束的黑洞
-            survivorPool = [];            // 2. 強制全局生還桶徹底清空！拒絕上一輪殘留污染
-            var smartExclusionSet = new Set(); // 3. 強制聰明包牌屏蔽標籤歸零
-            
-            console.log("🔥 【大腦點火自癒】全域運算計數器與生還桶已全面沖刷歸零！重新啟動全量大池海選...");
     
             // 2. 歷史開獎安全防禦：歷史庫數量 63315 筆非常完美，但為了安全依然綁定自癒
            const historyDB = globalHistoryDB || [];
@@ -450,8 +444,12 @@ if (historyCacheSet.size === 0) {
     }
 // 【區塊 Node-03-A 竣工，請確認貼上後，對我發送「區塊 Node-03-B」進入搭載 0-16 大全自由網格的誠實大池生成器】
     // ───【核心運算計數器與生還大底池】───
-     totalScanned = 0;     // 目前總掃描進度數
-     survivorPool = [];    // 【全局生還桶】用於蒐集全池 100% 合格號碼之一維指標
+     totalScanned = 0; // 確保每次進來大池都歸零
+     survivorPool = []; // 確保生還桶完全清空
+
+// 🔥 關鍵自癒：將原本埋在 Page 12 最底部的 smartExclusionSet 宣告強行提升到這裡！
+// 並且使用 let 在這裡提早初始化，徹底防範後面 Fisher-Yates 迴圈與包牌邏輯在重複測試時讀到上一輪的殘留標籤！
+    let smartExclusionSet = new Set(); 
     
     const theoreticalTotal = lottoType === "49_6" ? 13983816 : 575757;
     const reportStep = Math.floor(theoreticalTotal / 20); // 每前進 5% 進度沖刷一次進度條
@@ -660,7 +658,6 @@ if (historyCacheSet.size === 0) {
     const honestTotalMatch = survivorPool.length; // 100% 老老實實跑完大池得到的安全生還總數
     let matchCount = 0;
     let finalChunkOutputText = "";
-    let smartExclusionSet = new Set(); // 聰明包牌跨組物理隔離屏蔽標籤
 
     if (honestTotalMatch > 0) {
       console.log(` [大洗牌核心啟動] 生還桶共 ${honestTotalMatch} 組，啟動 Fisher-Yates Shuffle 全局亂數揉合... 🎲`);
