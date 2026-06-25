@@ -443,27 +443,18 @@ if (historyCacheSet.size === 0) {
       });
     }
 // 【區塊 Node-03-A 竣工，請確認貼上後，對我發送「區塊 Node-03-B」進入搭載 0-16 大全自由網格的誠實大池生成器】
-    // ───【核心運算計數器與生還大底池】───
-     totalScanned = 0; // 確保每次進來大池都歸零
-     survivorPool = []; // 確保生還桶完全清空
-
-// 🔥 關鍵自癒：將原本埋在 Page 12 最底部的 smartExclusionSet 宣告強行提升到這裡！
-// 並且使用 let 在這裡提早初始化，徹底防範後面 Fisher-Yates 迴圈與包牌邏輯在重複測試時讀到上一輪的殘留標籤！
-    let smartExclusionSet = new Set(); 
-    
-    const theoreticalTotal = lottoType === "49_6" ? 13983816 : 575757;
-    const reportStep = Math.floor(theoreticalTotal / 20); // 每前進 5% 進度沖刷一次進度條
-
- // 🚀 【動態空間遍歷核心】：誠實跑完全量大池，隨產隨驗
-   function scanAndFilterMatrixSpace(pool, r, k = 0, current = []) { // 🎯 確保這裡完全是小寫 current
-     if (current.length === r) {
-        totalScanned++;
+   // ─── 【核心運算計數器與生還大底池】 ───
+        // 🟢 🎯 直接對齊全域物件指標，強行打通變數，徹底消滅 initialization 暫時性死鎖！
+        global.totalScanned = 0; 
+        global.survivorPool = []; 
+        global.smartExclusionSet = new Set(); 
         
-        // 進度條即時沖刷自癒系統 (此時僅回報大池進度)
-        if (totalScanned % reportStep === 0 || totalScanned === theoreticalTotal) {
-          let percent = Math.min(100, Math.floor((totalScanned / theoreticalTotal) * 100));
-          res.write(JSON.stringify({ isProgress: true, percent: percent, currentMatch: survivorPool.length }) + "\n");
-        }
+        // 根據大樂透或 539 模式，動態設定全域理論總數與回報步長
+        global.theoreticalTotal = lottoType === "49_6" ? 13983816 : 575757;
+        global.reportStep = lottoType === "49_6" ? 150000 : 5000; // 每進度 1%~5% 強制刷屏一次
+        
+        // 為了讓下方的全域函數能拿到 res 物件發射 % 數，將當前路由的 res 強制鎖定在全域快取中
+        global.currentRes = res; 
 
         let isCombValid = true;
 
