@@ -302,6 +302,11 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
       return res.end();
     }
 
+      // ─── 🎯 請在後端接收到 req.body 的最前方，塞入這段大腦探針 ───
+console.log("====== 🚨 雲端大腦高階過濾對撞日誌 ======");
+console.log("【前端傳來的配置 cfg】:", JSON.stringify(cfg));
+console.log("【前端傳來的歷史庫數量】:", globalHistoryDB ? globalHistoryDB.length : 0);
+  
     const sessionUserId = req.user && req.user.userId;
     const dbUser = await User.findById(sessionUserId);
     if (!dbUser) {
