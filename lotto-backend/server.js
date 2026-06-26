@@ -320,15 +320,6 @@ if (isMainThread) {
     res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 1 }) + "\n");
   }, 10000);
 
-  await new Promise((resolve) => {
-    const safetyTimeout = setTimeout(() => {
-      console.log(" ⚠️ [海選極限] 已達 2 分鐘最高壁壘，中繼站強制截斷。");
-      isFinished = true;
-      clearInterval(heartbeatTimer); // 清除心跳
-      workers.forEach(w => w.terminate());
-      resolve();
-    }, 120000); // 🚀 拉長至 2 分鐘（120000 毫秒）
-
       let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (Smart Wheeling + 遺傳變異)' : '一般篩選 (遺傳演算法 GA 全隨選)';
       res.write(JSON.stringify({ success: true, outputText: `【VIP海選完成】中繼站累計成功捕獲：${finalResults.length} 組\n【輸出模式】${modeLabel}\n-------------------------\n` }) + "\n");
       res.end();
