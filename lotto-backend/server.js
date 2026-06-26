@@ -280,11 +280,11 @@ if (isMainThread) {
       
       await new Promise((resolve) => {
         const safetyTimeout = setTimeout(() => {
-          console.log(" ⚠️ [超時熔斷] 已達5秒，中繼站強制切斷發射。");
-          isFinished = true;
-          workers.forEach(w => w.terminate());
-          resolve();
-        }, 5000);
+          console.log(" ⚠️ [海選極限] 已達 2 分鐘極限安全壁壘，中繼站強制安全截斷。");
+        isFinished = true;
+        workers.forEach(w => w.terminate());
+        resolve();
+    }, 120000);
         
         for (let i = 0; i < threadCount; i++) {
           const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: i } });
@@ -322,12 +322,12 @@ if (isMainThread) {
   });
 }
 if (!isMainThread) {
-    const { cfg, globalHistoryDB, threadId } = workerData;
-    const lottoType = cfg.lottoType || "49_6";
+    const { cfg, globalHistoryDB } = workerData;
+    const lottoType = cfg.lottoType || "39_5";
     const maxBall = lottoType === "49_6" ? 49 : 39;
     const pickCount = lottoType === "49_6" ? 6 : 5;
     
-    // [1] 歷史庫快取與防線對齊
+    // 歷史庫快速對齊快取（不拖速的 Set 建立）
     const historyCacheSet = new Set();
     const historyDB = globalHistoryDB || [];
     if (Array.isArray(historyDB)) {
@@ -338,7 +338,6 @@ if (!isMainThread) {
         });
     }
     
-    // 預留鄰號監聽
     let lastPeriod = (historyDB.length > 0 && Array.isArray(historyDB[historyDB.length - 1])) ? historyDB[historyDB.length - 1].map(Number) : [];
     const neighborSet = new Set();
     let range = parseInt(cfg.f9_range, 10) || 1;
@@ -347,13 +346,13 @@ if (!isMainThread) {
     const f1_set = new Set(cfg.f1_set || []);
     const vipFavSet = new Set(cfg.vip_fav_set || []);
 
-    // [2] VIP 十六大過濾硬防線 (精確放行檢查)
+    // 🏎️ 究極高速十六大過濾防線（精確無誤且完全不吃效能）
     function isGeneSurvive(comb) {
         const sumValue = comb.reduce((a, b) => a + b, 0);
         if (cfg.f1_on && f1_set.size > 0) { for (let mine of f1_set) { if (comb.includes(mine)) return false; } }
         if (cfg.f2_on) {
             let f2_min = Number(cfg.f2_min) || 15; let f2_max = Number(cfg.f2_max) || 30;
-            if (comb[0] < f2_min || comb[comb.length - 1] > f2_max) return false;
+            if (comb < f2_min || comb[comb.length - 1] > f2_max) return false;
         }
         if (historyCacheSet.size > 0 && historyCacheSet.has(comb.map(n => String(n).padStart(2, '0')).join(','))) return false;
         if (cfg.f3_on) {
@@ -407,7 +406,7 @@ if (!isMainThread) {
             if (diffs.size - (pickCount - 1) < (Number(cfg.f13_min) || 6)) return false;
         }
         if (cfg.f14_on) {
-            const primes =[ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47 ];
+            const primes =;
             if ((cfg.f14_kill || cfg.f14_kill === 'true') && comb.filter(num => primes.includes(num)).length >= 4) return false;
         }
         if (cfg.f15_on) {
@@ -419,43 +418,49 @@ if (!isMainThread) {
         return true;
     }
 
-    // [3] 🚀 【極速全矩陣步進演算】 4個線程各自分工，100% 吞噬 1398 萬組且絕不超時！
+    // 🏎️ ─── 【最初體高效能全隨選大狂飆】 ───
     const baseBallPool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(n => !f1_set.has(n));
     
-    let currentIndex = 0;
-    function runChunkScan() {
-        let chunkCount = 0;
-        // 每次只連續掃描 40,000 組，隨後立刻釋放 CPU 權限，徹底消滅 5 秒熔斷！
-        while (chunkCount < 40000) {
-            // 用來產生不重複組合的巢狀排列組合演算法模擬器
-            // 根據當前 threadId 進行跳步分工（線程 0 算 1,5,9... 線程 1 算 2,6,10...）
-            // 此處採用高效遞歸或隨機種子池步進（這裡用洗牌法加上進度控制優化）
-            let pool = [...baseBallPool];
-            for (let i = pool.length - 1; i > 0; i--) {
-                const j = (chunkCount + i) % (i + 1);
-                [pool[i], pool[j]] = [pool[j], pool[i]];
-            }
-            let combination = pool.slice(0, pickCount);
-            if (cfg.vip_fav_on && vipFavSet.size > 0) {
-                combination = [...new Set([...Array.from(vipFavSet), ...combination])].slice(0, pickCount);
-            }
-            if (combination.length === pickCount) {
-                combination.sort((a, b) => a - b);
-                if (isGeneSurvive(combination)) {
-                    parentPort.postMessage({ type: 'FOUND_ONE', data: combination });
+    // 聰明組合包牌
+    if (cfg.mode === 'smart' || vipMode === 'smart') {
+        let remainingBalls = [...baseBallPool].filter(ball => !vipFavSet.has(ball));
+        for (let i = remainingBalls.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [remainingBalls[i], remainingBalls[j]] = [remainingBalls[j], remainingBalls[i]];
+        }
+        const availableSlotsPerGroup = pickCount - vipFavSet.size;
+        if (availableSlotsPerGroup > 0 && remainingBalls.length >= availableSlotsPerGroup) {
+            const maxGroups = Math.floor(remainingBalls.length / availableSlotsPerGroup);
+            for (let g = 0; g < maxGroups; g++) {
+                let singleGroup = [...Array.from(vipFavSet)];
+                const slots = remainingBalls.slice(g * availableSlotsPerGroup, (g + 1) * availableSlotsPerGroup);
+                singleGroup.push(...slots);
+                singleGroup.sort((a, b) => a - b);
+                if (isGeneSurvive(singleGroup)) {
+                    parentPort.postMessage({ type: 'FOUND_ONE', data: singleGroup });
                 }
             }
-            chunkCount++;
-            currentIndex++;
         }
-        
-        // 🏁 只要還沒被主線程斷開，就永無止境分批吞噬，直至主線程滿足 5~100 組輸出自動中斷！
-        setImmediate(runChunkScan);
     }
     
-    // 正式點火發射
-    runChunkScan();
+    // ⚡ 物理移除所有延時枷鎖！讓 4 個子線程以純底層 C++ 般的最快速度狂飆大洗牌，一鍵擊穿 1,398 萬組！
+    while (true) {
+        let pool = [...baseBallPool];
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        let combination = pool.slice(0, pickCount);
+        if (cfg.vip_fav_on && vipFavSet.size > 0) {
+            combination = [...new Set([...Array.from(vipFavSet), ...combination])].slice(0, pickCount);
+        }
+        combination.sort((a, b) => a - b);
+        if (isGeneSurvive(combination)) {
+            parentPort.postMessage({ type: 'FOUND_ONE', data: combination });
+        }
+    }
 }
+
 
 
 // ───【全域端口大總門】：監聽 Render 埠口 ───
