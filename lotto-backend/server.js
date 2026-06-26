@@ -183,13 +183,17 @@ if (!isMainThread) {
 
         // 🛡️ 防線 03：大中小區段動態分佈過濾
         // 規則：大樂透(1-16/17-32/33-49)、539(1-13/14-26/27-39)
-        const boundary = is39 ? [13, 26] :;
-        let p1 = 0, p2 = 0, p3 = 0;
-        comb.forEach(n => {
-            if (n <= boundary[0]) p1++;
-            else if (n <= boundary[1]) p2++;
-            else p3++;
-        });
+        // 💡 滿血修復補丁：完整補齊冒號後面的大樂透邊界常數 [16, 32]，精確火化 Unexpected token 語法黑洞！
+const boundary1 = is39 ? 13 : 16;
+const boundary2 = is39 ? 26 : 32;
+let p1 = 0, p2 = 0, p3 = 0;
+
+comb.forEach(n => {
+    if (n <= boundary1) p1++;
+    else if (n <= boundary2) p2++;
+    else p3++;
+});
+
         const currentPattern = `${p1}:${p2}:${p3}`;
         if (cfg.f3_on && !cfg.f3_allowed?.includes(currentPattern)) return false;
 
@@ -284,7 +288,7 @@ if (!isMainThread) {
 
         // 🛡️ 防線 14：質數顆數比例過濾
         if (cfg.f14_on) {
-            const primes =;
+            const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
             const primeCount = comb.filter(n => primes.includes(n)).length;
             if (primeCount < cfg.f14_min || primeCount > cfg.f14_max) return false;
         }
