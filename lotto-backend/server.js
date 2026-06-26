@@ -279,12 +279,13 @@ if (isMainThread) {
       const workers = [];
       
       await new Promise((resolve) => {
-        const safetyTimeout = setTimeout(() => {
-          console.log(" ⚠️ [海選極限] 已達 2 分鐘極限安全壁壘，中繼站強制安全截斷。");
+            const safetyTimeout = setTimeout(() => {
+        console.log(" ⚠️ [海選極限] 已達 2 分鐘極限安全壁壘，中繼站強制安全截斷。");
         isFinished = true;
         workers.forEach(w => w.terminate());
         resolve();
-    }, 120000);
+    }, 120000); // 🚀 補上充足的時間容錯，讓 30 秒~1分多鐘的極速衝刺完美交卷！
+
         
         for (let i = 0; i < threadCount; i++) {
           const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: i } });
@@ -301,6 +302,7 @@ if (isMainThread) {
                 res.write(JSON.stringify({ isProgress: true, percent: Math.min(99, Math.floor((currentCount / limitOutput) * 100)), currentMatch: currentCount, appendOutput: chunkText }) + "\n");
                 if (currentCount >= limitOutput) {
                   clearTimeout(safetyTimeout);
+                  clearInterval(heartbeatTimer);
                   isFinished = true;
                   workers.forEach(w => w.terminate());
                   resolve();
@@ -311,7 +313,22 @@ if (isMainThread) {
           workers.push(worker);
         }
       });
-      
+        // ─── 💓 補入【心跳永動晶片】防止 Render 50秒靜默休眠 ───
+  const heartbeatTimer = setInterval(() => {
+    if (isFinished) return clearInterval(heartbeatTimer);
+    // 每 10 秒默默噴發一個微量進度封包，強行擊穿 Render 的超時靜默攔截！
+    res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 1 }) + "\n");
+  }, 10000);
+
+  await new Promise((resolve) => {
+    const safetyTimeout = setTimeout(() => {
+      console.log(" ⚠️ [海選極限] 已達 2 分鐘最高壁壘，中繼站強制截斷。");
+      isFinished = true;
+      clearInterval(heartbeatTimer); // 清除心跳
+      workers.forEach(w => w.terminate());
+      resolve();
+    }, 120000); // 🚀 拉長至 2 分鐘（120000 毫秒）
+
       let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (Smart Wheeling + 遺傳變異)' : '一般篩選 (遺傳演算法 GA 全隨選)';
       res.write(JSON.stringify({ success: true, outputText: `【VIP海選完成】中繼站累計成功捕獲：${finalResults.length} 組\n【輸出模式】${modeLabel}\n-------------------------\n` }) + "\n");
       res.end();
