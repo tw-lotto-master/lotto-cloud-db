@@ -240,29 +240,24 @@ if (isMainThread) {
     return smartSkeletonGroups;
   }
 
-// =========================================================================
-// 【區塊 A：主線程中央中繼站調度核心（集流排重與金流特權閘）】
-// =========================================================================
-if (isMainThread) {
+  // ─── 啟動全案最高核心海選引擎 ───
   app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) => {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-
     try {
       const { cfg, globalHistoryDB } = req.body;
       if (!cfg) return res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n") || res.end();
-
-      // 1. 金流與雙保險特權驗證閘
+      
       const sessionUserId = req.user && req.user.userId;
       const dbUser = await User.findById(sessionUserId);
       if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
-
+      
       const nowtime = new Date();
       const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
       const isVipPass = (hasActiveSubscription || dbUser.isPaidMember === true || cfg.isPaidMember === true || cfg.isPaidMember === 'true' || cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true');
-
+      
       if (!isVipPass) {
         const OPERATION_COST = 10;
         if ((dbUser.points || 0) < OPERATION_COST) {
@@ -275,15 +270,14 @@ if (isMainThread) {
       } else {
         res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: true }) + "\n");
       }
-
-      // 2. 開闢多通道並行中繼站（支持 4~8 執行緒，徹底利用 Render 多核效能）
+      
       const limitOutput = Math.min(100, cfg.count || 5);
-      const threadCount = 4; // 可依 Render 規格調整為 4 或 8
+      const threadCount = 4; 
       const finalSurvivorSet = new Set();
       const finalResults = [];
       let isFinished = false;
       const workers = [];
-
+      
       await new Promise((resolve) => {
         const safetyTimeout = setTimeout(() => {
           console.log(" ⚠️ [超時熔斷] 已達5秒，中繼站強制切斷發射。");
@@ -291,33 +285,20 @@ if (isMainThread) {
           workers.forEach(w => w.terminate());
           resolve();
         }, 5000);
-
+        
         for (let i = 0; i < threadCount; i++) {
           const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: i } });
-          
-          // 🎯 核心落實：中繼站接收多組傳來的符合組，全域查重、滿足即斷流
           worker.on('message', (msg) => {
             if (isFinished) return;
-            
             if (msg.type === 'FOUND_ONE') {
               const combString = msg.data.map(n => String(n).padStart(2, '0')).join(',');
-              
-              if (!finalSurvivorSet.has(combString)) { // 中繼站全域排重艙
+              if (!finalSurvivorSet.has(combString)) {
                 finalSurvivorSet.add(combString);
                 finalResults.push(msg.data);
-                
                 const currentCount = finalResults.length;
                 const chunkText = `第 [${String(currentCount).padStart(2, '0')}] 組 : ${msg.data.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
                 
-                // 即時網路串流發射，號碼在畫面上一個個蹦出來
-                res.write(JSON.stringify({ 
-                  isProgress: true, 
-                  percent: Math.min(99, Math.floor((currentCount / limitOutput) * 100)), 
-                  currentMatch: currentCount, 
-                  appendOutput: chunkText 
-                }) + "\n");
-
-                // 只要全域湊滿前端要的組數，立刻合流截斷輸出
+                res.write(JSON.stringify({ isProgress: true, percent: Math.min(99, Math.floor((currentCount / limitOutput) * 100)), currentMatch: currentCount, appendOutput: chunkText }) + "\n");
                 if (currentCount >= limitOutput) {
                   clearTimeout(safetyTimeout);
                   isFinished = true;
@@ -330,33 +311,24 @@ if (isMainThread) {
           workers.push(worker);
         }
       });
-
-      // 3. 0組隨機生還兜底與完美交卷
+      
       let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (Smart Wheeling + 遺傳變異)' : '一般篩選 (遺傳演算法 GA 全隨選)';
-      res.write(JSON.stringify({
-        success: true,
-        outputText: `【VIP海選完成】中繼站累計成功捕獲：${finalResults.length} 組\n【輸出模式】${modeLabel}\n-------------------------\n`
-      }) + "\n");
+      res.write(JSON.stringify({ success: true, outputText: `【VIP海選完成】中繼站累計成功捕獲：${finalResults.length} 組\n【輸出模式】${modeLabel}\n-------------------------\n` }) + "\n");
       res.end();
-
     } catch (globalErr) {
       console.error(" ❌ 雲端大腦內核阻斷異常：", globalErr.message);
       try { res.write(JSON.stringify({ success: false, message: `後台突發故障` }) + "\n"); res.end(); } catch(e){}
     }
   });
 }
-// =========================================================================
-// 【區塊 B：子線程環境初始化與 15 大基因選擇篩選網格】
-// =========================================================================
 if (!isMainThread) {
   const { cfg, globalHistoryDB } = workerData;
   const lottoType = cfg.lottoType || "39_5";
   const maxBall = lottoType === "49_6" ? 49 : 39;
   const pickCount = lottoType === "49_6" ? 6 : 5;
-
-  // 歷史開獎快取 Set 化 
   const historyCacheSet = new Set();
   const historyDB = globalHistoryDB || [];
+  
   if (Array.isArray(historyDB) && historyDB.length > 0) {
     historyDB.forEach(h => {
       if (h) {
@@ -365,7 +337,7 @@ if (!isMainThread) {
       }
     });
   }
-
+  
   let lastPeriod = [];
   const neighborSet = new Set();
   if (historyDB && historyDB.length > 0) {
@@ -375,11 +347,9 @@ if (!isMainThread) {
       for (let d = -range; d <= range; d++) { if (d !== 0) neighborSet.add(val + d); }
     });
   }
-
   const f1_set = new Set(cfg.f1_set || []);
   const vipFavSet = new Set(cfg.vip_fav_set || []);
 
-  // 遺傳生存選擇：15大核心防線
   function isGeneSurvive(comb) {
     const sumValue = comb.reduce((a, b) => a + b, 0);
     if (cfg.f1_on && f1_set.size > 0) { for (let mine of f1_set) { if (comb.includes(mine)) return false; } }
@@ -415,7 +385,7 @@ if (!isMainThread) {
       }
       if (maxSeq >= (Number(cfg.f7_len) || 3)) return false;
     }
-    if (cfg.f8_on) { // 🎯 補齊缺失條件 08：等差封鎖牆
+    if (cfg.f8_on) {
       let isArithmetic = false;
       for (let i = 0; i <= comb.length - 3; i++) {
         let diff1 = comb[i+1] - comb[i]; let diff2 = comb[i+2] - comb[i+1];
@@ -439,7 +409,8 @@ if (!isMainThread) {
       if (diffs.size - (pickCount - 1) < (Number(cfg.f13_min) || 6)) return false;
     }
     if (cfg.f14_on) {
-      const primes =;
+      // 🎯 滿血注入 1-49 完整質數艙
+      const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
       if (cfg.f14_kill && comb.filter(num => primes.includes(num)).length >= 4) return false;
     }
     if (cfg.f15_on) {
@@ -448,70 +419,52 @@ if (!isMainThread) {
     }
     return true;
   }
-  // =========================================================================
-  // 【區塊 C：雙軌制引擎落地（一般篩選 GA vs. 聰明包牌 Smart Wheeling）】
-  // =========================================================================
   const vipMode = cfg.vipMode || 'smart';
-
-  // 建立剔除地雷號後的「純淨可用球池」
-  const baseBallPool = Array.from({ length: maxBall }, (_, i) => i + 1)
-    .filter(n => !f1_set.has(n));
-
-  // 軌道二：【聰明包牌模式 (Smart Wheeling Systems + GA)】
+  const baseBallPool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(n => !f1_set.has(n));
+  
   if (cfg.mode === 'smart' || vipMode === 'smart') {
-    // 剔除地雷與喜愛號，找出純粹用來互斥的補位球 pool
     let remainingBalls = [...baseBallPool].filter(ball => !vipFavSet.has(ball));
-    
-    // 完美的 Fisher-Yates 隨機洗牌，打破剩餘球的順序規律 🎲
     for (let i = remainingBalls.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [remainingBalls[i], remainingBalls[j]] = [remainingBalls[j], remainingBalls[i]];
     }
-
-    const availableSlotsPerGroup = pickCount - vipFavSet.size; // 每組還剩幾個缺口
-    
-    // 💡 核心落實：依據剩餘號碼數，動態除以每組容量，自動決定生成 1-8 組不重複骨架
+    const availableSlotsPerGroup = pickCount - vipFavSet.size;
     if (availableSlotsPerGroup > 0 && remainingBalls.length >= availableSlotsPerGroup) {
       const maxGroups = Math.floor(remainingBalls.length / availableSlotsPerGroup);
-      
       for (let g = 0; g < maxGroups; g++) {
-        let singleGroup = [...Array.from(vipFavSet)]; // 強制注入喜愛號特權 👑
-        const slots = remainingBalls.slice(g * availableSlotsPerGroup, (g + 1) * availableSlotsPerGroup); // 貪婪切割互斥號碼
+        let singleGroup = [...Array.from(vipFavSet)];
+        const slots = remainingBalls.slice(g * availableSlotsPerGroup, (g + 1) * availableSlotsPerGroup);
         singleGroup.push(...slots);
         singleGroup.sort((a, b) => a - b);
-
-        // 骨架生成後，依然必須通過 GA 的 15 大生存條件檢驗（對齊 0-14 條件剔除）
         if (isGeneSurvive(singleGroup)) {
-          parentPort.postMessage({ type: 'FOUND_ONE', data: singleGroup }); // 符合立刻交給中繼站
+          parentPort.postMessage({ type: 'FOUND_ONE', data: singleGroup });
         }
       }
     }
   }
-
-  // 軌道一：【一般篩選組合 (純隨機無規律遺傳變異 GA 引擎)】
-  // 無論是軌道一，或是軌道二包牌後的無限突變生成，皆進入此全核心高頻隨機演化大循環
+  
   while (true) {
     let pool = [...baseBallPool];
-    
-    // Fisher-Yates 全局基因亂數揉合
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
-    
-    // 往滿足 1398 萬組/57 萬組的矩陣空間隨機提取單組基因型
     let combination = pool.slice(0, pickCount);
-    
-    // 如果一般模式有勾選喜愛號，同樣實施強制基因注入
     if (cfg.vip_fav_on && vipFavSet.size > 0) {
       combination = [...new Set([...Array.from(vipFavSet), ...combination])].slice(0, pickCount);
     }
-    
     combination.sort((a, b) => a - b);
-    
-    // 進入環境選擇隔離艙 (0-15道防線)
     if (isGeneSurvive(combination)) {
-      parentPort.postMessage({ type: 'FOUND_ONE', data: combination }); // 1組符合就上報給中央中繼站
+      parentPort.postMessage({ type: 'FOUND_ONE', data: combination });
     }
   }
 }
+
+// ───【全域端口大總門】：監聽 Render 埠口 ───
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`=======================================================`);
+  console.log(` 🚀 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！`);
+  console.log(` 📡 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
+  console.log(`=======================================================`);
+});
