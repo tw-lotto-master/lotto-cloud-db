@@ -331,6 +331,8 @@ res.end();
 }
 if (!isMainThread) {
 
+  const { cfg, globalHistoryDB } = workerData;
+  
   // ✅ 【添加在後台子線程開頭】：參數極速自癒清洗晶片
 const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
 const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
@@ -349,7 +351,7 @@ const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
 const f15_on = (cfg.f15_on === true || cfg.f15_on === 'true');
 const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
 
-    const { cfg, globalHistoryDB } = workerData;
+    
     const lottoType = cfg.lottoType || "39_5";
     const maxBall = lottoType === "49_6" ? 49 : 39;
     const pickCount = lottoType === "49_6" ? 6 : 5;
