@@ -300,13 +300,7 @@ if (isMainThread) {
                 const chunkText = `第 [${String(currentCount).padStart(2, '0')}] 組 : ${msg.data.map(n => String(n).padStart(2, '0')).join(', ')}\n`;
                 
                 res.write(JSON.stringify({ isProgress: true, percent: Math.min(99, Math.floor((currentCount / limitOutput) * 100)), currentMatch: currentCount, appendOutput: chunkText }) + "\n");
-                if (currentCount >= limitOutput) {
-                  clearTimeout(safetyTimeout);
-                  clearInterval(heartbeatTimer);
-                  isFinished = true;
-                  workers.forEach(w => w.terminate());
-                  resolve();
-                }
+                
               }
             }
           });
@@ -321,8 +315,14 @@ if (isMainThread) {
   }, 10000);
 
       let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (Smart Wheeling + 遺傳變異)' : '一般篩選 (遺傳演算法 GA 全隨選)';
-      res.write(JSON.stringify({ success: true, outputText: `【VIP海選完成】中繼站累計成功捕獲：${finalResults.length} 組\n【輸出模式】${modeLabel}\n-------------------------\n` }) + "\n");
-      res.end();
+      const slicedResults = finalResults.slice(0, limitOutput);
+const finalOutputCombs = slicedResults.map(comb => `第 [${String(finalResults.indexOf(comb) + 1).padStart(2, '0')}] 組 : ${comb.map(n => String(n).padStart(2, '0')).join(', ')}\n`).join('');
+
+res.write(JSON.stringify({ 
+    success: true, 
+    outputText: `【VIP海選完成】中繼站本次海選實時通過總數：${finalResults.length} 組 🪙\n【當前交付解鎖明牌】：\n-------------------------\n` + finalOutputCombs + `-------------------------\n【輸出模式】${modeLabel}\n`
+}) + "\n");
+res.end();
     } catch (globalErr) {
       console.error(" ❌ 雲端大腦內核阻斷異常：", globalErr.message);
       try { res.write(JSON.stringify({ success: false, message: `後台突發故障` }) + "\n"); res.end(); } catch(e){}
@@ -330,6 +330,25 @@ if (isMainThread) {
   });
 }
 if (!isMainThread) {
+
+  // ✅ 【添加在後台子線程開頭】：參數極速自癒清洗晶片
+const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
+const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
+const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
+const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
+const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
+const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
+const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
+const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
+const f9_on = (cfg.f9_on === true || cfg.f9_on === 'true');
+const f10_on = (cfg.f10_on === true || cfg.f10_on === 'true');
+const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
+const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
+const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
+const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
+const f15_on = (cfg.f15_on === true || cfg.f15_on === 'true');
+const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
+
     const { cfg, globalHistoryDB } = workerData;
     const lottoType = cfg.lottoType || "39_5";
     const maxBall = lottoType === "49_6" ? 49 : 39;
@@ -357,22 +376,22 @@ if (!isMainThread) {
     // 🏎️ 究極高速十六大過濾防線（精確無誤且完全不吃效能）
     function isGeneSurvive(comb) {
         const sumValue = comb.reduce((a, b) => a + b, 0);
-        if (cfg.f1_on && f1_set.size > 0) { for (let mine of f1_set) { if (comb.includes(mine)) return false; } }
-        if (cfg.f2_on) {
+        if (f1_on && f1_set.size > 0) { for (let mine of f1_set) { if (comb.includes(mine)) return false; } }
+        if (f2_on) {
             let f2_min = Number(cfg.f2_min) || 15; let f2_max = Number(cfg.f2_max) || 30;
             if (comb < f2_min || comb[comb.length - 1] > f2_max) return false;
         }
         if (historyCacheSet.size > 0 && historyCacheSet.has(comb.map(n => String(n).padStart(2, '0')).join(','))) return false;
-        if (cfg.f3_on) {
+        if (f3_on) {
             let zoneSet = new Set(); let divisor = lottoType === "49_6" ? 10 : 8;
             comb.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
             if (zoneSet.size !== (Number(cfg.f3_count) || 4)) return false;
         }
-        if (cfg.f4_on) {
+        if (f4_on) {
             let tails = new Array(10).fill(0); comb.forEach(num => tails[num % 10]++);
             if (Math.max(...tails) > (Number(cfg.f4_max) || 2)) return false;
         }
-        if (cfg.f5_on) {
+        if (f5_on) {
             let odds = comb.filter(n => n % 2 !== 0).length; let evens = pickCount - odds;
             if (lottoType === "49_6") {
                 if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) return false;
@@ -382,15 +401,15 @@ if (!isMainThread) {
                 if (cfg.f5_539_41 && (odds === 4 || evens === 4)) return false;
             }
         }
-        if (cfg.f6_on && (sumValue < (Number(cfg.f6_low) || 110) || sumValue > (Number(cfg.f6_high) || 210))) return false;
-        if (cfg.f7_on) {
+        if (f6_on && (sumValue < (Number(cfg.f6_low) || 110) || sumValue > (Number(cfg.f6_high) || 210))) return false;
+        if (f7_on) {
             let maxSeq = 1, currentSeq = 1;
             for (let m = 1; m < comb.length; m++) {
                 if (comb[m] === comb[m-1] + 1) { currentSeq++; if (currentSeq > maxSeq) maxSeq = currentSeq; } else { currentSeq = 1; }
             }
             if (maxSeq >= (Number(cfg.f7_len) || 3)) return false;
         }
-        if (cfg.f8_on) {
+        if (f8_on) {
             let isArithmetic = false;
             for (let i = 0; i <= comb.length - 3; i++) {
                 let diff1 = comb[i+1] - comb[i]; let diff2 = comb[i+2] - comb[i+1];
@@ -398,26 +417,26 @@ if (!isMainThread) {
             }
             if (isArithmetic) return false;
         }
-        if (cfg.f9_on && neighborSet.size > 0 && comb.filter(num => neighborSet.has(num)).length > (Number(cfg.f9_count) || 2)) return false;
-        if (cfg.f10_on && lastPeriod.length > 0 && comb.filter(num => lastPeriod.includes(num)).length > (Number(cfg.f10_max) || 2)) return false;
-        if (cfg.f11_on) {
+        if (f9_on && neighborSet.size > 0 && comb.filter(num => neighborSet.has(num)).length > (Number(cfg.f9_count) || 2)) return false;
+        if (f10_on && lastPeriod.length > 0 && comb.filter(num => lastPeriod.includes(num)).length > (Number(cfg.f10_max) || 2)) return false;
+        if (f11_on) {
             let midPoint = lottoType === "49_6" ? 25 : 20; let bigCount = comb.filter(num => num >= midPoint).length; let smallCount = pickCount - bigCount;
             if ((cfg.f11_kill || cfg.f11_kill === 'true') && (bigCount === pickCount || smallCount === pickCount || bigCount === 1 || smallCount === 1)) return false;
         }
-        if (cfg.f12_on) {
+        if (f12_on) {
             let road0 = 0, road1 = 0, road2 = 0; comb.forEach(num => { let rem = num % 3; if (rem === 0) road0++; else if (rem === 1) road1++; else road2++; });
             if ((cfg.f12_kill || cfg.f12_kill === 'true') && (road0 === 0 || road1 === 0 || road2 === 0)) return false;
         }
-        if (cfg.f13_on) {
+        if (f13_on) {
             let diffs = new Set();
             for (let m = 0; m < comb.length; m++) { for (let n = m + 1; n < comb.length; n++) diffs.add(comb[n] - comb[m]); }
             if (diffs.size - (pickCount - 1) < (Number(cfg.f13_min) || 6)) return false;
         }
-        if (cfg.f14_on) {
+        if (f14_on) {
             const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
             if ((cfg.f14_kill || cfg.f14_kill === 'true') && comb.filter(num => primes.includes(num)).length >= 4) return false;
         }
-        if (cfg.f15_on) {
+        if (f15_on) {
             const overlapLimit = parseInt(cfg.f15_overlap_limit, 10) || (lottoType === '49_6' ? 5 : 4);
             if (cfg.f15_kill || cfg.f15_kill === 'true') {
                 for (let h of historyDB) { if (Array.isArray(h) && comb.filter(num => h.includes(num)).length >= overlapLimit) return false; }
@@ -459,7 +478,7 @@ if (!isMainThread) {
             [pool[i], pool[j]] = [pool[j], pool[i]];
         }
         let combination = pool.slice(0, pickCount);
-        if (cfg.vip_fav_on && vipFavSet.size > 0) {
+        if (vip_fav_on && vipFavSet.size > 0) {
             combination = [...new Set([...Array.from(vipFavSet), ...combination])].slice(0, pickCount);
         }
         combination.sort((a, b) => a - b);
