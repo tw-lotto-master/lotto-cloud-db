@@ -248,6 +248,12 @@ if (isMainThread) {
     res.setHeader('Connection', 'keep-alive');
     try {
       const { cfg, globalHistoryDB } = req.body;
+      if (cfg) {
+    // 物理強行咬合：不論前端傳過來有沒有加 CurrentRound 或 Ad，通通強行對齊亮綠燈！
+    if (cfg.isAdUnlocked === undefined) cfg.isAdUnlocked = cfg.isAdUnlockedCurrentRound || cfg.adUnlocked || cfg.isAdActive || false;
+    if (cfg.isSingleUnlockedCurrentRound === undefined) cfg.isSingleUnlockedCurrentRound = cfg.isSingleUnlocked || cfg.singleUnlocked || false;
+    if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
+}
       if (!cfg) return res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n") || res.end();
       
       const sessionUserId = req.user && req.user.userId;
@@ -293,9 +299,9 @@ if (isMainThread) {
          
          worker.on('message', (msg) => {
              if (isFinished) return;
-             
-             if (msg.type === 'FOUND_ONE') {
-                 liveTotalCount++; 
+
+               if (msg.type === 'FOUND_ONE_BATCH') {
+    liveTotalCount += msg.count; // 每次直接往上蹦 100 組！
                  
                  // 🏎️ 散熱閥門：每累積 100 組生還，才向手機發送一次輕量進度包，防止幾十萬條網路訊號塞爆手機 WebView
                  if (liveTotalCount % 100 === 0) {
@@ -304,6 +310,17 @@ if (isMainThread) {
                          percent: Math.min(99, Math.floor((liveTotalCount / limitOutput) * 100)), 
                          currentMatch: liveTotalCount 
                      }) + "\n");
+                   if (msg.type === 'FOUND_ONE') {
+    liveTotalCount++;
+    
+    // 每 50,000 組在後台 Log 強制列印一次記憶體水位，看它是怎麼爬升的
+    if (liveTotalCount % 50000 === 0) {
+        const mem = process.memoryUsage();
+        console.log(`[內存監控儀表板] 當前海選數：${liveTotalCount} 組`);
+        console.log(` ➔ 系統實際分給 Node.js 的 V8 記憶體 (rss): ${(mem.rss / 1024 / 1024).toFixed(2)} MB`);
+        console.log(` ➔ 程式變數、陣列實體佔用 (heapUsed): ${(mem.heapUsed / 1024 / 1024).toFixed(2)} MB`);
+    }
+}
                  }
              }
          });
@@ -510,9 +527,18 @@ const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
             combination = [...new Set([...Array.from(vipFavSet), ...combination])].slice(0, pickCount);
         }
         combination.sort((a, b) => a - b);
-        if (isGeneSurvive(combination)) {
-            parentPort.postMessage({ type: 'FOUND_ONE', data: combination });
-        }
+        // ✅ ─── 滿血防爆補丁：在子線程肚子裡先計數，降低 100 倍通訊頻率，彻底解決多人線上併發 ───
+if (!global.workerLocalCounter) global.workerLocalCounter = 0; // 宣告子線程專屬本地計數器
+
+if (isGeneSurvive(combination)) {
+    global.workerLocalCounter++;
+    
+    // 🏎️ 每累積 100 組生還號碼，才向主線程通報「一次」大組進度（只傳送一個輕量數字，完全不傳陣列！）
+    if (global.workerLocalCounter % 100 === 0) {
+        parentPort.postMessage({ type: 'FOUND_ONE_BATCH', count: 100 });
+        global.workerLocalCounter = 0; // 重置計數，維持內存極度冰涼
+    }
+}
     }
 }
 
