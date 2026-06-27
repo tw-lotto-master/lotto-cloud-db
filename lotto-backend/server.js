@@ -430,7 +430,7 @@ if (!isMainThread) {
     const baseBallPool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(n => !f1_set.has(n));
     
     // 聰明組合包牌
-    if (cfg.mode === 'smart' || vipMode === 'smart') {
+    if (cfg.mode === 'smart' || cfg.vipMode === 'smart') {
         let remainingBalls = [...baseBallPool].filter(ball => !vipFavSet.has(ball));
         for (let i = remainingBalls.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
