@@ -434,8 +434,6 @@ if (isMainThread) {
  const finalOutputCombs = [];
  const pickLimit = parseInt(limitOutput) || 5;
 
- // 💡 提示：此處原有的 mainLottoType 宣告已安全物理移至最上方分流開關處，在此無需重複。
-
  // 【過濾內核複製】：在主線程中對齊補全過濾器，消滅 ReferenceError
  function isMainGeneSurvive(comb) {
     const sumValue = comb.reduce((a, b) => a + b, 0);
