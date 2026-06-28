@@ -431,16 +431,13 @@ if (isMainThread) {
 // ======= 替換為全新滿血自癒程式碼（徹底解決 pickCount 與 isGeneSurvive 越界崩潰） =======
   // 【延遲大組破開技術】：在多線程大竣工的這一微秒，依照前端需要的解鎖組數，純隨機就 🎯
   // 地合法破開，極速交卷！
-  const finalOutputCombs = [];
-  const pickLimit = parseInt(limitOutput) || 5;
+ const finalOutputCombs = [];
+ const pickLimit = parseInt(limitOutput) || 5;
 
-  // 【安全自癒注入】：從前端傳入的 cfg 物理提取主線程所需的解碼參數
-  const mainLottoType = cfg.lottoType || "39_5";
-  const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
-  const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
+ // 💡 提示：此處原有的 mainLottoType 宣告已安全物理移至最上方分流開關處，在此無需重複。
 
-  // 【過濾內核複製】：在主線程中對齊補全過濾器，消滅 ReferenceError
-  function isMainGeneSurvive(comb) {
+ // 【過濾內核複製】：在主線程中對齊補全過濾器，消滅 ReferenceError
+ function isMainGeneSurvive(comb) {
     const sumValue = comb.reduce((a, b) => a + b, 0);
     const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
     const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
