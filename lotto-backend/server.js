@@ -248,12 +248,19 @@ if (isMainThread) {
     res.setHeader('Connection', 'keep-alive');
     try {
       const { cfg, globalHistoryDB } = req.body;
-      if (cfg) {
-    // 物理強行咬合：不論前端傳過來有沒有加 CurrentRound 或 Ad，通通強行對齊亮綠燈！
-    if (cfg.isAdUnlocked === undefined) cfg.isAdUnlocked = cfg.isAdUnlockedCurrentRound || cfg.adUnlocked || cfg.isAdActive || false;
-    if (cfg.isSingleUnlockedCurrentRound === undefined) cfg.isSingleUnlockedCurrentRound = cfg.isSingleUnlocked || cfg.singleUnlocked || false;
-    if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
-}
+    if (cfg) {
+      // 物理強行咬合：支援前端傳入的各式廣告解鎖欄位型態，完美認證通行證
+      if (cfg.isAdUnlocked === undefined) {
+        cfg.isAdUnlocked = cfg.isAdUnlockedCurrentRound || cfg.adUnlocked || cfg.isAdActive || false;
+      }
+      // 強制修正字串轉型漏洞並對齊（確保前端 isVipAdUnlocked 的 true 被精確解碼）
+      if (cfg.isAdUnlocked === 'true' || cfg.isAdUnlocked === true) {
+        cfg.isAdUnlocked = true;
+      }
+      if (cfg.isSingleUnlockedCurrentRound === undefined) cfg.isSingleUnlockedCurrentRound = cfg.isSingleUnlocked || cfg.singleUnlocked || false;
+      if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
+    }
+
       if (!cfg) return res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n") || res.end();
       
       const sessionUserId = req.user && req.user.userId;
@@ -329,26 +336,113 @@ if (isMainThread) {
  });
 
  // 🎯 【延遲大組破開技術】：在多線程大竣工的這一微秒，依照前端需要的解鎖組數，純隨機就地合法破開，極速交卷！
- const finalOutputCombs = [];
- const pickLimit = parseInt(limitOutput) || 5;
- 
- while (finalOutputCombs.length < pickLimit) {
-     // 純隨機抽取一組符合 49 選 6 或 39 選 5 的大組號碼
-     let randomComb = [];
-     while (randomComb.length < pickCount) {
-         let num = Math.floor(Math.random() * maxBall) + 1;
-         if (!randomComb.includes(num)) randomComb.push(num);
-     }
-     randomComb.sort((a, b) => a - b);
+// ======= 替換為全新滿血自癒程式碼（徹底解決 pickCount 與 isGeneSurvive 越界崩潰） =======
+  // 【延遲大組破開技術】：在多線程大竣工的這一微秒，依照前端需要的解鎖組數，純隨機就 🎯
+  // 地合法破開，極速交卷！
+  const finalOutputCombs = [];
+  const pickLimit = parseInt(limitOutput) || 5;
 
-     // 🛡️ 調用您底層原本的 16 大防線過濾核心，確保這組破開的號碼 100% 符合用戶勾選的局部條件
-     if (isGeneSurvive(randomComb)) {
-         const indexStr = String(finalOutputCombs.length + 1).padStart(2, '0');
-         const formatted = randomComb.map(n => String(n).padStart(2, '0')).join(', ');
-         finalOutputCombs.push(`第 [${indexStr}] 組 : ${formatted}\n`);
-     }
- }
+  // 【安全自癒注入】：從前端傳入的 cfg 物理提取主線程所需的解碼參數
+  const mainLottoType = cfg.lottoType || "39_5";
+  const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
+  const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
+
+  // 【過濾內核複製】：在主線程中對齊補全過濾器，消滅 ReferenceError
+  function isMainGeneSurvive(comb) {
+    const sumValue = comb.reduce((a, b) => a + b, 0);
+    const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
+    const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
+    const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
+    const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
+    const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
+    const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
+    const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
+    const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
+    const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
+    const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
+    const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
+    const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
+
+    if (f1_on && cfg.f1_set && cfg.f1_set.length > 0) {
+      for (let mine of cfg.f1_set) { if (comb.includes(mine)) return false; }
+    }
+    if (f2_on) {
+      let f2_min = Number(cfg.f2_min) || 15; let f2_max = Number(cfg.f2_max) || 30;
+      if (comb[0] < f2_min || comb[comb.length - 1] > f2_max) return false;
+    }
+    if (f3_on) {
+      let zoneSet = new Set(); let divisor = mainLottoType === "49_6" ? 10 : 8;
+      comb.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
+      if (zoneSet.size !== (Number(cfg.f3_count) || 4)) return false;
+    }
+    if (f4_on) {
+      let tails = new Array(10).fill(0); comb.forEach(num => tails[num % 10]++);
+      if (Math.max(...tails) > (Number(cfg.f4_max) || 2)) return false;
+    }
+    if (f5_on) {
+      let odds = comb.filter(n => n % 2 !== 0).length; let evens = mainPickCount - odds;
+      if (mainLottoType === "49_6") {
+        if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) return false;
+        if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) return false;
+      } else {
+        if (cfg.f5_539_50 && (odds === 5 || evens === 5)) return false;
+        if (cfg.f5_539_41 && (odds === 4 || evens === 4)) return false;
+      }
+    }
+    if (f6_on && (sumValue < (Number(cfg.f6_low) || 110) || sumValue > (Number(cfg.f6_high) || 210))) return false;
+    if (f7_on) {
+      let maxSeq = 1, currentSeq = 1;
+      for (let m = 1; m < comb.length; m++) {
+        if (comb[m] === comb[m-1] + 1) { currentSeq++; if (currentSeq > maxSeq) maxSeq = currentSeq; } else { currentSeq = 1; }
+      }
+      if (maxSeq >= (Number(cfg.f7_len) || 3)) return false;
+    }
+    if (f8_on) {
+      let isArithmetic = false;
+      for (let i = 0; i <= comb.length - 3; i++) {
+        let diff1 = comb[i+1] - comb[i]; let diff2 = comb[i+2] - comb[i+1];
+        if (diff1 === diff2 && diff1 >= 1 && diff1 <= 24) { isArithmetic = true; break; }
+      }
+      if (isArithmetic) return false;
+    }
+    if (f11_on) {
+      let midPoint = mainLottoType === "49_6" ? 25 : 20; let bigCount = comb.filter(num => num >= midPoint).length; let smallCount = mainPickCount - bigCount;
+      if ((cfg.f11_kill || cfg.f11_kill === 'true') && (bigCount === mainPickCount || smallCount === mainPickCount || bigCount === 1 || smallCount === 1)) return false;
+    }
+    if (f12_on) {
+      let road0 = 0, road1 = 0, road2 = 0; comb.forEach(num => { let rem = num % 3; if (rem === 0) road0++; else if (rem === 1) road1++; else road2++; });
+      if ((cfg.f12_kill || cfg.f12_kill === 'true') && (road0 === 0 || road1 === 0 || road2 === 0)) return false;
+    }
+    if (f13_on) {
+      let diffs = new Set();
+      for (let m = 0; m < comb.length; m++) { for (let n = m + 1; n < comb.length; n++) diffs.add(comb[n] - comb[m]); }
+      if (diffs.size - (mainPickCount - 1) < (Number(cfg.f13_min) || 6)) return false;
+    }
+    if (f14_on) {
+      const primes =;
+      if ((cfg.f14_kill || cfg.f14_kill === 'true') && comb.filter(num => primes.includes(num)).length >= 4) return false;
+    }
+    return true;
+  }
+
+  let breakSafetyTimeoutCount = 0;
+  while (finalOutputCombs.length < pickLimit && breakSafetyTimeoutCount < 10000) {
+    breakSafetyTimeoutCount++;
+    let randomComb = [];
+    while (randomComb.length < mainPickCount) {
+      let num = Math.floor(Math.random() * mainMaxBall) + 1;
+      if (!randomComb.includes(num)) randomComb.push(num);
+    }
+    randomComb.sort((a, b) => a - b);
+
+    if (isMainGeneSurvive(randomComb)) {
+      const indexStr = String(finalOutputCombs.length + 1).padStart(2, '0');
+      const formatted = randomComb.map(n => String(n).padStart(2, '0')).join(', ');
+      finalOutputCombs.push(`第 [${indexStr}] 組 : ${formatted}\n`);
+    }
+  }
 // ─── 點對點無損嵌入結束（下方直接對接您原本的 const heartbeatTimer = ...） ───
+
 
         // ─── 💓 補入【心跳永動晶片】防止 Render 50秒靜默休眠 ───
   const heartbeatTimer = setInterval(() => {
