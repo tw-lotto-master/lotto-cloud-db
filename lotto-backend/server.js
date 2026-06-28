@@ -434,83 +434,89 @@ if (isMainThread) {
  const finalOutputCombs = [];
  const pickLimit = parseInt(limitOutput) || 5;
 
+ // ======= 區塊 4 全新替換代碼 =======
  // 【過濾內核複製】：在主線程中對齊補全過濾器，消滅 ReferenceError
  function isMainGeneSurvive(comb) {
-    const sumValue = comb.reduce((a, b) => a + b, 0);
-    const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
-    const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
-    const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
-    const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
-    const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
-    const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
-    const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
-    const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
-    const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
-    const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
-    const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
-    const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
+   const sumValue = comb.reduce((a, b) => a + b, 0);
+   const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
+   const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
+   const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
+   const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
+   const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
+   const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
+   const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
+   const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
+   const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
+   const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
+   const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
+   const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
 
-    if (f1_on && cfg.f1_set && cfg.f1_set.length > 0) {
-      for (let mine of cfg.f1_set) { if (comb.includes(mine)) return false; }
-    }
-    if (f2_on) {
-      let f2_min = Number(cfg.f2_min) || 15; let f2_max = Number(cfg.f2_max) || 30;
-      if (comb[0] < f2_min || comb[comb.length - 1] > f2_max) return false;
-    }
-    if (f3_on) {
-      let zoneSet = new Set(); let divisor = mainLottoType === "49_6" ? 10 : 8;
-      comb.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
-      if (zoneSet.size !== (Number(cfg.f3_count) || 4)) return false;
-    }
-    if (f4_on) {
-      let tails = new Array(10).fill(0); comb.forEach(num => tails[num % 10]++);
-      if (Math.max(...tails) > (Number(cfg.f4_max) || 2)) return false;
-    }
-    if (f5_on) {
-      let odds = comb.filter(n => n % 2 !== 0).length; let evens = mainPickCount - odds;
-      if (mainLottoType === "49_6") {
-        if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) return false;
-        if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) return false;
-      } else {
-        if (cfg.f5_539_50 && (odds === 5 || evens === 5)) return false;
-        if (cfg.f5_539_41 && (odds === 4 || evens === 4)) return false;
-      }
-    }
-    if (f6_on && (sumValue < (Number(cfg.f6_low) || 110) || sumValue > (Number(cfg.f6_high) || 210))) return false;
-    if (f7_on) {
-      let maxSeq = 1, currentSeq = 1;
-      for (let m = 1; m < comb.length; m++) {
-        if (comb[m] === comb[m-1] + 1) { currentSeq++; if (currentSeq > maxSeq) maxSeq = currentSeq; } else { currentSeq = 1; }
-      }
-      if (maxSeq >= (Number(cfg.f7_len) || 3)) return false;
-    }
-    if (f8_on) {
-      let isArithmetic = false;
-      for (let i = 0; i <= comb.length - 3; i++) {
-        let diff1 = comb[i+1] - comb[i]; let diff2 = comb[i+2] - comb[i+1];
-        if (diff1 === diff2 && diff1 >= 1 && diff1 <= 24) { isArithmetic = true; break; }
-      }
-      if (isArithmetic) return false;
-    }
-    if (f11_on) {
-      let midPoint = mainLottoType === "49_6" ? 25 : 20; let bigCount = comb.filter(num => num >= midPoint).length; let smallCount = mainPickCount - bigCount;
-      if ((cfg.f11_kill || cfg.f11_kill === 'true') && (bigCount === mainPickCount || smallCount === mainPickCount || bigCount === 1 || smallCount === 1)) return false;
-    }
-    if (f12_on) {
-      let road0 = 0, road1 = 0, road2 = 0; comb.forEach(num => { let rem = num % 3; if (rem === 0) road0++; else if (rem === 1) road1++; else road2++; });
-      if ((cfg.f12_kill || cfg.f12_kill === 'true') && (road0 === 0 || road1 === 0 || road2 === 0)) return false;
-    }
-    if (f13_on) {
-      let diffs = new Set();
-      for (let m = 0; m < comb.length; m++) { for (let n = m + 1; n < comb.length; n++) diffs.add(comb[n] - comb[m]); }
-      if (diffs.size - (mainPickCount - 1) < (Number(cfg.f13_min) || 6)) return false;
-    }
-    if (f14_on) {
-      const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
-      if ((cfg.f14_kill || cfg.f14_kill === 'true') && comb.filter(num => primes.includes(num)).length >= 4) return false;
-    }
-    return true;
-  }
+   // 🛡️ 內核自癒：函數內部自主解碼變數，100% 免疫跨函式讀取阻斷
+   const innerLottoType = cfg.lottoType || "39_5";
+   const innerPickCount = innerLottoType === "49_6" ? 6 : 5;
+
+   if (f1_on && cfg.f1_set && cfg.f1_set.length > 0) {
+     for (let mine of cfg.f1_set) { if (comb.includes(mine)) return false; }
+   }
+   if (f2_on) {
+     let f2_min = Number(cfg.f2_min) || 15; let f2_max = Number(cfg.f2_max) || 30;
+     if (comb[0] < f2_min || comb[comb.length - 1] > f2_max) return false;
+   }
+   if (f3_on) {
+     let zoneSet = new Set(); let divisor = innerLottoType === "49_6" ? 10 : 8;
+     comb.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
+     if (zoneSet.size !== (Number(cfg.f3_count) || 4)) return false;
+   }
+   if (f4_on) {
+     let tails = new Array(10).fill(0); comb.forEach(num => tails[num % 10]++);
+     if (Math.max(...tails) > (Number(cfg.f4_max) || 2)) return false;
+   }
+   if (f5_on) {
+     let odds = comb.filter(n => n % 2 !== 0).length; let evens = innerPickCount - odds;
+     if (innerLottoType === "49_6") {
+       if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) return false;
+       if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) return false;
+     } else {
+       if (cfg.f5_539_50 && (odds === 5 || evens === 5)) return false;
+       if (cfg.f5_539_41 && (odds === 4 || evens === 4)) return false;
+     }
+   }
+   if (f6_on && (sumValue < (Number(cfg.f6_low) || 110) || sumValue > (Number(cfg.f6_high) || 210))) return false;
+   if (f7_on) {
+     let maxSeq = 1, currentSeq = 1;
+     for (let m = 1; m < comb.length; m++) {
+       if (comb[m] === comb[m-1] + 1) { currentSeq++; if (currentSeq > maxSeq) maxSeq = currentSeq; } else { currentSeq = 1; }
+     }
+     if (maxSeq >= (Number(cfg.f7_len) || 3)) return false;
+   }
+   if (f8_on) {
+     let isArithmetic = false;
+     for (let i = 0; i <= comb.length - 3; i++) {
+       let diff1 = comb[i+1] - comb[i]; let diff2 = comb[i+2] - comb[i+1];
+       if (diff1 === diff2 && diff1 >= 1 && diff1 <= 24) { isArithmetic = true; break; }
+     }
+     if (isArithmetic) return false;
+   }
+   if (f11_on) {
+     let midPoint = innerLottoType === "49_6" ? 25 : 20; let bigCount = comb.filter(num => num >= midPoint).length; let smallCount = innerPickCount - bigCount;
+     if ((cfg.f11_kill || cfg.f11_kill === 'true') && (bigCount === innerPickCount || smallCount === innerPickCount || bigCount === 1 || smallCount === 1)) return false;
+   }
+   if (f12_on) {
+     let road0 = 0, road1 = 0, road2 = 0; comb.forEach(num => { let rem = num % 3; if (rem === 0) road0++; else if (rem === 1) road1++; else road2++; });
+     if ((cfg.f12_kill || cfg.f12_kill === 'true') && (road0 === 0 || road1 === 0 || road2 === 0)) return false;
+   }
+   if (f13_on) {
+     let diffs = new Set();
+     for (let m = 0; m < comb.length; m++) { for (let n = m + 1; n < comb.length; n++) diffs.add(comb[n] - comb[m]); }
+     if (diffs.size - (innerPickCount - 1) < (Number(cfg.f13_min) || 6)) return false;
+   }
+   if (f14_on) {
+     const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
+     if ((cfg.f14_kill || cfg.f14_kill === 'true') && comb.filter(num => primes.includes(num)).length >= 4) return false;
+   }
+   return true;
+ }
+
 
   let breakSafetyTimeoutCount = 0;
   while (finalOutputCombs.length < pickLimit && breakSafetyTimeoutCount < 10000) {
