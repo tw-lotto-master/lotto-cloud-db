@@ -290,18 +290,40 @@ if (isMainThread) {
  let isFinished = false;
  const workers = [];
  
- // 💎 【商用關鍵核心】：全域只用一個數字來記錄生還總量，100% 物理消滅 512MB 記憶體爆倉！
+// ======= 替換為全新實時記憶體回報監控代碼 =======
+ // 【商用關鍵核心】：全域只用一個數字來記錄生還總量，100% 物理消滅 512MB 記憶體爆 💎
+倉！
  let liveTotalCount = 0; 
-
  await new Promise((resolve) => {
-     const safetyTimeout = setTimeout(() => {
-         console.log(" [海選大竣工] 已達 2 分鐘極限安全壁壘，中繼站完美大收卷。");
-         isFinished = true;
-         workers.forEach(w => w.terminate());
-         resolve();
-     }, 120000); 
-     
-     for (let i = 0; i < threadCount; i++) {
+   // 【硬體監控注入】：在 2 分鐘極限安全壁壘到期時，瞬間物理抓取實時實體記憶體佔用開銷 🎯
+   const safetyTimeout = setTimeout(() => {
+     // 1. 抓取 Node.js 當前毫秒的實體記憶體快照
+     const memSnapshot = process.memoryUsage();
+
+     // 2. 將原始的 Byte 單位物理換算為直觀的 MB 單位
+     const rssMB = (memSnapshot.rss / 1024 / 1024).toFixed(2);
+     const heapUsedMB = (memSnapshot.heapUsed / 1024 / 1024).toFixed(2);
+     const heapTotalMB = (memSnapshot.heapTotal / 1024 / 1024).toFixed(2);
+     const externalMB = (memSnapshot.external / 1024 / 1024).toFixed(2);
+
+     // 3. 完美將數據洗進 Render 實時雲端日誌系統
+     console.log(`=======================================================`);
+     console.log(`[海選大竣工] 已達 2 分鐘極限安全壁壘，中繼站完美大收卷。`);
+     console.log(`📊 【雲端內核硬體實時監控報告】`);
+     console.log(`   🔸 巔峰實時佔用常駐記憶體 (RSS)      : [ ${rssMB} MB ] / 512.00 MB 天花板`);
+     console.log(`   🔸 皇家大腦核心裝載號碼記憶體 (HeapUsed): [ ${heapUsedMB} MB ]`);
+     console.log(`   🔸 皇家大腦已申請總分配空間 (HeapTotal) : [ ${heapTotalMB} MB ]`);
+     console.log(`   🔸 C++ 底層緩衝與多線程流式外掛 (External): [ ${externalMB} MB ]`);
+     console.log(`=======================================================`);
+
+     isFinished = true;
+     workers.forEach(w => w.terminate());
+     resolve();
+   }, 120000); 
+
+   for (let i = 0; i < threadCount; i++) {
+// ─── 點對點無損嵌入結束（下方維持原樣對接您原本的 for 迴圈） ───
+
          const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: i } });
          
          worker.on('message', (msg) => {
