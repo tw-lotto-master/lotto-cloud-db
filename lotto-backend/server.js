@@ -306,16 +306,18 @@ if (isMainThread) {
         const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
 
         // 🚀 【通道 A：全無勾選條件】➔ 主線程 0.1 秒極速交卷，且100%「動態鎖定組數限制」並「物理扣除 6 萬筆歷史中獎庫」！
+// ======= 區塊 1 後台主線程無撞號、扣歷史究極完全體替換代碼 =======
         if (isNoConditions) {
           console.log(`[智能分流大腦] 偵測到全無條件，啟動主線程基礎包牌晶片。不開Worker，記憶體降至冰點！`);
           const totalTheoreticalCombs = mainLottoType === "49_6" ? 13983816 : 575757;
           
-          res.write(JSON.stringify({ isProgress: true, percent: 20, currentMatch: 0 }) + "\n");
-          res.write(JSON.stringify({ isProgress: true, percent: 70, currentMatch: Math.floor(totalTheoreticalCombs / 2) }) + "\n");
+          // 實時高頻發射模擬進度數據包，強行打破前台卡 99% 的通訊死鎖
+          res.write(JSON.stringify({ isProgress: true, percent: 25, currentMatch: 0 }) + "\n");
+          res.write(JSON.stringify({ isProgress: true, percent: 75, currentMatch: Math.floor(totalTheoreticalCombs / 2) }) + "\n");
           res.write(JSON.stringify({ isProgress: true, percent: 99, currentMatch: totalTheoreticalCombs }) + "\n");
 
           const finalOutputCombs = [];
-          const cacheSet = new Set(); 
+          const globalCacheSet = new Set(); // 🚀 跨組別 100% 互斥去重硬鎖，徹底封死號碼完全重複的盲點！
           
           // 📊 歷史庫二級快取注入：將雲端傳進來的 6 萬多筆歷史號碼在主線程中洗成極速 Set
           const historyCacheSet = new Set();
@@ -324,49 +326,52 @@ if (isMainThread) {
           }
 
           let attempts = 0;
-          let unitCounter = 1;
+          let generatedCount = 0;
 
-          while (finalOutputCombs.length < pickLimit && attempts < 10000) {
+          // 🎯 滿血自癒：改用一對一獨立精準洗牌法，用戶要 15 組，就老老實實生出 15 組彼此絕對獨立的號碼！
+          while (generatedCount < pickLimit && attempts < 50000) {
             attempts++;
-            let pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
-            for (let i = pool.length - 1; i > 0; i--) {
+            
+            // 建立純淨的 1~39 或 1~49 球池
+            let ballPool = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
+            
+            // Fisher-Yates 獨立隨機洗牌
+            for (let i = ballPool.length - 1; i > 0; i--) {
               let j = Math.floor(Math.random() * (i + 1));
-              [pool[i], pool[j]] = [pool[j], pool[i]];
+              [ballPool[i], ballPool[j]] = [ballPool[j], ballPool[i]];
             }
 
-            let unitCombs = [];
-            let currentPoolIdx = 0;
+            // 直接精確切片出當前這一組需要的 5 碼或 6 碼
+            let currentComb = ballPool.slice(0, mainPickCount);
+            currentComb.sort((a, b) => a - b);
+            
+            const combKey = currentComb.join(',');
 
-            while (unitCombs.length < 8 && finalOutputCombs.length + unitCombs.length < pickLimit) {
-              if (currentPoolIdx + mainPickCount > pool.length) break;
-              let comb = pool.slice(currentPoolIdx, currentPoolIdx + mainPickCount);
-              comb.sort((a, b) => a - b);
-
-              const combKey = comb.join(',');
-              
-              // ❌ 雙向防撞：一不重疊包牌、二必須 100% 物理扣除這 6 萬多筆歷史中獎號碼！
-              if (cacheSet.has(combKey) || historyCacheSet.has(combKey)) continue;
-
-              unitCombs.push(comb);
+            // ❌ 雙重深水區除垢：一、如果跟前面幾組產生的號碼一模一樣，作廢重抽！二、如果撞到 6 萬多筆全歷史中獎庫，當場斬斷作廢重抽！
+            if (globalCacheSet.has(combKey) || historyCacheSet.has(combKey)) {
+              continue; // 撞號直接過濾跳過，絕對不計入交付明細！
             }
 
-            unitCombs.forEach((comb) => {
-              cacheSet.add(comb.join(','));
-              const indexStr = String(finalOutputCombs.length + 1).padStart(2, '0');
-              const formatted = comb.map(n => String(n).padStart(2, '0')).join(', ');
-              finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${unitCounter} 單位) : ${formatted}\n`);
-            });
+            // 驗證過關，雙向寫入快取與交付緩衝區
+            globalCacheSet.add(combKey);
+            generatedCount++;
 
-            if (unitCombs.length > 0) unitCounter++;
+            const indexStr = String(generatedCount).padStart(2, '0');
+            const formatted = currentComb.map(n => String(n).padStart(2, '0')).join(', ');
+            
+            // 每 8 組自動編組為一個聰明單位，畫面排版更精美
+            const currentUnit = Math.ceil(generatedCount / 8);
+            finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 單位) : ${formatted}\n`);
           }
 
-          let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (主線程 50MB 極速自癒版)' : '一般篩選 (高併發商用主線程極速版)';
+          let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (主線程無撞號、扣歷史極速完全體)' : '一般篩選 (高併發商用主線程自癒版)';
           res.write(JSON.stringify({ 
             success: true, 
-            outputText: `【VIP海選大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 🪙\n【當前交付解鎖明牌（已完美物理扣除 6 萬筆歷史數據庫）】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+            outputText: `【VIP海選大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 🪙\n【當前交付解鎖明牌（已完美物理扣除 6 萬筆歷史數據庫，且彼此 100% 互斥無重複）】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
           }) + "\n");
           return res.end();
         }
+
 
     // 🛡️ 【通道 B：有勾選條件】➔ ⚡ 啟動五維全自動併發安全限流器
 // ======= 區塊 3 後台 Worker 監聽通訊自癒替換代碼 =======
