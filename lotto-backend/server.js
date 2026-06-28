@@ -428,7 +428,6 @@ if (isMainThread) {
   // 【延遲大組破開技術】：在多線程大竣工的這一微秒，依照前端需要的解鎖組數，純隨機就 🎯
   // 地合法破開，極速交卷！
  const finalOutputCombs = [];
- const pickLimit = parseInt(limitOutput) || 5;
 
  // ======= 區塊 4 全新替換代碼 =======
  // 【過濾內核複製】：在主線程中對齊補全過濾器，消滅 ReferenceError
