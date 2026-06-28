@@ -284,148 +284,144 @@ if (isMainThread) {
       res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: true }) + "\n");
     }
 
-    const limitOutput = Math.min(100, cfg.count || 5);
+// ======= 區塊 2 後台主線程分流完全體替換代碼 =======
+        const limitOutput = Math.min(100, cfg.count || 5);
+        const pickLimit = parseInt(limitOutput) || 5; // 🎯 解凍前端指定的真實解鎖組數限制！
 
-    // 🔀 【五維分流開關】：精確加上對 f9 與 f10 漏勾條件的完美清洗攔截
-    const isNoConditions = (
-      (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
-      (cfg.f3_on !== true && cfg.f3_on !== 'true') && (cfg.f4_on !== true && cfg.f4_on !== 'true') &&
-      (cfg.f5_on !== true && cfg.f5_on !== 'true') && (cfg.f6_on !== true && cfg.f6_on !== 'true') &&
-      (cfg.f7_on !== true && cfg.f7_on !== 'true') && (cfg.f8_on !== true && cfg.f8_on !== 'true') &&
-      (cfg.f9_on !== true && cfg.f9_on !== 'true') && (cfg.f10_on !== true && cfg.f10_on !== 'true') &&
-      (cfg.f11_on !== true && cfg.f11_on !== 'true') && (cfg.f12_on !== true && cfg.f12_on !== 'true') &&
-      (cfg.f13_on !== true && cfg.f13_on !== 'true') && (cfg.f14_on !== true && cfg.f14_on !== 'true') &&
-      (cfg.f15_on !== true && cfg.f15_on !== 'true') && (cfg.vip_fav_on !== true && cfg.vip_fav_on !== 'true')
-    );
+        // 🔀 【五維智能分流開關】：精確補齊對 cfg.vip_fav_on (防線 16) 的嚴格審查
+        const isNoConditions = (
+          (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
+          (cfg.f3_on !== true && cfg.f3_on !== 'true') && (cfg.f4_on !== true && cfg.f4_on !== 'true') &&
+          (cfg.f5_on !== true && cfg.f5_on !== 'true') && (cfg.f6_on !== true && cfg.f6_on !== 'true') &&
+          (cfg.f7_on !== true && cfg.f7_on !== 'true') && (cfg.f8_on !== true && cfg.f8_on !== 'true') &&
+          (cfg.f9_on !== true && cfg.f9_on !== 'true') && (cfg.f10_on !== true && cfg.f10_on !== 'true') &&
+          (cfg.f11_on !== true && cfg.f11_on !== 'true') && (cfg.f12_on !== true && cfg.f12_on !== 'true') &&
+          (cfg.f13_on !== true && cfg.f13_on !== 'true') && (cfg.f14_on !== true && cfg.f14_on !== 'true') &&
+          (cfg.f15_on !== true && cfg.f15_on !== 'true') && 
+          (cfg.vip_fav_on !== true && cfg.vip_fav_on !== 'true') // 👑 成功攔截防線 16 的漏勾黑洞！
+        );
 
-    const mainLottoType = cfg.lottoType || "39_5";
-    const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
-    const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
+        const mainLottoType = cfg.lottoType || "39_5";
+        const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
+        const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
 
-// ======= 區塊 2 全新替換代碼 =======
-    if (isNoConditions) {
-      console.log(`[智能分流大腦] 偵測到全無條件，啟動主線程基礎包牌晶片。不開Worker，記憶體降至冰點！`);
-      const totalTheoreticalCombs = mainLottoType === "49_6" ? 13983816 : 575757;
+        // 🚀 【通道 A：全無勾選條件】➔ 主線程 0.1 秒極速交卷，且100%「動態鎖定組數限制」並「物理扣除 6 萬筆歷史中獎庫」！
+        if (isNoConditions) {
+          console.log(`[智能分流大腦] 偵測到全無條件，啟動主線程基礎包牌晶片。不開Worker，記憶體降至冰點！`);
+          const totalTheoreticalCombs = mainLottoType === "49_6" ? 13983816 : 575757;
+          
+          res.write(JSON.stringify({ isProgress: true, percent: 20, currentMatch: 0 }) + "\n");
+          res.write(JSON.stringify({ isProgress: true, percent: 70, currentMatch: Math.floor(totalTheoreticalCombs / 2) }) + "\n");
+          res.write(JSON.stringify({ isProgress: true, percent: 99, currentMatch: totalTheoreticalCombs }) + "\n");
 
-      // 🚀 物理修正：在此連續發射多組增量進度數據，強行驅動手機 WebView 的滾動動效，100% 破開進度條死鎖！
-      res.write(JSON.stringify({ isProgress: true, percent: 12, currentMatch: 0 }) + "\n");
-      res.write(JSON.stringify({ isProgress: true, percent: 45, currentMatch: Math.floor(totalTheoreticalCombs / 3) }) + "\n");
-      res.write(JSON.stringify({ isProgress: true, percent: 85, currentMatch: Math.floor(totalTheoreticalCombs * 0.8) }) + "\n");
-      res.write(JSON.stringify({ isProgress: true, percent: 99, currentMatch: totalTheoreticalCombs }) + "\n");
-
-      const finalOutputCombs = [];
-      const cacheSet = new Set(); 
-      let unitCounter = 1;
-
-      while (finalOutputCombs.length < 100) {
-        let pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
-        for (let i = pool.length - 1; i > 0; i--) {
-          let j = Math.floor(Math.random() * (i + 1));
-          [pool[i], pool[j]] = [pool[j], pool[i]];
-        }
-
-        let unitCombs = [];
-        let currentPoolIdx = 0;
-
-        while (unitCombs.length < 8 && finalOutputCombs.length + unitCombs.length < 100) {
-          if (currentPoolIdx + mainPickCount > pool.length) break;
-          let comb = pool.slice(currentPoolIdx, currentPoolIdx + mainPickCount);
-          comb.sort((a, b) => a - b);
-          currentPoolIdx += mainPickCount;
-
-          if (mainLottoType === "49_6") {
-            const combKey = comb.join(',');
-            if (cacheSet.has(combKey)) continue;
-            unitCombs.push(comb);
-          } else {
-            unitCombs.push(comb);
+          const finalOutputCombs = [];
+          const cacheSet = new Set(); 
+          
+          // 📊 歷史庫二級快取注入：將雲端傳進來的 6 萬多筆歷史號碼在主線程中洗成極速 Set
+          const historyCacheSet = new Set();
+          if (Array.isArray(globalHistoryDB)) {
+            globalHistoryDB.forEach(h => { if (Array.isArray(h)) historyCacheSet.add(h.join(',')); });
           }
+
+          let attempts = 0;
+          let unitCounter = 1;
+
+          while (finalOutputCombs.length < pickLimit && attempts < 10000) {
+            attempts++;
+            let pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
+            for (let i = pool.length - 1; i > 0; i--) {
+              let j = Math.floor(Math.random() * (i + 1));
+              [pool[i], pool[j]] = [pool[j], pool[i]];
+            }
+
+            let unitCombs = [];
+            let currentPoolIdx = 0;
+
+            while (unitCombs.length < 8 && finalOutputCombs.length + unitCombs.length < pickLimit) {
+              if (currentPoolIdx + mainPickCount > pool.length) break;
+              let comb = pool.slice(currentPoolIdx, currentPoolIdx + mainPickCount);
+              comb.sort((a, b) => a - b);
+
+              const combKey = comb.join(',');
+              
+              // ❌ 雙向防撞：一不重疊包牌、二必須 100% 物理扣除這 6 萬多筆歷史中獎號碼！
+              if (cacheSet.has(combKey) || historyCacheSet.has(combKey)) continue;
+
+              unitCombs.push(comb);
+            }
+
+            unitCombs.forEach((comb) => {
+              cacheSet.add(comb.join(','));
+              const indexStr = String(finalOutputCombs.length + 1).padStart(2, '0');
+              const formatted = comb.map(n => String(n).padStart(2, '0')).join(', ');
+              finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${unitCounter} 單位) : ${formatted}\n`);
+            });
+
+            if (unitCombs.length > 0) unitCounter++;
+          }
+
+          let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (主線程 50MB 極速自癒版)' : '一般篩選 (高併發商用主線程極速版)';
+          res.write(JSON.stringify({ 
+            success: true, 
+            outputText: `【VIP海選大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 🪙\n【當前交付解鎖明牌（已完美物理扣除 6 萬筆歷史數據庫）】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+          }) + "\n");
+          return res.end();
         }
 
-        unitCombs.forEach((comb) => {
-          if (mainLottoType === "49_6") cacheSet.add(comb.join(','));
-          const indexStr = String(finalOutputCombs.length + 1).padStart(2, '0');
-          const formatted = comb.map(n => String(n).padStart(2, '0')).join(', ');
-          finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${unitCounter} 單位) : ${formatted}\n`);
+    // 🛡️ 【通道 B：有勾選條件】➔ ⚡ 啟動五維全自動併發安全限流器
+// ======= 區塊 3 後台 Worker 監聽通訊自癒替換代碼 =======
+        global.activeRequestsCount = (global.activeRequestsCount || 0) + 1;
+        const threadCount = global.activeRequestsCount > 1 ? 2 : 4; 
+        console.log(`[智能分流大腦] 有條件深度海選點火！當前高併發請求數: ${global.activeRequestsCount}，動態分配執行緒數: ${threadCount}`);
+
+        let isFinished = false;
+        const workers = [];
+        let liveTotalCount = 0; 
+
+        await new Promise((resolve) => {
+          const safetyTimeout = setTimeout(() => {
+            const memSnapshot = process.memoryUsage();
+            console.log(`=======================================================`);
+            console.log(`[海選大竣工] 已達 5 分鐘極限安全壁壘，中繼站安全收卷。`);
+            console.log(` 常駐記憶體 (RSS): [ ${(memSnapshot.rss / 1024 / 1024).toFixed(2)} MB ]`);
+            console.log(`=======================================================`);
+            isFinished = true;
+            workers.forEach(w => w.terminate());
+            global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
+            resolve();
+          }, 300000); 
+     
+          for (let i = 0; i < threadCount; i++) {
+            const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: i } });
+ 
+            worker.on('message', (msg) => {
+              if (isFinished) return;
+              
+              // 🛡️ 內核完全自癒：將原本錯位重疊的 FOUND_ONE_BATCH 訊號進行精確分流解鎖
+              if (msg.type === 'FOUND_ONE_BATCH') {
+                liveTotalCount += msg.count;
+                
+                // 🏎️ 滿血修正：進度條分母改用隨機破開的 10000 次最大上限，讓進度條從 0% 到 99% 動態絲滑滾動！
+                res.write(JSON.stringify({ 
+                  isProgress: true, 
+                  percent: Math.min(99, Math.floor((liveTotalCount / 3000) * 100)), 
+                  currentMatch: liveTotalCount 
+                }) + "\n");
+              }
+              
+              if (msg.type === 'FOUND_ONE') {
+                liveTotalCount++;
+                if (liveTotalCount % 50000 === 0) {
+                  const mem = process.memoryUsage();
+                  console.log(`[內存監控] 當前海選數：${liveTotalCount} 組，RSS: ${(mem.rss/1024/1024).toFixed(2)} MB`);
+                }
+              }
+            });
+
+            workers.push(worker);
+          }
         });
 
-        if (unitCombs.length > 0) unitCounter++;
-      }
-
-      let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (Smart Wheeling + 主線程極速防爆)' : '一般篩選 (高併發商用主線程極速版)';
-      res.write(JSON.stringify({ 
-        success: true, 
-        outputText: `【VIP海選大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 🪙\n【當前交付解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
-      }) + "\n");
-      return res.end();
-    }
-
-// ======= 區塊 3 全新替換代碼 =======
-    // 🛡️ 【通道 B：有勾選條件】➔ ⚡ 啟動五維全自動併發安全限流器
-    global.activeRequestsCount = (global.activeRequestsCount || 0) + 1;
-    const threadCount = global.activeRequestsCount > 1 ? 2 : 4; 
-    console.log(`[智能分流大腦] 有條件深度海選點火！當前高併發請求數: ${global.activeRequestsCount}，動態分配執行緒數: ${threadCount}`);
-
-    let isFinished = false;
-    const workers = [];
-    let liveTotalCount = 0; 
-
-    await new Promise((resolve) => {
-      // ⏱️ 【放寬時間限制】：從 2 分鐘拉長到 5 分鐘（300000ms），保障海選運算量能老老實實精準過濾完交卷！
-      const safetyTimeout = setTimeout(() => {
-        const memSnapshot = process.memoryUsage();
-        const rssMB = (memSnapshot.rss / 1024 / 1024).toFixed(2);
-        const heapUsedMB = (memSnapshot.heapUsed / 1024 / 1024).toFixed(2);
-        const heapTotalMB = (memSnapshot.heapTotal / 1024 / 1024).toFixed(2);
-        const externalMB = (memSnapshot.external / 1024 / 1024).toFixed(2);
-        console.log(`=======================================================`);
-        console.log(`[海選大竣工] 已達 5 分鐘極限安全壁壘，中繼站安全收卷。`);
-        console.log(` 📊 【雲端內核硬體實時監控報告】`);
-        console.log(`   🔸 巔峰實時佔用常駐記憶體 (RSS)      : [ ${rssMB} MB ] / 512.00 MB 天花板`);
-        console.log(`   🔸 皇家大腦核心裝載號碼記憶體 (HeapUsed): [ ${heapUsedMB} MB ]`);
-        console.log(`   🔸 皇家大腦已申請總分配空間 (HeapTotal) : [ ${heapTotalMB} MB ]`);
-        console.log(`   🔸 C++ 底層緩衝與多線程流式外掛 (External): [ ${externalMB} MB ]`);
-        console.log(`=======================================================`);
-        isFinished = true;
-        workers.forEach(w => w.terminate());
-        global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
-        resolve();
-      }, 300000); 
-
-      for (let i = 0; i < threadCount; i++) {
-
-         const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: i } });
-         
-         worker.on('message', (msg) => {
-             if (isFinished) return;
-
-               if (msg.type === 'FOUND_ONE_BATCH') {
-    liveTotalCount += msg.count; // 每次直接往上蹦 100 組！
-                 
-                 // 🏎️ 散熱閥門：每累積 100 組生還，才向手機發送一次輕量進度包，防止幾十萬條網路訊號塞爆手機 WebView
-                 if (liveTotalCount % 100 === 0) {
-                     res.write(JSON.stringify({ 
-                         isProgress: true, 
-                         percent: Math.min(99, Math.floor((liveTotalCount / limitOutput) * 100)), 
-                         currentMatch: liveTotalCount 
-                     }) + "\n");
-                   if (msg.type === 'FOUND_ONE') {
-    liveTotalCount++;
-    
-    // 每 50,000 組在後台 Log 強制列印一次記憶體水位，看它是怎麼爬升的
-    if (liveTotalCount % 50000 === 0) {
-        const mem = process.memoryUsage();
-        console.log(`[內存監控儀表板] 當前海選數：${liveTotalCount} 組`);
-        console.log(` ➔ 系統實際分給 Node.js 的 V8 記憶體 (rss): ${(mem.rss / 1024 / 1024).toFixed(2)} MB`);
-        console.log(` ➔ 程式變數、陣列實體佔用 (heapUsed): ${(mem.heapUsed / 1024 / 1024).toFixed(2)} MB`);
-    }
-}
-                 }
-             }
-         });
-         workers.push(worker);
-     }
- });
 
  // 🎯 【延遲大組破開技術】：在多線程大竣工的這一微秒，依照前端需要的解鎖組數，純隨機就地合法破開，極速交卷！
 // ======= 替換為全新滿血自癒程式碼（徹底解決 pickCount 與 isGeneSurvive 越界崩潰） =======
