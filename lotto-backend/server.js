@@ -419,7 +419,7 @@ if (isMainThread) {
       if (diffs.size - (mainPickCount - 1) < (Number(cfg.f13_min) || 6)) return false;
     }
     if (f14_on) {
-      const primes =;
+      const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
       if ((cfg.f14_kill || cfg.f14_kill === 'true') && comb.filter(num => primes.includes(num)).length >= 4) return false;
     }
     return true;
