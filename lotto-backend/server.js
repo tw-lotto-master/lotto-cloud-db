@@ -511,33 +511,31 @@ if (isMainThread) {
 }
 
 if (!isMainThread) {
-
-  const { cfg, globalHistoryDB } = workerData;
-  
-  // ✅ 【添加在後台子線程開頭】：參數極速自癒清洗晶片
-const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
-const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
-const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
-const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
-const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
-const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
-const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
-const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
-const f9_on = (cfg.f9_on === true || cfg.f9_on === 'true');
-const f10_on = (cfg.f10_on === true || cfg.f10_on === 'true');
-const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
-const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
-const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
-const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
-const f15_on = (cfg.f15_on === true || cfg.f15_on === 'true');
-const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
-
-    
+  // 🛡 【異步沙盒自癒晶片】：將整個單水管內核強制壓入 async 作用域中，完美消滅 702 行 SyntaxError！
+  (async () => {
+    const { cfg, globalHistoryDB } = workerData;
+ 
+    const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
+    const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
+    const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
+    const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
+    const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
+    const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
+    const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
+    const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
+    const f9_on = (cfg.f9_on === true || cfg.f9_on === 'true');
+    const f10_on = (cfg.f10_on === true || cfg.f10_on === 'true');
+    const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
+    const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
+    const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
+    const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
+    const f15_on = (cfg.f15_on === true || cfg.f15_on === 'true');
+    const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
+ 
     const lottoType = cfg.lottoType || "39_5";
     const maxBall = lottoType === "49_6" ? 49 : 39;
     const pickCount = lottoType === "49_6" ? 6 : 5;
-    
-    // 歷史庫快速對齊快取（不拖速的 Set 建立）
+ 
     const historyCacheSet = new Set();
     const historyDB = globalHistoryDB || [];
     if (Array.isArray(historyDB)) {
