@@ -539,189 +539,134 @@ if (!isMainThread) {
     const historyCacheSet = new Set();
     const historyDB = globalHistoryDB || [];
     if (Array.isArray(historyDB)) {
-        historyDB.forEach(h => {
-            if (h && Array.isArray(h)) {
-                historyCacheSet.add(h.slice(0, pickCount).map(n => String(n).padStart(2,'0')).sort().join(','));
-            }
-        });
+      historyDB.forEach(h => {
+        if (h && Array.isArray(h)) {
+          historyCacheSet.add(h.slice(0, pickCount).map(n => String(n).padStart(2,'0')).sort().join(','));
+        }
+      });
     }
-    
+ 
     let lastPeriod = (historyDB.length > 0 && Array.isArray(historyDB[historyDB.length - 1])) ? historyDB[historyDB.length - 1].map(Number) : [];
     const neighborSet = new Set();
     let range = parseInt(cfg.f9_range, 10) || 1;
     lastPeriod.forEach(val => { for (let d = -range; d <= range; d++) { if (d !== 0) neighborSet.add(val + d); } });
-
- // 🚀 【提速機理三】：強制全面將字串集合洗成純數字 Set，徹底消滅 includes 的型態自殺錯位！
- const f1_set = new Set((cfg.f1_set || []).map(Number));
- const vipFavSet = new Set((cfg.vip_fav_set || []).map(Number));
-
- // 🚀 【提速機理一：階梯式物理過濾網】：將微秒級高篩選率條件置頂，重型大運算放到底部，提速百倍！
- function isGeneSurvive(comb) {
-   // 關卡 01：地雷號過濾 (極速剪除)
-   if (f1_on && f1_set.size > 0) { for (let num of comb) { if (f1_set.has(num)) return false; } }
-
-   // 關卡 05：奇偶比例動態防禦 (極速剪除)
-   if (f5_on) {
-     let odds = 0;
-     for (let num of comb) { if (num % 2 !== 0) odds++; }
-     let evens = pickCount - odds;
-     if (lottoType === "49_6") {
-       if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) return false;
-       if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) return false;
-     } else {
-       if (cfg.f5_539_50 && (odds === 5 || evens === 5)) return false;
-       if (cfg.f5_539_41 && (odds === 4 || evens === 4)) return false;
-     }
-   }
-
-   // 關卡 11：大小數比例分流 (極速剪除)
-   if (f11_on) {
-     let midPoint = lottoType === "49_6" ? 25 : 20;
-     let bigCount = 0;
-     for (let num of comb) { if (num >= midPoint) bigCount++; }
-     let smallCount = pickCount - bigCount;
-     if ((cfg.f11_kill || cfg.f11_kill === 'true') && (bigCount === pickCount || smallCount === pickCount || bigCount === 1 || smallCount === 1)) return false;
-   }
-
-   // 關卡 02：首尾邊界熱區控制
-   if (f2_on) {
-     let f2_min = Number(cfg.f2_min) || 15; let f2_max = Number(cfg.f2_max) || 30;
-     if (comb < f2_min || comb[comb.length - 1] > f2_max) return false;
-   }
-
-   // 關卡 06：號碼總和範圍
-   const sumValue = comb.reduce((a, b) => a + b, 0);
-   if (f6_on && (sumValue < (Number(cfg.f6_low) || 110) || sumValue > (Number(cfg.f6_high) || 210))) return false;
-
-   // 關卡 07：連續號碼牆
-   if (f7_on) {
-     let maxSeq = 1, currentSeq = 1;
-     for (let m = 1; m < comb.length; m++) {
-       if (comb[m] === comb[m-1] + 1) { currentSeq++; if (currentSeq > maxSeq) maxSeq = currentSeq; } else { currentSeq = 1; }
-     }
-     if (maxSeq >= (Number(cfg.f7_len) || 3)) return false;
-   }
-
-   // 關卡 12：除三餘數 012 路
-   if (f12_on) {
-     let road0 = 0, road1 = 0, road2 = 0;
-     comb.forEach(num => { let rem = num % 3; if (rem === 0) road0++; else if (rem === 1) road1++; else road2++; });
-     if ((cfg.f12_kill || cfg.f12_kill === 'true') && (road0 === 0 || road1 === 0 || road2 === 0)) return false;
-   }
-
-   // 關卡 14：質數合數過濾
-   if (f14_on) {
-     const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
-     let pCount = 0;
-     for (let num of comb) { if (primes.includes(num)) pCount++; }
-     if ((cfg.f14_kill || cfg.f14_kill === 'true') && pCount >= 4) return false;
-   }
-
-   // 關卡 04：同尾數上限限制
-   if (f4_on) {
-     let tails = new Array(10).fill(0); comb.forEach(num => tails[num % 10]++);
-     if (Math.max(...tails) > (Number(cfg.f4_max) || 2)) return false;
-   }
-
-   // 關卡 03：五大物理區塊落點
-   if (f3_on) {
-     let zoneSet = new Set(); let divisor = lottoType === "49_6" ? 10 : 8;
-     comb.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
-     if (zoneSet.size !== (Number(cfg.f3_count) || 4)) return false;
-   }
-
-   // 關卡 10：連莊號封殺
-   if (f10_on && lastPeriod.length > 0) {
-     let repCount = 0;
-     for (let num of comb) { if (lastPeriod.includes(num)) repCount++; }
-     if (repCount > (Number(cfg.f10_max) || 2)) return false;
-   }
-
-   // 關卡 09：鄰號夾擊防線
-   if (f9_on && neighborSet.size > 0) {
-     let neiCount = 0;
-     for (let num of comb) { if (neighborSet.has(num)) neiCount++; }
-     if (neiCount > (Number(cfg.f9_count) || 2)) return false;
-   }
-
-   // 關卡 08：等差數字組構封鎖
-   if (f8_on) {
-     let isArithmetic = false;
-     for (let i = 0; i <= comb.length - 3; i++) {
-       let diff1 = comb[i+1] - comb[i]; let diff2 = comb[i+2] - comb[i+1];
-       if (diff1 === diff2 && diff1 >= 1 && diff1 <= 24) { isArithmetic = true; break; }
-     }
-     if (isArithmetic) return false;
-   }
-
-   // 歷史開獎硬重疊快速 Set 比對 (極速防重組)
-   if (historyCacheSet.size > 0 && historyCacheSet.has(comb.join(','))) return false;
-
-   // 關卡 13：數字複雜度 AC 值雙重遍歷 (重型計算放底層)
-   if (f13_on) {
-     let diffs = new Set();
-     for (let m = 0; m < comb.length; m++) { for (let n = m + 1; n < comb.length; n++) diffs.add(comb[n] - comb[m]); }
-     if (diffs.size - (pickCount - 1) < (Number(cfg.f13_min) || 6)) return false;
-   }
-
-   // 關卡 15：歷史大數據高重疊子序列分析 (重型計算放底層)
-   if (f15_on && historyDB.length > 0) {
-     const overlapLimit = parseInt(cfg.f15_overlap_limit, 10) || (lottoType === '49_6' ? 5 : 4);
-     if (cfg.f15_kill || cfg.f15_kill === 'true') {
-       for (let h of historyDB) {
-         if (Array.isArray(h)) {
-           let intersectCount = 0;
-           for (let num of comb) { if (h.includes(num)) intersectCount++; }
-           if (intersectCount >= overlapLimit) return false;
-         }
-       }
-     }
-   }
-
-   return true;
- }
-
-
-    // 🏎️ ─── 【最初體高效能全隨選大狂飆】 ───
-    const baseBallPool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(n => !f1_set.has(n));
-    
-    // 聰明組合包牌
- // 【單水管高效能高速洗牌晶片】：肚子裡絕不囤積任何記憶體對象，100% 隨產隨丟！
- const targetSlotsCount = pickCount - vipFavSet.size;
  
-  // 宣告 Worker 本地極速碰撞計數器
-  if (!global.gcLoopCounter) global.gcLoopCounter = 0;
+    const f1_set = new Set((cfg.f1_set || []).map(Number));
+    const vipFavSet = new Set((cfg.vip_fav_set || []).map(Number));
+ 
+    function isGeneSurvive(comb) {
+      if (f1_on && f1_set.size > 0) { for (let num of comb) { if (f1_set.has(num)) return false; } }
+      if (f5_on) {
+        let odds = 0; for (let num of comb) { if (num % 2 !== 0) odds++; }
+        let evens = pickCount - odds;
+        if (lottoType === "49_6") {
+          if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) return false;
+          if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) return false;
+        } else {
+          if (cfg.f5_539_50 && (odds === 5 || evens === 5)) return false;
+          if (cfg.f5_539_41 && (odds === 4 || evens === 4)) return false;
+        }
+      }
+      if (f11_on) {
+        let midPoint = lottoType === "49_6" ? 25 : 20; let bigCount = 0;
+        for (let num of comb) { if (num >= midPoint) bigCount++; }
+        let smallCount = pickCount - bigCount;
+        if ((cfg.f11_kill || cfg.f11_kill === 'true') && (bigCount === pickCount || smallCount === pickCount || bigCount === 1 || smallCount === 1)) return false;
+      }
+      if (f2_on) {
+        let f2_min = Number(cfg.f2_min) || 15; let f2_max = Number(cfg.f2_max) || 30;
+        if (comb < f2_min || comb[comb.length - 1] > f2_max) return false;
+      }
+      const sumValue = comb.reduce((a, b) => a + b, 0);
+      if (f6_on && (sumValue < (Number(cfg.f6_low) || 110) || sumValue > (Number(cfg.f6_high) || 210))) return false;
+      if (f7_on) {
+        let maxSeq = 1, currentSeq = 1;
+        for (let m = 1; m < comb.length; m++) {
+          if (comb[m] === comb[m-1] + 1) { currentSeq++; if (currentSeq > maxSeq) maxSeq = currentSeq; } else { currentSeq = 1; }
+        }
+        if (maxSeq >= (Number(cfg.f7_len) || 3)) return false;
+      }
+      if (f12_on) {
+        let road0 = 0, road1 = 0, road2 = 0;
+        comb.forEach(num => { let rem = num % 3; if (rem === 0) road0++; else if (rem === 1) road1++; else road2++; });
+        if ((cfg.f12_kill || cfg.f12_kill === 'true') && (road0 === 0 || road1 === 0 || road2 === 0)) return false;
+      }
+      if (f14_on) {
+        const primes =;
+        let pCount = 0; for (let num of comb) { if (primes.includes(num)) pCount++; }
+        if ((cfg.f14_kill || cfg.f14_kill === 'true') && pCount >= 4) return false;
+      }
+      if (f4_on) {
+        let tails = new Array(10).fill(0); comb.forEach(num => tails[num % 10]++);
+        if (Math.max(...tails) > (Number(cfg.f4_max) || 2)) return false;
+      }
+      if (f3_on) {
+        let zoneSet = new Set(); let divisor = lottoType === "49_6" ? 10 : 8;
+        comb.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
+        if (zoneSet.size !== (Number(cfg.f3_count) || 4)) return false;
+      }
+      if (f10_on && lastPeriod.length > 0) {
+        let repCount = 0; for (let num of comb) { if (lastPeriod.includes(num)) repCount++; }
+        if (repCount > (Number(cfg.f10_max) || 2)) return false;
+      }
+      if (f9_on && neighborSet.size > 0) {
+        let neiCount = 0; for (let num of comb) { if (neighborSet.has(num)) neiCount++; }
+        if (neiCount > (Number(cfg.f9_count) || 2)) return false;
+      }
+      if (f8_on) {
+        let isArithmetic = false;
+        for (let i = 0; i <= comb.length - 3; i++) {
+          let diff1 = comb[i+1] - comb[i]; let diff2 = comb[i+2] - comb[i+1];
+          if (diff1 === diff2 && diff1 >= 1 && diff1 <= 24) { isArithmetic = true; break; }
+        }
+        if (isArithmetic) return false;
+      }
+      if (historyCacheSet.size > 0 && historyCacheSet.has(comb.join(','))) return false;
+      if (f13_on) {
+        let diffs = new Set();
+        for (let m = 0; m < comb.length; m++) { for (let n = m + 1; n < comb.length; n++) diffs.add(comb[n] - comb[m]); }
+        if (diffs.size - (pickCount - 1) < (Number(cfg.f13_min) || 6)) return false;
+      }
+      if (f15_on && historyDB.length > 0) {
+        const overlapLimit = parseInt(cfg.f15_overlap_limit, 10) || (lottoType === '49_6' ? 5 : 4);
+        if (cfg.f15_kill || cfg.f15_kill === 'true') {
+          for (let h of historyDB) {
+            if (Array.isArray(h)) {
+              let intersectCount = 0; for (let num of comb) { if (h.includes(num)) intersectCount++; }
+              if (intersectCount >= overlapLimit) return false;
+            }
+          }
+        }
+      }
+      return true;
+    }
+ 
+    const baseBallPool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(n => !f1_set.has(n));
+    const targetSlotsCount = pickCount - vipFavSet.size;
+    if (!global.gcLoopCounter) global.gcLoopCounter = 0;
 
-  while (true) {
-    global.gcLoopCounter++;
-    
-    // 🛡 【異步降內存防爆通氣孔】：每高頻洗牌碰撞過濾 2,000 次，強行讓出 1 微秒控制權，釋放 V8 垃圾回收！
-    if (global.gcLoopCounter % 2000 === 0) {
-      await new Promise(resolve => setImmediate(resolve));
-      global.gcLoopCounter = 0; // 重置計數器，內存永保冰涼！
+    while (true) {
+      global.gcLoopCounter++;
+      if (global.gcLoopCounter % 2000 === 0) {
+        await new Promise(resolve => setImmediate(resolve)); // 🟢 異步降內存沙盒通氣孔全線合法通車！
+        global.gcLoopCounter = 0;
+      }
+      let pool = [...baseBallPool].filter(ball => !vipFavSet.has(ball));
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      if (pool.length < targetSlotsCount) continue;
+      let slots = pool.slice(0, targetSlotsCount);
+      let combination = [...Array.from(vipFavSet), ...slots].map(Number);
+      combination.sort((a, b) => a - b);
+      if (isGeneSurvive(combination)) {
+        parentPort.postMessage({ type: 'FOUND_ONE_STREAM', data: combination });
+      }
     }
-
-    let pool = [...baseBallPool].filter(ball => !vipFavSet.has(ball));
-    
-    // Fisher-Yates 隨機高頻獨立大洗牌
-    for (let i = pool.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pool[i], pool[j]] = [pool[j], pool[i]];
-    }
-    
-    if (pool.length < targetSlotsCount) continue;
-    let slots = pool.slice(0, targetSlotsCount);
-    
-    // 實體物理預埋焊接喜愛號
-    let combination = [...Array.from(vipFavSet), ...slots].map(Number);
-    combination.sort((a, b) => a - b);
-    
-    // 衝撞 15 大階梯式物理過濾網
-    if (isGeneSurvive(combination)) {
-      parentPort.postMessage({ type: 'FOUND_ONE_STREAM', data: combination });
-    }
-  }
+  })(); // 閉合自執行異步沙盒 🛡
 }
+
 
 // ───【全域端口大總門】：監聽 Render 埠口 ───
 const PORT = process.env.PORT || 3000;
