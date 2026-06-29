@@ -385,14 +385,13 @@ if (isMainThread) {
  let isFinished = false;
  const finalOutputCombs = [];
  let liveScannedCount = 0; // 進度滾動計數
- const workers = [];       // 用於主執行緒結尾管理變數對齊
-
- // ─── 【滿血修復】：在此處強行補回迴圈下方所需的完全體基礎變數宣告 ─── [100% 像素級防崩潰] 🎯
+ const workers = [];       // 用於相容舊變數
+ 
  const innerLottoType = cfg.lottoType || "39_5";
  const innerPickCount = innerLottoType === "49_6" ? 6 : 5;
- const mainLottoType = innerLottoType; // 雙向相容舊變數綁定
+ const mainLottoType = innerLottoType;
  const mainMaxBall = innerLottoType === "49_6" ? 49 : 39;
- const mainPickCount = innerPickCount;  // 雙向相容舊變數綁定
+ const mainPickCount = innerPickCount;
  const limitOutput = Math.min(100, cfg.count || 5);
  const pickLimit = parseInt(limitOutput) || 5; 
 
@@ -401,21 +400,17 @@ if (isMainThread) {
  const favBalls = cfg.vip_fav_on ? (cfg.vip_fav_set || []) : [];
  const originalTotal = innerLottoType === "49_6" ? 49 : 39;
  
- // 物理剪除地雷號與喜愛號，計算剩餘可用於互斥分配的球數
  let initialValidBalls = Array.from({ length: originalTotal }, (_, i) => i + 1).filter(b => !mineBalls.includes(b));
  let availableBallsForWheel = initialValidBalls.filter(b => !favBalls.includes(b));
  const availableSlotsPerGroup = innerPickCount - favBalls.length;
  
- // 精確算出此殘餘球池在單一大組內的極限產能產出
  const singleBigGroupLimit = availableSlotsPerGroup > 0 ? Math.floor(availableBallsForWheel.length / availableSlotsPerGroup) : 1;
  console.log(`[數學算力宣佈] 本期剪除後合法互斥球數: ${availableBallsForWheel.length} 顆，每組需填空缺: ${availableSlotsPerGroup} 個。宣告單一物理大組極限產能 = [ ${singleBigGroupLimit} ] 組！`);
  
- // 建立大組控制快取矩陣
- let currentBigGroupUsedBallsSet = new Set(); // 控制大組內彩球 100% 物理絕對互斥
- const allCompletedGroupsList = [];           // 存放過去完工大組，執行跨組防撞重疊控制歷史牆
+ let currentBigGroupUsedBallsSet = new Set(); 
+ const allCompletedGroupsList = [];           
  
  await new Promise((resolve) => {
-   // 5分鐘壁壘強行落閘
    const safetyTimeout = setTimeout(() => {
      console.log(`=======================================================`);
      console.log(`[海選阻斷] 觸及 5 分鐘極限安全壁壘，中繼站安全收卷交付現存組數。`);
@@ -426,19 +421,16 @@ if (isMainThread) {
      resolve();
    }, 300000);
    
-   // 【不採用分水管，嚴格只啟動 1 條單水管】 獨佔 100% CPU 算力
    const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: 0 } });
-   workers.push(worker); // 保持與舊版架構變數陣列形式相容
+   workers.push(worker); 
    
    worker.on('message', (msg) => {
      if (isFinished) return;
      
-     // 監聽單水管隨產隨丟送上來的「生還單兵」
      if (msg.type === 'FOUND_ONE_STREAM') {
-       const newComb = msg.data; // 拿取通過 15 大防線的 6 碼或 5 碼陣列
+       const newComb = msg.data; 
        liveScannedCount++;
        
-       // 實時更新前台絲滑滾動進度條
        if (liveScannedCount % 5 === 0) {
          res.write(JSON.stringify({ 
            isProgress: true, 
@@ -447,31 +439,26 @@ if (isMainThread) {
          }) + "\n");
        }
        
-       // 【雙層中繼接收閘門審查】
-       // 關卡 A：跨大組交叉比對審查 (只允許與歷史大組的某一組最多重複 1~2 個號碼)
        let isCrossGroupConflict = false;
        for (let historicalComb of allCompletedGroupsList) {
          let overlapCount = newComb.filter(num => historicalComb.includes(num)).length;
          if (overlapCount > 2) { 
            isCrossGroupConflict = true; 
-           break; // 跨組撞了 3 碼以上，直接在閘門丟棄
+           break; 
          }
        }
-       if (isCrossGroupConflict) return; // 沒收丟棄
+       if (isCrossGroupConflict) return; 
        
-       // 關卡 B：當前大組內部彩球絕對互斥審查
-       // 先剝離必出喜愛號，只對需要隨機互斥的剩餘位置彩球進行 Set 比對
        const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
        let isInsideGroupConflict = false;
        for (let ball of nonFavBalls) {
          if (currentBigGroupUsedBallsSet.has(ball)) {
            isInsideGroupConflict = true;
-           break; // 同組內部彩球發生重複，丟棄
+           break; 
          }
        }
-       if (isInsideGroupConflict) return; // 沒收丟棄
+       if (isInsideGroupConflict) return; 
        
-       // ─── 恭喜雙重關卡全線過關！中繼站准予核准登記入庫 ───
        nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
        
        const nextIndex = finalOutputCombs.length + 1;
@@ -480,15 +467,13 @@ if (isMainThread) {
        const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
        
        finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
-       allCompletedGroupsList.push(newComb); // 填入歷史牆，供下一組做跨組交叉防撞
+       allCompletedGroupsList.push(newComb); 
        
-       // 【大組動態更替自癒重生】
        if (currentBigGroupUsedBallsSet.size >= (singleBigGroupLimit * availableSlotsPerGroup)) {
          console.log(`[中繼站日誌] >>> 第 ${currentUnit} 大組產能已安全榨乾，全體彩球物理重生，開啟下一大組通道！`);
-         currentBigGroupUsedBallsSet.clear(); // 物理自癒重置，重啟乾淨的下一大組互斥池
+         currentBigGroupUsedBallsSet.clear(); 
        }
        
-       // 【集滿即殺機制】一旦滿足前端指定需求組數，秒速終止單水管，擊碎 5 分鐘壁壘！
        if (finalOutputCombs.length >= pickLimit) {
          console.log(`[中繼站日誌] 完美集滿指定產量 ${pickLimit} 組！下達強行拔插頭指令！`);
          isFinished = true;
@@ -502,30 +487,30 @@ if (isMainThread) {
  });
  
  // ─── 補入【心跳永動晶片】防止 Render 50秒靜默休眠 ─── 💓
+ const heartbeatTimer = setInterval(() => {
+   if (isFinished) return clearInterval(heartbeatTimer);
+   res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 1 }) + "\n");
+ }, 10000);
 
-
-        // ─── 💓 補入【心跳永動晶片】防止 Render 50秒靜默休眠 ───
-  const heartbeatTimer = setInterval(() => {
-    if (isFinished) return clearInterval(heartbeatTimer);
-    // 每 10 秒默默噴發一個微量進度封包，強行擊穿 Render 的超時靜默攔截！
-    res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 1 }) + "\n");
-  }, 10000);
-
-     // ✅ 【最終竣工封裝】：直接塗刷我們大組破開後的完美 15 組（或 5 組）解鎖明牌！
+ // 【最終大竣工交卷封裝】
  let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (Smart Wheeling + 內存壓縮)' : '一般篩選 (高併發商用延遲破開版)';
- 
  res.write(JSON.stringify({ 
-     success: true, 
-     outputText: `【VIP海選大竣工】中繼站本次海選實時通過總數：${liveTotalCount} 組 🪙\n【當前交付解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+   success: true, 
+   outputText: `【VIP海選大竣工】中繼站本次海選實時通過總數：${liveScannedCount} 組 🪙\n【當前交付解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
  }) + "\n");
  res.end();
 
-    } catch (globalErr) {
-      console.error(" ❌ 雲端大腦內核阻斷異常：", globalErr.message);
-      try { res.write(JSON.stringify({ success: false, message: `後台突發故障` }) + "\n"); res.end(); } catch(e){}
-    }
-  });
+ // ─── 【自癒核心】：在此處補回最外層完全閉合閘門與 Catch，徹底消滅 SyntaxError！ ─── [100% 像素級咬合] 🎯
+   } catch (globalErr) {
+     console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
+     try { 
+       res.write(JSON.stringify({ success: false, message: `後台突發故障` }) + "\n"); 
+       res.end(); 
+     } catch(e){}
+   }
+ });
 }
+
 if (!isMainThread) {
 
   const { cfg, globalHistoryDB } = workerData;
