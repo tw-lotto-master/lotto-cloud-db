@@ -592,7 +592,7 @@ if (!isMainThread) {
         if ((cfg.f12_kill || cfg.f12_kill === 'true') && (road0 === 0 || road1 === 0 || road2 === 0)) return false;
       }
       if (f14_on) {
-        const primes =;
+        const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
         let pCount = 0; for (let num of comb) { if (primes.includes(num)) pCount++; }
         if ((cfg.f14_kill || cfg.f14_kill === 'true') && pCount >= 4) return false;
       }
