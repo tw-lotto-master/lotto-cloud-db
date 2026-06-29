@@ -609,7 +609,7 @@ const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
 
    // 關卡 14：質數合數過濾
    if (f14_on) {
-     const primes =;
+     const primes =[2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
      let pCount = 0;
      for (let num of comb) { if (primes.includes(num)) pCount++; }
      if ((cfg.f14_kill || cfg.f14_kill === 'true') && pCount >= 4) return false;
