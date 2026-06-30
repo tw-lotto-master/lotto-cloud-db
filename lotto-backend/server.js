@@ -509,22 +509,24 @@ if (isMainThread) {
          // 【大組動態更替】：大組內部互斥球池榨乾，全體彩球物理重生
          if (currentBigGroupUsedBallsSet.size >= (singleBigGroupLimit * availableSlotsPerGroup)) {
              console.log(`[中繼站日誌] >>> 第 ${currentUnit} 大組產能已安全榨乾，全體彩球物理自癒重生！`);
-             currentBigGroupUsedBallsSet.clear(); 
-         }
-         
-         // 【集滿即殺】：成功交付 1 到 100 組前端指定數目，秒殺拔插頭！
-         if (finalOutputCombs.length >= pickLimit) {
-             const currentMem = process.memoryUsage();
-             console.log(`[中繼站日誌] 完美集滿指定產量 ${pickLimit} 組！當前常駐記憶體 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]。執行 Worker 實體終止！`);
-             isFinished = true;
-             worker.terminate();
-             clearTimeout(safetyTimeout);
-             global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
-             resolve();
-         }
-     }
- });
-  });
+         currentBigGroupUsedBallsSet.clear();
+    }
+    
+    // 【集滿即殺】：成功交付 1 到 100 組前端指定項目，秒殺拔插頭！
+    if (finalOutputCombs.length >= pickLimit) {
+        const currentMem = process.memoryUsage();
+        console.log(`[中繼站日誌] 完美集滿指定產量 ${pickLimit} 組！當前常駐記憶體 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]。執行 Worker 實體終止！`);
+        isFinished = true;
+        worker.terminate();
+        clearTimeout(safetyTimeout);
+        global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
+        resolve();
+    }
+   }
+ }); // 閉合 worker.on('message') 閘門
+ 
+ // 【結構修正點】：移除原先多餘的 }); 閉合，讓主線程的邏輯能一路平滑暢流延伸到下方的心跳定時器與外層的大型 try-catch 區塊
+
   
   const heartbeatTimer = setInterval(() => {
     if (isFinished) return clearInterval(heartbeatTimer);
