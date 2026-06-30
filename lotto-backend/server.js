@@ -441,66 +441,86 @@ if (isMainThread) {
      const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: 0 } });
      workers.push(worker);
      
-     let totalCollisionAttempts = 0; // 全域碰撞計數器，消滅死鎖空轉
+ let totalCollisionAttempts = 0; // 全域碰撞計數器，消滅死鎖空轉
 
-     worker.on('message', (msg) => {
-         if (isFinished) return;
-         if (msg.type === 'FOUND_ONE_STREAM') {
-             if (finalOutputCombs.length >= pickLimit) return; // 動態限制 1 到 100 組邊界
-             const newComb = msg.data.map(Number);
-             liveScannedCount++;
+ worker.on('message', (msg) => {
+     if (isFinished) return;
+     if (msg.type === 'FOUND_ONE_STREAM') {
+         if (finalOutputCombs.length >= pickLimit) return; // 動態限制 1 到 100 組邊界
+
+         const newComb = msg.data.map(Number);
+         liveScannedCount++;
+         
+         // 【進度條即時銜接】：實時精準推送數據與真實百分比，瓦解 15% 常態卡死裝死
+         let calculatedPercent = Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100));
+         res.write(JSON.stringify({ 
+             isProgress: true, 
+             percent: calculatedPercent === 0 ? 5 : calculatedPercent, // 破除 0% 盲點
+             currentMatch: finalOutputCombs.length 
+         }) + "\n");
+         
+         // 【提速機理二：位元遮罩相交】
+         let currentMask = 0n;
+         newComb.forEach(num => { currentMask |= (1n << BigInt(num)); });
+         
+         let isCrossGroupConflict = false;
+         for (let historicalMask of allCompletedBitmasks) {
+             let intersectMask = currentMask & historicalMask;
+             let count = 0;
+             let temp = intersectMask;
+             while (temp > 0n) { if (temp & 1n) count++; temp >>= 1n; }
              
-             // 【進度條即時銜接】：實時精準推送數據與真實百分比，瓦解 15% 常態卡死裝死
-             let calculatedPercent = Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100));
-             res.write(JSON.stringify({ 
-                 isProgress: true, 
-                 percent: calculatedPercent === 0 ? 5 : calculatedPercent, // 破除 0% 盲點
-                 currentMatch: finalOutputCombs.length 
-             }) + "\n");
+             // 👑【大樂透/539 雙向自癒分流器】
+             // 基礎判定：539（39選5）常態跨組限制重複 ≤3 碼；大樂透（49選6）號碼基數與組合膨脹度高，常態跨組限制重複 ≤4 碼
+             let baseAllowed = (mainLottoType === "49_6") ? 4 : 3;
              
-             // 【提速機理二：位元遮罩相交】
-             let currentMask = 0n;
-             newComb.forEach(num => { currentMask |= (1n << BigInt(num)); });
+             // 當設定組數逼近極限（1-100組常態卡死硬點）或防線過度緊縮時，依碰撞次數動態解鎖
+             let triggerLimit1 = (mainLottoType === "49_6") ? 1800 : 1000;
+             let triggerLimit2 = (mainLottoType === "49_6") ? 3500 : 2200;
              
-             let isCrossGroupConflict = false;
-             for (let historicalMask of allCompletedBitmasks) {
-                 let intersectMask = currentMask & historicalMask;
-                 let count = 0;
-                 let temp = intersectMask;
-                 while (temp > 0n) { if (temp & 1n) count++; temp >>= 1n; }
-                 
-                 // 【動態調解閘】：常態下跨組限重複 3 碼。若碰撞次數逼近球池乾涸極限 (大於3000次)，
-                 // 系統會自動啟動「自癒降級放行晶片」，放寬相交限制為 4 碼，徹底砸碎 1-100 組吐不出來的硬點！
-                 let allowedOverlap = totalCollisionAttempts > 3000 ? 4 : 3;
-                 if (count > allowedOverlap) { isCrossGroupConflict = true; break; }
-             }
-             if (isCrossGroupConflict) {
-                 totalCollisionAttempts++;
-                 return;
-             }
-             
-             // 關卡 B：當前大組內部彩球物理互斥審查
-             const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
-             let isInsideGroupConflict = false;
-             for (let ball of nonFavBalls) {
-                 if (currentBigGroupUsedBallsSet.has(ball)) { isInsideGroupConflict = true; break; }
-             }
-             
-             // 自癒降級：若在大組內部互斥碰撞率過高導致斷流，一樣在超載時予以部分放行
-             if (isInsideGroupConflict && totalCollisionAttempts < 5000) { 
-                 totalCollisionAttempts++;
-                 return; 
+             let allowedOverlap = baseAllowed;
+             if (totalCollisionAttempts > triggerLimit2) {
+                 allowedOverlap = baseAllowed + 2; // 深度乾涸時，降級放寬門檻 2 碼
+             } else if (totalCollisionAttempts > triggerLimit1) {
+                 allowedOverlap = baseAllowed + 1; // 中度卡頓時，降級放寬門檻 1 碼
              }
              
-             // 雙重關卡通過，錄取鎖定並重置計數器
-             totalCollisionAttempts = 0;
-             nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
-             allCompletedBitmasks.push(currentMask);
-             
-             const nextIndex = finalOutputCombs.length + 1;
-             const indexStr = String(nextIndex).padStart(2, '0');
-             const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
-             const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
+             if (count > allowedOverlap) { isCrossGroupConflict = true; break; }
+         }
+         
+         if (isCrossGroupConflict) {
+             totalCollisionAttempts++;
+             // 【動態大組球池刷新閾值】：539 彩球數少，每 400 次碰撞即重置；大樂透球數多，每 700 次碰撞重置，確保任何彩種永不卡死
+             let resetThreshold = (mainLottoType === "49_6") ? 700 : 400;
+             if (totalCollisionAttempts % resetThreshold === 0) {
+                 currentBigGroupUsedBallsSet.clear();
+             }
+             return;
+         }
+         
+         // 關卡 B：當前大組內部彩球物理互斥審查
+         const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
+         let isInsideGroupConflict = false;
+         for (let ball of nonFavBalls) {
+             if (currentBigGroupUsedBallsSet.has(ball)) { isInsideGroupConflict = true; break; }
+         }
+         
+         // 自癒降級：如果連續碰撞次數超過 2000 次，直接放寬無視大組內互斥，強行放行出牌，消滅斷流黑洞
+         if (isInsideGroupConflict && totalCollisionAttempts < 2000) { 
+             totalCollisionAttempts++;
+             return; 
+         }
+         
+         // 雙重關卡通過，錄取鎖定並重置全域計數器
+         totalCollisionAttempts = 0;
+         nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
+         allCompletedBitmasks.push(currentMask);
+         
+         const nextIndex = finalOutputCombs.length + 1;
+         const indexStr = String(nextIndex).padStart(2, '0');
+         const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
+         const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
+
              
              finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
              allCompletedGroupsList.push(newComb);
