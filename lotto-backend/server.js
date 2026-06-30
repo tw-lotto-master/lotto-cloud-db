@@ -684,8 +684,7 @@ if (!isMainThread) {
 
      while (true) {
          subThreadThrottleCounter++;
-         // 核心控速自癒控製：子線程每瘋狂空轉盲抽 800 次，強制利用 setImmediate 讓出 CPU 主控權，
-         // 完美給 IPC 通訊艙提供喘息換氣孔，徹底火化 512MB 記憶體耗盡（OOM Failed）伺服器死機的黑洞！
+         // 核心控速自癒控製：子線程每瘋狂空轉盲抽 800 次，強制利用 setImmediate 讓出 CPU 主控權
          if (subThreadThrottleCounter % 800 === 0) {
              await new Promise(resolve => setImmediate(resolve));
              subThreadThrottleCounter = 0;
@@ -704,12 +703,17 @@ if (!isMainThread) {
          if (isGeneSurvive(combination)) {
              parentPort.postMessage({ type: 'FOUND_ONE_STREAM', data: combination });
              
-             // 提速降壓：只要成功錄取上報 1 組，子線程主動微米級休眠，防止短時間擠壓高頻通訊物件導致記憶體蒸發
+             // 提速降壓：主動微米級休眠，防止短時間擠壓高頻通訊物件導致記憶體蒸發
              await new Promise(resolve => setTimeout(resolve, 1));
          }
      }
+     // ====== 【100% 修正語法黑洞】：補回缺失的子線程內核 try-catch 閉合總閘門 ======
+     } catch (err) {
+         console.error("子線程內部通訊崩潰自癒攔截：", err);
+     }
  })(); // 閉合自執行異步沙盒 🛡
 }
+
 
 
 
