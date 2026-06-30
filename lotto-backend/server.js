@@ -241,8 +241,10 @@ if (isMainThread) {
   }
 
   // ─── 啟動全案最高核心海選引擎 ───
-  app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) => {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+ // ─── 啟動全案最高核心海選引擎 ───
+ // 👑【大小寫極速通電自癒】：將大寫 Lottery 導正為完全體小寫 lottery，與前端 333 發射艙點對點物理對齊，瞬間通車！
+ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) => {
+     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Transfer-Encoding', 'chunked');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
