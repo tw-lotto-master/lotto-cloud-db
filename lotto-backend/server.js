@@ -464,10 +464,6 @@ if (isMainThread) {
  if (finalOutputCombs.length >= pickLimit || isPoolExhausted) {
  // 【集滿即殺自癒】：滿足組數立刻終止單水管，擊碎 5 分鐘超時 🎯
 
- 
- // 【集滿即殺自癒】：滿足組數立刻終止單水管，擊碎 5 分鐘超時 🎯
-
-        if (finalOutputCombs.length >= pickLimit) {
           // 📊 【內存監控日誌回歸】：在大竣工秒殺 Worker 的一瞬間，列印最真實的水位健康度
           const currentMem = process.memoryUsage();
           console.log(`[中繼站日誌] 完美集滿指定產量 ${pickLimit} 組！當前常駐記憶體 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]。下達強行拔插頭指令！`);
