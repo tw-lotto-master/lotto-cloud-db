@@ -628,17 +628,31 @@ if (!isMainThread) {
  
     function isGeneSurvive(comb) {
       if (f1_on && f1_set.size > 0) { for (let num of comb) { if (f1_set.has(num)) return false; } }
-      if (f5_on) {
-        let odds = 0; for (let num of comb) { if (num % 2 !== 0) odds++; }
-        let evens = pickCount - odds;
-        if (lottoType === "49_6") {
-          if (cfg.f5_lotto_60 && (odds === 6 || evens === 6)) return false;
-          if (cfg.f5_lotto_51 && (odds === 5 || evens === 5)) return false;
-        } else {
-          if (cfg.f5_539_50 && (odds === 5 || evens === 5)) return false;
-          if (cfg.f5_539_41 && (odds === 4 || evens === 4)) return false;
+             // 👑【條件 5：奇偶比例失衡防線（100% 導正還原）】：動態區分大樂透 6:0/5:1 與 539 5:0/4:1
+        if (f5_on) {
+            let odds = 0; 
+            for (let num of comb) { if (num % 2 !== 0) odds++; }
+            let evens = pickCount - odds;
+            
+            if (lottoType === "49_6") {
+                if ((cfg.f5_lotto_60 === true || cfg.f5_lotto_60 === 'true') && (odds === 6 || evens === 6)) return false;
+                if ((cfg.f5_lotto_51 === true || cfg.f5_lotto_51 === 'true') && (odds === 5 || evens === 5)) return false;
+            } else {
+                if ((cfg.f5_539_50 === true || cfg.f5_539_50 === 'true') && (odds === 5 || evens === 5)) return false;
+                if ((cfg.f5_539_41 === true || cfg.f5_539_41 === 'true') && (odds === 4 || evens === 4)) return false;
+            }
         }
-      }
+        
+        // 👑【條件 3：分區分布段過濾防線（100% 導正還原，移至此處緊接排好）】：大樂透以10分區、539以8分區，精確判斷
+        if (f3_on) {
+            let zoneSet = new Set(); 
+            let divisor = (lottoType === "49_6") ? 10 : 8;
+            comb.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
+            
+            let requiredZoneCount = Number(cfg.f3_count) || 4;
+            if (zoneSet.size !== requiredZoneCount) return false;
+        }
+
       if (f11_on) {
         let midPoint = lottoType === "49_6" ? 25 : 20; let bigCount = 0;
         for (let num of comb) { if (num >= midPoint) bigCount++; }
@@ -668,15 +682,11 @@ if (!isMainThread) {
         let pCount = 0; for (let num of comb) { if (primes.includes(num)) pCount++; }
         if ((cfg.f14_kill || cfg.f14_kill === 'true') && pCount >= 4) return false;
       }
-      if (f4_on) {
-        let tails = new Array(10).fill(0); comb.forEach(num => tails[num % 10]++);
-        if (Math.max(...tails) > (Number(cfg.f4_max) || 2)) return false;
-      }
-      if (f3_on) {
-        let zoneSet = new Set(); let divisor = lottoType === "49_6" ? 10 : 8;
-        comb.forEach(num => zoneSet.add(Math.min(5, Math.ceil(num / divisor))));
-        if (zoneSet.size !== (Number(cfg.f3_count) || 4)) return false;
-      }
+ if (f4_on) {
+     let tails = new Array(10).fill(0); 
+     comb.forEach(num => tails[num % 10]++);
+     if (Math.max(...tails) > (Number(cfg.f4_max) || 2)) return false;
+ }
       if (f10_on && lastPeriod.length > 0) {
         let repCount = 0; for (let num of comb) { if (lastPeriod.includes(num)) repCount++; }
         if (repCount > (Number(cfg.f10_max) || 2)) return false;
