@@ -375,18 +375,19 @@ if (isMainThread) {
   const innerLottoType = mainLottoType;
   const innerPickCount = mainPickCount;
 
-  // 🚀 【提速機理三：源源數位洗滌】：強制全面字串型態洗成純數字，粉碎判定自殺點
-  const mineBalls = cfg.f1_set ? Array.from(cfg.f1_set).map(Number) : [];
-  const favBalls = cfg.vip_fav_on && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
-  
-  let initialValidBalls = Array.from({ length: mainMaxBall }, (_, i) => i + 1).filter(b => !mineBalls.includes(b));
-  let availableBallsForWheel = initialValidBalls.filter(b => !favBalls.includes(b));
-  const availableSlotsPerGroup = mainPickCount - favBalls.length;
-  
-  const singleBigGroupLimit = availableSlotsPerGroup > 0 ? Math.floor(availableBallsForWheel.length / availableSlotsPerGroup) : 1;
-  console.log(`[數學算力宣佈] 本期剪除後合法互斥球數: ${availableBallsForWheel.length} 顆。宣告單一物理大組極限產能 = [ ${singleBigGroupLimit} ] 組！`);
-  
-  let currentBigGroupUsedBallsSet = new Set();
+ const mineBalls = (cfg.f1_on === true || cfg.f1_on === 'true') && cfg.f1_set ? Array.from(cfg.f1_set).map(Number) : [];
+ // 補丁修正：必須前端有打勾，且有填寫號碼，才允許動用喜愛號。沒打勾時一律視為無號，杜絕誤判！
+ const favBalls = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true') && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
+ 
+ let initialValidBalls = Array.from({ length: mainMaxBall }, (_, i) => i + 1).filter(b => !mineBalls.includes(b));
+ let availableBallsForWheel = initialValidBalls.filter(b => !favBalls.includes(b));
+ const availableSlotsPerGroup = mainPickCount - favBalls.length;
+ 
+ const singleBigGroupLimit = availableSlotsPerGroup > 0 ? Math.floor(availableBallsForWheel.length / availableSlotsPerGroup) : 1;
+ console.log(`[數學算力宣佈] 本期剪除後合法互斥球數: ${availableBallsForWheel.length} 顆。宣告單一物理大組極限產能 = [ ${singleBigGroupLimit} ] 組！`);
+ 
+ let currentBigGroupUsedBallsSet = new Set();
+
   const allCompletedGroupsList = [];
   const allCompletedBitmasks = []; // 🚀 【提速機理二】：位元遮罩歷史牆控制
 
@@ -412,32 +413,25 @@ if (isMainThread) {
  if (msg.type === 'FOUND_ONE_STREAM') {
  const newComb = msg.data.map(Number);
  liveScannedCount++;
- 
  // 1. 通過 15 大防線的號碼實時上報，直接注入有效生存池列表
  allCompletedGroupsList.push(newComb);
- 
  // 2. 前端進度條隨有效池滿載率實時前進，不再卡在 14%
  let currentProgressPercent = Math.min(95, Math.floor((allCompletedGroupsList.length / (pickLimit * 3)) * 100));
  if (currentProgressPercent < 15) currentProgressPercent = 15; // 破除冷啟動盲點
- 
  res.write(JSON.stringify({ 
  isProgress: true, 
  percent: currentProgressPercent, 
  currentMatch: finalOutputCombs.length 
  }) + "\n");
- 
  // 3. 收集到足夠的候選有效號後，在乾淨的有效池中執行「聰明包牌二次大重組」
- if (allCompletedGroupsList.length >= pickLimit * 2 || liveScannedCount > 5000) {
+ if (allCompletedGroupsList.length >= pickLimit * 2 || liveScannedCount > 3000) {
  finalOutputCombs.length = 0; // 清空重新排程
  let globalUniqueSet = new Set();
  let currentBigGroupUsedBallsSet = new Set();
- 
  for (let candidate of allCompletedGroupsList) {
  if (finalOutputCombs.length >= pickLimit) break;
- 
  const combKey = candidate.join(',');
  if (globalUniqueSet.has(combKey)) continue;
- 
  // 如果選取聰明包牌，執行大組內彩球完全互斥審查
  if (cfg.vipMode === 'smart') {
  const nonFavBalls = candidate.filter(num => !favBalls.includes(num));
@@ -449,21 +443,27 @@ if (isMainThread) {
  }
  }
  if (isInsideGroupConflict) continue; // 有衝突則跳過，不砸碎淘汰候選號
- 
  nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
- if (currentBigGroupUsedBallsSet.size >= (singleBigGroupLimit * availableSlotsPerGroup)) {
+ 
+ // 【補丁修正】：廢除錯誤的彩球數量累加判定。
+ // 改用最無誤的產能階梯判定：只要當前包牌成功的組數剛好填滿了大組天花板，桶子立刻強制重生，絕不在第 31 組斷流！
+ if ((finalOutputCombs.length + 1) % singleBigGroupLimit === 0) {
  currentBigGroupUsedBallsSet.clear(); // 物理重生球池
  }
  }
- 
  globalUniqueSet.add(combKey);
  const nextIndex = finalOutputCombs.length + 1;
  const indexStr = String(nextIndex).padStart(2, '0');
  const formatted = candidate.map(n => String(n).padStart(2, '0')).join(', ');
  const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
- finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
+ finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : \n${formatted}\n`);
  }
  }
+ // 【智慧自癒熔斷閘】：如果算力在當前可用球池已遍歷到極限（例如全沒勾條件下數學極限實質只有 31 組），強制交卷，把現有 31 組直接噴出，粉碎 94% 卡死！
+ const isPoolExhausted = (liveScannedCount > 3000 && finalOutputCombs.length > 0 && finalOutputCombs.length === globalUniqueSet.size);
+ if (finalOutputCombs.length >= pickLimit || isPoolExhausted) {
+ // 【集滿即殺自癒】：滿足組數立刻終止單水管，擊碎 5 分鐘超時 🎯
+
  
  // 【集滿即殺自癒】：滿足組數立刻終止單水管，擊碎 5 分鐘超時 🎯
 
@@ -541,17 +541,17 @@ const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
         });
     }
     
-    let lastPeriod = (historyDB.length > 0 && Array.isArray(historyDB[historyDB.length - 1])) ? historyDB[historyDB.length - 1].map(Number) : [];
-    const neighborSet = new Set();
-    let range = parseInt(cfg.f9_range, 10) || 1;
-    lastPeriod.forEach(val => { for (let d = -range; d <= range; d++) { if (d !== 0) neighborSet.add(val + d); } });
-
- // 🚀 【提速機理三】：強制全面將字串集合洗成純數字 Set，徹底消滅 includes 的型態自殺錯位！
- const f1_set = new Set((cfg.f1_set || []).map(Number));
- const vipFavSet = new Set((cfg.vip_fav_set || []).map(Number));
-
- // 🚀 【提速機理一：階梯式物理過濾網】：將微秒級高篩選率條件置頂，重型大運算放到底部，提速百倍！
+ let lastPeriod = (historyDB.length > 0 && Array.isArray(historyDB[historyDB.length - 1])) ? historyDB[historyDB.length - 1].map(Number) : [];
+ const neighborSet = new Set();
+ let range = parseInt(cfg.f9_range, 10) || 1;
+ lastPeriod.forEach(val => { for (let d = -range; d <= range; d++) { if (d !== 0) neighborSet.add(val + d); } });
+ // 【提速機理三】：強制全面將字串集合洗成純數字 Set，徹底消滅 includes 的型態自殺錯位！
+ const f1_set = new Set((cfg.f1_on === true || cfg.f1_on === 'true') && cfg.f1_set ? Array.from(cfg.f1_set).map(Number) : []);
+ // 補丁修正：子線程開關同步強制鎖定，只有前端點擊勾選，子線程內部防線才吃這個號碼！
+ const vipFavSet = new Set((cfg.vip_fav_on === true || cfg.vip_fav_on === 'true') && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : []);
+ // 【提速機理一：階梯式物理過濾網】：將微秒級高篩選率條件置頂，重型大運算放到底部，
  function isGeneSurvive(comb) {
+
    // 關卡 01：地雷號過濾 (極速剪除)
    if (f1_on && f1_set.size > 0) { for (let num of comb) { if (f1_set.has(num)) return false; } }
 
