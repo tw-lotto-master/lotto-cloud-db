@@ -408,33 +408,22 @@ if (isMainThread) {
     const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: 0 } });
     workers.push(worker);
     
+ // 補丁修正：宣告常駐的大組彩球互斥桶，絕不在通訊過程中被歸零清空
+ let currentBigGroupUsedBallsSet = new Set();
+ 
  worker.on('message', (msg) => {
  if (isFinished) return;
  if (msg.type === 'FOUND_ONE_STREAM') {
  const newComb = msg.data.map(Number);
  liveScannedCount++;
- // 1. 通過 15 大防線的號碼實時上報，直接注入有效生存池列表
- allCompletedGroupsList.push(newComb);
- // 2. 前端進度條隨有效池滿載率實時前進，不再卡在 14%
- let currentProgressPercent = Math.min(95, Math.floor((allCompletedGroupsList.length / (pickLimit * 3)) * 100));
- if (currentProgressPercent < 15) currentProgressPercent = 15; // 破除冷啟動盲點
- res.write(JSON.stringify({ 
- isProgress: true, 
- percent: currentProgressPercent, 
- currentMatch: finalOutputCombs.length 
- }) + "\n");
- // 3. 收集到足夠的候選有效號後，在乾淨的有效池中執行「聰明包牌二次大重組」
- if (allCompletedGroupsList.length >= pickLimit * 2 || liveScannedCount > 3000) {
- finalOutputCombs.length = 0; // 清空重新排程
- let globalUniqueSet = new Set();
- let currentBigGroupUsedBallsSet = new Set();
- for (let candidate of allCompletedGroupsList) {
- if (finalOutputCombs.length >= pickLimit) break;
- const combKey = candidate.join(',');
- if (globalUniqueSet.has(combKey)) continue;
- // 如果選取聰明包牌，執行大組內彩球完全互斥審查
+ 
+ // 關卡 A：6 碼絕對防重閘 ── 只要總輸出池裡有過一模一樣的 6 碼，直接濾除
+ const combKey = newComb.join(',');
+ if (globalUniqueSet.has(combKey)) return;
+ 
+ // 關卡 B：選取聰明包牌（Smart）時，大組內部彩球完全互斥審查
  if (cfg.vipMode === 'smart') {
- const nonFavBalls = candidate.filter(num => !favBalls.includes(num));
+ const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
  let isInsideGroupConflict = false;
  for (let ball of nonFavBalls) {
  if (currentBigGroupUsedBallsSet.has(ball)) { 
@@ -442,26 +431,39 @@ if (isMainThread) {
  break; 
  }
  }
- if (isInsideGroupConflict) continue; // 有衝突則跳過，不砸碎淘汰候選號
- nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
+ // 如果新號碼與當前大組的剩餘彩球發生互斥衝突，直接跳過，等待下一組有緣的號碼進桶
+ if (isInsideGroupConflict) return;
  
- // 【補丁修正】：廢除錯誤的彩球數量累加判定。
- // 改用最無誤的產能階梯判定：只要當前包牌成功的組數剛好填滿了大組天花板，桶子立刻強制重生，絕不在第 31 組斷流！
- if ((finalOutputCombs.length + 1) % singleBigGroupLimit === 0) {
- currentBigGroupUsedBallsSet.clear(); // 物理重生球池
+ // 通過互斥，將彩球鎖定進當前大組
+ nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
  }
- }
+ 
+ // 雷打不動的線性累加！絕不重置清空 finalOutputCombs，粉碎 31 組斷流黑洞
  globalUniqueSet.add(combKey);
  const nextIndex = finalOutputCombs.length + 1;
  const indexStr = String(nextIndex).padStart(2, '0');
- const formatted = candidate.map(n => String(n).padStart(2, '0')).join(', ');
+ const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
  const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
- finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : \n${formatted}\n`);
+ finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
+ 
+ // 產能階梯球池重生機制：只要當前成功的組數剛好抵達大組邊界（例如 8 組、16 組、24 組），當前大組大竣工，桶子立刻強制重洗！
+ if (cfg.vipMode === 'smart' && nextIndex % singleBigGroupLimit === 0) {
+ currentBigGroupUsedBallsSet.clear(); 
  }
- }
- // 【智慧自癒熔斷閘】：如果算力在當前可用球池已遍歷到極限（例如全沒勾條件下數學極限實質只有 31 組），強制交卷，把現有 31 組直接噴出，粉碎 94% 卡死！
- const isPoolExhausted = (liveScannedCount > 3000 && finalOutputCombs.length > 0 && finalOutputCombs.length === globalUniqueSet.size);
- if (finalOutputCombs.length >= pickLimit || isPoolExhausted) {
+ 
+ // 前端進度條隨實際產出的組數（0 ~ 56組）實時前進，咬合對齊 🏎
+ let currentProgressPercent = Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100));
+ if (currentProgressPercent < 5) currentProgressPercent = 5;
+ 
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: currentProgressPercent, 
+ currentMatch: finalOutputCombs.length 
+ }) + "\n");
+ 
+ // 【集滿即殺自癒】：滿足組數（56組）立刻終止單水管，衝向 100% 大竣工交付！ 🎯
+ if (finalOutputCombs.length >= pickLimit) {
+
  // 【集滿即殺自癒】：滿足組數立刻終止單水管，擊碎 5 分鐘超時 🎯
 
           // 📊 【內存監控日誌回歸】：在大竣工秒殺 Worker 的一瞬間，列印最真實的水位健康度
