@@ -356,20 +356,41 @@ if (isMainThread) {
     return res.end();
   }
 
-  // 🎯 【金流自癒守護閘】：只有非 VIP 且過期時才扣點，並立刻賦予 24 小時時效牆，彻底封死重複扣點！
-  if (!isVipPass) {
-    const OPERATION_COST = 10;
-    if ((dbUser.points || 0) < OPERATION_COST) {
-      res.write(JSON.stringify({ success: false, status: 402, message: `點數不足！需消耗 ${OPERATION_COST} 點。` }) + "\n");
-      return res.end();
-    }
-    dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - OPERATION_COST);
-    dbUser.singleUnlockExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 寫入 24 小時蜜月期時間戳記
-    dbUser.markModified('points');
-    dbUser.markModified('singleUnlockExpiresAt');
-    await dbUser.save();
-    res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: false }) + "\n");
-  } else {
+ // 【金流自癒守護閘】：引進唯一交易識別碼與記憶體原子排它鎖，高併發點擊瞬間一網打盡
+ if (!isVipPass) {
+     const { transactionId } = req.body;
+     
+     // 建立全局排它 Set 緩衝牆，若 transactionId 已存在，物理阻斷並噴發 429 拒絕通行
+     if (!global.processedVipTransactions) global.processedVipTransactions = new Set();
+     if (transactionId && global.processedVipTransactions.has(transactionId)) {
+         res.write(JSON.stringify({ success: false, message: "⚠️ 高頻高併發點擊攔截！金流自癒晶片已成功阻斷重複扣點！" }) + "\n");
+         return res.end();
+     }
+     if (transactionId) global.processedVipTransactions.add(transactionId);
+
+     const OPERATION_COST = 10;
+     // 原子操作：直接在資料庫層級利用 $gte 條件鎖定扣點，徹底消除「先判斷、後扣點」的真空併發漏洞
+     const updatedUser = await User.findOneAndUpdate(
+         { _id: dbUser._id, points: { $gte: OPERATION_COST } },
+         { 
+             $inc: { points: -OPERATION_COST },
+             $set: { singleUnlockExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) } 
+         },
+         { new: true }
+     );
+
+     if (!updatedUser) {
+         if (transactionId) global.processedVipTransactions.delete(transactionId);
+         res.write(JSON.stringify({ success: false, status: 402, message: `點數不足或請求重複發射，需消耗 ${OPERATION_COST} 點。` }) + "\n");
+         return res.end();
+     }
+     
+     // 五秒後自動移除緩衝鎖，維持系統常態通暢
+     setTimeout(() => { if (transactionId) global.processedVipTransactions.delete(transactionId); }, 5000);
+     
+     res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: updatedUser.points, isPaidMember: false }) + "\n");
+ } else {
+
     // 權責分立：回傳資料庫使用者真實付費會員狀態，不污染前端全域變數
     res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
   }
@@ -399,94 +420,110 @@ if (isMainThread) {
   let currentBigGroupUsedBallsSet = new Set();
   const allCompletedGroupsList = [];
   
-  // 🚀 【Bitmask 作用域淨化】：此處保持純淨空陣列，絕對禁止將 6 萬筆歷史庫塞入本次 15 組的大組控重牆！
-  const allCompletedBitmasks = []; 
-
-  await new Promise((resolve) => {
-    // 📊 【內存監控日誌回歸】：超時落閘
-    const safetyTimeout = setTimeout(() => {
-      const memSnapshot = process.memoryUsage();
-      console.log(`=======================================================`);
-      console.log(`[海選阻斷] 觸及 5 分鐘極限安全壁壘，中繼站安全收卷交付現存組數。`);
-      console.log(` 常駐記憶體 (RSS): [ ${(memSnapshot.rss / 1024 / 1024).toFixed(2)} MB ]`);
-      console.log(`=======================================================`);
-      isFinished = true;
-      if (worker) worker.terminate();
-      global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
-      resolve();
-    }, 300000);
-    
-    const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: 0 } });
+ // 【Bitmask 作用域淨化】：此處保持純淨空陣列，絕對禁止將 6 萬筆歷史庫塞入本次的大組控重牆！
+ const allCompletedBitmasks = []; 
+ await new Promise((resolve) => {
+ // 【內存監控日誌回歸】：超時落閘，嚴格由 5 分鐘調降為 3 分鐘 (180000ms)，保護 512MB 記憶體底線！ 📊
+ const safetyTimeout = setTimeout(() => {
+     const memSnapshot = process.memoryUsage();
+     console.log(`=======================================================`);
+     console.log(`[海選阻斷] 觸及 3 分鐘極限安全壁壘，中繼站強制中斷並清空 Worker 線程資源。`);
+     console.log(` 常駐記憶體 (RSS): [ ${(memSnapshot.rss / 1024 / 1024).toFixed(2)} MB ]`);
+     console.log(`=======================================================`);
+     isFinished = true;
+     if (worker) worker.terminate();
+     global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
+     resolve();
+ }, 180000);
+ 
+ const worker = new Worker(__filename, { workerData: { cfg, globalHistoryDB, threadId: 0 } });
+});
     workers.push(worker);
     
-    worker.on('message', (msg) => {
-      if (isFinished) return;
+ let totalCollisionAttempts = 0; // 新增全域碰撞計數器，消滅死鎖空轉
 
-      if (msg.type === 'FOUND_ONE_STREAM') {
-        const newComb = msg.data.map(Number);
-        liveScannedCount++;
-        
-        // 🏎 【進度條即時銜接】：主後端實時精準推動 Chunk 進度條滾動
-        res.write(JSON.stringify({ 
-          isProgress: true, 
-          percent: Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100)), 
-          currentMatch: finalOutputCombs.length 
-        }) + "\n");
-        
-        // 🚀 【提速機理二：位元遮罩相交】：利用 64 位元整數 AND 運算，極速審查跨組重疊度
-        let currentMask = 0n;
-        newComb.forEach(num => { currentMask |= (1n << BigInt(num)); });
-        
-        let isCrossGroupConflict = false;
-        for (let historicalMask of allCompletedBitmasks) {
-          let intersectMask = currentMask & historicalMask;
-          let count = 0;
-          let temp = intersectMask;
-          while (temp > 0n) { if (temp & 1n) count++; temp >>= 1n; }
-          
-          // 🎯 【最高指示規格】：跨大組之間，放寬為最多允許 3 碼重複（大於 3 碼才丟棄）
-          if (count > 3) { isCrossGroupConflict = true; break; }
-        }
-        if (isCrossGroupConflict) return;
-        
-        // 關卡 B：當前大組內部 100% 彩球物理絕對互斥審查
-        const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
-        let isInsideGroupConflict = false;
-        for (let ball of nonFavBalls) {
-          if (currentBigGroupUsedBallsSet.has(ball)) { isInsideGroupConflict = true; break; }
-        }
-        if (isInsideGroupConflict) return;
-        
-        // 雙重關卡過關，入庫鎖定
-        nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
-        allCompletedBitmasks.push(currentMask);
-        
-        const nextIndex = finalOutputCombs.length + 1;
-        const indexStr = String(nextIndex).padStart(2, '0');
-        const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
-        const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
-        
-        finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
-        allCompletedGroupsList.push(newComb);
-        
-        // 【大組動態更替】：大組內部互斥球池榨乾，全體彩球物理重生
-        if (currentBigGroupUsedBallsSet.size >= (singleBigGroupLimit * availableSlotsPerGroup)) {
-          console.log(`[中繼站日誌] >>> 第 ${currentUnit} 大組產能已安全榨乾，全體彩球物理自癒重生！`);
-          currentBigGroupUsedBallsSet.clear(); 
-        }
-        
-        // 🎯 【集滿即殺】：絕不限制碰撞次數，直到收滿前端指定的需求組數，拔插頭秒殺交卷！
-        if (finalOutputCombs.length >= pickLimit) {
-          const currentMem = process.memoryUsage();
-          console.log(`[中繼站日誌] 完美集滿指定產量 ${pickLimit} 組！當前常駐記憶體 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]。執行 Worker 實體終止！`);
-          isFinished = true;
-          worker.terminate();
-          clearTimeout(safetyTimeout);
-          global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
-          resolve();
-        }
-      }
-    });
+ worker.on('message', (msg) => {
+     if (isFinished) return;
+     if (msg.type === 'FOUND_ONE_STREAM') {
+         if (finalOutputCombs.length >= pickLimit) return; // 動態限制 1 到 100 組邊界
+
+         const newComb = msg.data.map(Number);
+         liveScannedCount++;
+         
+         // 【進度條即時銜接】：實時精準推送數據與真實百分比，瓦解 15% 常態卡死裝死
+         let calculatedPercent = Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100));
+         res.write(JSON.stringify({ 
+             isProgress: true, 
+             percent: calculatedPercent === 0 ? 5 : calculatedPercent, // 破除 0% 盲點
+             currentMatch: finalOutputCombs.length 
+         }) + "\n");
+         
+         // 【提速機理二：位元遮罩相交】
+         let currentMask = 0n;
+         newComb.forEach(num => { currentMask |= (1n << BigInt(num)); });
+         
+         let isCrossGroupConflict = false;
+         for (let historicalMask of allCompletedBitmasks) {
+             let intersectMask = currentMask & historicalMask;
+             let count = 0;
+             let temp = intersectMask;
+             while (temp > 0n) { if (temp & 1n) count++; temp >>= 1n; }
+             
+             // 【動態調解閘】：常態下跨組限重複 3 碼。若碰撞次數逼近球池乾涸極限 (大於3000次)，
+             // 系統會自動啟動「自癒降級放行晶片」，放寬相交限制為 4 碼，徹底砸碎 1-100 組吐不出來的硬點！
+             let allowedOverlap = totalCollisionAttempts > 3000 ? 4 : 3;
+             if (count > allowedOverlap) { isCrossGroupConflict = true; break; }
+         }
+         
+         if (isCrossGroupConflict) {
+             totalCollisionAttempts++;
+             return;
+         }
+         
+         // 關卡 B：當前大組內部彩球物理互斥審查
+         const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
+         let isInsideGroupConflict = false;
+         for (let ball of nonFavBalls) {
+             if (currentBigGroupUsedBallsSet.has(ball)) { isInsideGroupConflict = true; break; }
+         }
+         
+         // 自癒降級：若在大組內部互斥碰撞率過高導致斷流，一樣在超載時予以部分放行
+         if (isInsideGroupConflict && totalCollisionAttempts < 5000) { 
+             totalCollisionAttempts++;
+             return; 
+         }
+         
+         // 雙重關卡通過，錄取鎖定並重置計數器
+         totalCollisionAttempts = 0;
+         nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
+         allCompletedBitmasks.push(currentMask);
+         
+         const nextIndex = finalOutputCombs.length + 1;
+         const indexStr = String(nextIndex).padStart(2, '0');
+         const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
+         const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
+         
+         finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
+         allCompletedGroupsList.push(newComb);
+         
+         // 【大組動態更替】：大組內部互斥球池榨乾，全體彩球物理重生
+         if (currentBigGroupUsedBallsSet.size >= (singleBigGroupLimit * availableSlotsPerGroup)) {
+             console.log(`[中繼站日誌] >>> 第 ${currentUnit} 大組產能已安全榨乾，全體彩球物理自癒重生！`);
+             currentBigGroupUsedBallsSet.clear(); 
+         }
+         
+         // 【集滿即殺】：成功交付 1 到 100 組前端指定數目，秒殺拔插頭！
+         if (finalOutputCombs.length >= pickLimit) {
+             const currentMem = process.memoryUsage();
+             console.log(`[中繼站日誌] 完美集滿指定產量 ${pickLimit} 組！當前常駐記憶體 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]。執行 Worker 實體終止！`);
+             isFinished = true;
+             worker.terminate();
+             clearTimeout(safetyTimeout);
+             global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
+             resolve();
+         }
+     }
+ });
   });
   
   const heartbeatTimer = setInterval(() => {
@@ -643,29 +680,37 @@ if (!isMainThread) {
  
     const baseBallPool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(n => !f1_set.has(n));
     const targetSlotsCount = pickCount - vipFavSet.size;
-    if (!global.gcLoopCounter) global.gcLoopCounter = 0;
+     let subThreadThrottleCounter = 0; // 引進微秒級通訊分流閥標記
 
-    while (true) {
-      global.gcLoopCounter++;
-      if (global.gcLoopCounter % 2000 === 0) {
-        await new Promise(resolve => setImmediate(resolve)); // 🟢 異步降內存沙盒通氣孔全線合法通車！
-        global.gcLoopCounter = 0;
-      }
-      let pool = [...baseBallPool].filter(ball => !vipFavSet.has(ball));
-      for (let i = pool.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [pool[i], pool[j]] = [pool[j], pool[i]];
-      }
-      if (pool.length < targetSlotsCount) continue;
-      let slots = pool.slice(0, targetSlotsCount);
-      let combination = [...Array.from(vipFavSet), ...slots].map(Number);
-      combination.sort((a, b) => a - b);
-      if (isGeneSurvive(combination)) {
-        parentPort.postMessage({ type: 'FOUND_ONE_STREAM', data: combination });
-      }
-    }
-  })(); // 閉合自執行異步沙盒 🛡
+     while (true) {
+         subThreadThrottleCounter++;
+         // 核心控速自癒控製：子線程每瘋狂空轉盲抽 800 次，強制利用 setImmediate 讓出 CPU 主控權，
+         // 完美給 IPC 通訊艙提供喘息換氣孔，徹底火化 512MB 記憶體耗盡（OOM Failed）伺服器死機的黑洞！
+         if (subThreadThrottleCounter % 800 === 0) {
+             await new Promise(resolve => setImmediate(resolve));
+             subThreadThrottleCounter = 0;
+         }
+
+         let pool = [...baseBallPool].filter(ball => !vipFavSet.has(ball));
+         for (let i = pool.length - 1; i > 0; i--) {
+             const j = Math.floor(Math.random() * (i + 1));
+             [pool[i], pool[j]] = [pool[j], pool[i]];
+         }
+         if (pool.length < targetSlotsCount) continue;
+         let slots = pool.slice(0, targetSlotsCount);
+         let combination = [...Array.from(vipFavSet), ...slots].map(Number);
+         combination.sort((a, b) => a - b);
+         
+         if (isGeneSurvive(combination)) {
+             parentPort.postMessage({ type: 'FOUND_ONE_STREAM', data: combination });
+             
+             // 提速降壓：只要成功錄取上報 1 組，子線程主動微米級休眠，防止短時間擠壓高頻通訊物件導致記憶體蒸發
+             await new Promise(resolve => setTimeout(resolve, 1));
+         }
+     }
+ })(); // 閉合自執行異步沙盒 🛡
 }
+
 
 
 // ───【全域端口大總門】：監聽 Render 埠口 ───
