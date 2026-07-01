@@ -576,7 +576,7 @@ if (!isMainThread) {
     // 【第二階段：優先判定條件 1 與 16 基礎裁剪】
     // ==========================================
     const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
-    const f1_set = new Set(f1_on && cfg.f1_set ? cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n)) : []);
+    const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : []);
     const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
     const favBalls = vip_fav_on && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
     let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
