@@ -638,300 +638,304 @@ if (!isMainThread) {
     // ==========================================
     // 【第三階段】：過濾鏈由大到小排序 (高剃除率主力)
     // ==========================================
-    const filters = [];
+ const filters = [];
 
-    // 【關卡 05：奇偶比例動態防禦】
-    const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
-    if (f5_on) {
-        const isLotto = lottoType === "49_6";
-        const killAll = isLotto ? (cfg.f5_lotto_60 || false) : (cfg.f5_539_50 || false);
-        const killOneElement = isLotto ? (cfg.f5_lotto_51 || false) : (cfg.f5_539_41 || false);
-        const limit = isLotto ? 5 : 4;
-        filters.push({
-            exec: (comb) => {
-                let odds = 0, evens = 0;
-                const len = comb.length;
-                for (let m = 0; m < len; m++) {
-                    if ((comb[m] & 1) === 1) odds++; else evens++;
-                    if (killAll && !killOneElement && odds > 0 && evens > 0) { odds = -1; break; }
-                    if (killOneElement && (odds > limit || evens > limit)) return false;
-                }
-                if (odds !== -1) {
-                    if (killAll && (odds === len || evens === len)) return false;
-                    if (killOneElement && (odds === limit || evens === limit)) return false;
-                }
-                return true;
-            }
-        });
-    }
+ // ⚙️ 【極速最前線：關卡 02 ── 首尾邊界熱區檢查】(提權理由: 僅看頭尾兩碼, 0.1微秒完成, 剔除率超高)
+ const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
+ if (f2_on) {
+   const f2_min = Number(cfg.f2_min) || 15;
+   const f2_max = Number(cfg.f2_max) || 30;
+   filters.push({
+     id: 2,
+     exec: (comb) => {
+       if (comb[0] > f2_min) return false;
+       if (comb[comb.length - 1] < f2_max) return false;
+       return true;
+     }
+   });
+ }
 
-    // 【關卡 11：大小數比例分流】
-    const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
-    if (f11_on && (cfg.f11_kill || cfg.f11_kill === 'true')) {
-        const midPoint = lottoType === "49_6" ? 25 : 20;
-        filters.push({
-            exec: (comb) => {
-                const isFirstBig = comb[0] >= midPoint;
-                for (let i = 1; i < comb.length; i++) {
-                    if ((comb[i] >= midPoint) !== isFirstBig) break; 
-                    if (i === comb.length - 1) return false; 
-                }
-                return true;
-            }
-        });
-    }
+ // ⚙️ 【極速最前線：關卡 06 ── 號碼總和範圍】(提權理由: 純加法運算極快, 一鍵封殺大批極端數字)
+ const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
+ if (f6_on) {
+   const defaultLow = lottoType === "49_6" ? 110 : 70;
+   const defaultHigh = lottoType === "49_6" ? 210 : 130;
+   const f6_low = Number(cfg.f6_low) || defaultLow;
+   const f6_high = Number(cfg.f6_high) || defaultHigh;
+   filters.push({
+     id: 6,
+     exec: (comb) => {
+       const sumValue = comb.reduce((a, b) => a + b, 0);
+       return !(sumValue < f6_low || sumValue > f6_high);
+     }
+   });
+ }
 
-    // 【關卡 06：號碼總和範圍】
-    const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
-    if (f6_on) {
-        const defaultLow = lottoType === "49_6" ? 110 : 70;
-        const defaultHigh = lottoType === "49_6" ? 210 : 130;
-        const f6_low = Number(cfg.f6_low) || defaultLow;
-        const f6_high = Number(cfg.f6_high) || defaultHigh;
-        filters.push({
-            exec: (comb) => {
-                const sumValue = comb.reduce((a, b) => a + b, 0);
-                return !(sumValue < f6_low || sumValue > f6_high);
-            }
-        });
-    }
-    // 【關卡 03：五大物理區塊落點】
-    const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
-    if (f3_on) {
-        const targetCount = Number(cfg.f3_count) || 4;
-        const divisor = lottoType === "49_6" ? 10 : 8;
-        filters.push({
-            exec: (comb) => {
-                let zoneMask = 0, zoneSize = 0;
-                const len = comb.length;
-                for (let m = 0; m < len; m++) {
-                    let zone = (comb[m] + divisor - 1) / divisor | 0;
-                    if (zone > 5) zone = 5;
-                    const bit = 1 << zone;
-                    if ((zoneMask & bit) === 0) { zoneMask |= bit; zoneSize++; }
-                    if (zoneSize + (len - 1 - m) < targetCount) return false;
-                }
-                return zoneSize === targetCount;
-            }
-        });
-    }
+ // ⚙️ 【中階防線：關卡 11 ── 大小數比例分流】
+ const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
+ if (f11_on && (cfg.f11_kill || cfg.f11_kill === 'true')) {
+   const midPoint = lottoType === "49_6" ? 25 : 20;
+   filters.push({
+     id: 11,
+     exec: (comb) => {
+       const isFirstBig = comb[0] >= midPoint;
+       for (let i = 1; i < comb.length; i++) {
+         if ((comb[i] >= midPoint) !== isFirstBig) break; 
+         if (i === comb.length - 1) return false; 
+       }
+       return true;
+     }
+   });
+ }
 
-    // 【關卡 12：除三餘數 012 路】
-    const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
-    if (f12_on && (cfg.f12_kill || cfg.f12_kill === 'true')) {
-        filters.push({
-            exec: (comb) => {
-                let has0 = false, has1 = false, has2 = false;
-                for (let m = 0; m < comb.length; m++) {
-                    const rem = comb[m] % 3;
-                    if (rem === 0) has0 = true;
-                    else if (rem === 1) has1 = true;
-                    else has2 = true;
-                    if (has0 && has1 && has2) break; 
-                }
-                return (has0 && has1 && has2);
-            }
-        });
-    }
+ // ⚙️ 【中階防線：關卡 05 ── 奇偶比例動態防禦】
+ const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
+ if (f5_on) {
+   const isLotto = lottoType === "49_6";
+   const killAll = isLotto ? (cfg.f5_lotto_60 || false) : (cfg.f5_539_50 || false);
+   const killOneElement = isLotto ? (cfg.f5_lotto_51 || false) : (cfg.f5_539_41 || false);
+   const limit = isLotto ? 5 : 4;
+   filters.push({
+     id: 5,
+     exec: (comb) => {
+       let odds = 0, evens = 0;
+       const len = comb.length;
+       for (let m = 0; m < len; m++) {
+         if ((comb[m] & 1) === 1) odds++; else evens++;
+         if (killAll && !killOneElement && odds > 0 && evens > 0) { odds = -1; break; }
+         if (killOneElement && (odds > limit || evens > limit)) return false;
+       }
+       if (odds !== -1) {
+         if (killAll && (odds === len || evens === len)) return false;
+         if (killOneElement && (odds === limit || evens === limit)) return false;
+       }
+       return true;
+     }
+   });
+ }
 
-    // 【關卡 04：同尾數上限限制】
-    const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
-    if (f4_on) {
-        const targetMax = Number(cfg.f4_max) || 2;
-        filters.push({
-            exec: (comb) => {
-                const tails = new Uint8Array(10); 
-                for (let m = 0; m < comb.length; m++) {
-                    const tail = comb[m] % 10;
-                    tails[tail]++;
-                    if (tails[tail] > targetMax) return false;
-                }
-                return true;
-            }
-        });
-    }
+ // ⚙️ 【結構防線：關卡 12 ── 除三餘數 012 路】
+ const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
+ if (f12_on && (cfg.f12_kill || cfg.f12_kill === 'true')) {
+   filters.push({
+     id: 12,
+     exec: (comb) => {
+       let has0 = false, has1 = false, has2 = false;
+       for (let m = 0; m < comb.length; m++) {
+         const rem = comb[m] % 3;
+         if (rem === 0) has0 = true;
+         else if (rem === 1) has1 = true;
+         else has2 = true;
+         if (has0 && has1 && has2) break; 
+       }
+       return (has0 && has1 && has2);
+     }
+   });
+ }
 
-    // 【關卡 07：連續號碼牆攔截】
-    const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
-    if (f7_on) {
-        const targetLen = Number(cfg.f7_len) || 3;
-        filters.push({
-            exec: (comb) => {
-                let currentSeq = 1;
-                for (let m = 1; m < comb.length; m++) {
-                    if (comb[m] === comb[m - 1] + 1) {
-                        currentSeq++;
-                        if (currentSeq >= targetLen) return false; 
-                    } else { currentSeq = 1; }
-                }
-                return true;
-            }
-        });
-    }
+ // ⚙️ 【結構防線：關卡 04 ── 同尾數上限限制】
+ const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
+ if (f4_on) {
+   const targetMax = Number(cfg.f4_max) || 2;
+   filters.push({
+     id: 4,
+     exec: (comb) => {
+       const tails = new Uint8Array(10); 
+       for (let m = 0; m < comb.length; m++) {
+         const tail = comb[m] % 10;
+         tails[tail]++;
+         if (tails[tail] > targetMax) return false;
+       }
+       return true;
+     }
+   });
+ }
 
-    // 【關卡 14：質數合數過濾】
-    const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
-    if (f14_on && (cfg.f14_kill || cfg.f14_kill === 'true')) {
-        const primes = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
-        filters.push({
-            exec: (comb) => {
-                let pCount = 0;
-                for (let m = 0; m < comb.length; m++) {
-                    if (primes.has(comb[m])) { pCount++; if (pCount >= 4) return false; }
-                }
-                return true;
-            }
-        });
-    }
+ // ⚙️ 【結構防線：關卡 07 ── 連續號碼牆攔截】
+ const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
+ if (f7_on) {
+   const targetLen = Number(cfg.f7_len) || 3;
+   filters.push({
+     id: 7,
+     exec: (comb) => {
+       let currentSeq = 1;
+       for (let m = 1; m < comb.length; m++) {
+         if (comb[m] === comb[m - 1] + 1) {
+           currentSeq++;
+           if (currentSeq >= targetLen) return false; 
+         } else { currentSeq = 1; }
+       }
+       return true;
+     }
+   });
+ }
 
-    // 【關卡 02：首尾邊界熱區檢查】
-    const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
-    if (f2_on) {
-        const f2_min = Number(cfg.f2_min) || 15;
-        const f2_max = Number(cfg.f2_max) || 30;
-        filters.push({
-            exec: (comb) => {
-                if (comb[0] > f2_min) return false;
-                if (comb[comb.length - 1] < f2_max) return false;
-                return true;
-            }
-        });
-    }
+ // ⚙️ 【結構防線：關卡 14 ── 質數合數過濾】
+ const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
+ if (f14_on && (cfg.f14_kill || cfg.f14_kill === 'true')) {
+   const primes = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
+   filters.push({
+     id: 14,
+     exec: (comb) => {
+       let pCount = 0;
+       for (let m = 0; m < comb.length; m++) {
+         if (primes.has(comb[m])) { pCount++; if (pCount >= 4) return false; }
+       }
+       return true;
+     }
+   });
+ }
 
-    // 【關卡 10：連莊號封殺】
-    const f10_on = (cfg.f10_on === true || cfg.f10_on === 'true');
-    if (f10_on && lastPeriod.length > 0) {
-        const targetMax = Number(cfg.f10_max) || 2;
-        filters.push({
-            exec: (comb) => {
-                let repCount = 0;
-                for (let m = 0; m < comb.length; m++) {
-                    if (lastPeriodSet.has(comb[m])) {
-                        repCount++;
-                        if (repCount > targetMax) return false;
-                    }
-                    if (repCount + (comb.length - 1 - m) <= targetMax) break;
-                }
-                return true;
-            }
-        });
-    }
+ // ⚙️ 【結構防線：關卡 03 ── 五大物理區塊落點】
+ const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
+ if (f3_on) {
+   const targetCount = Number(cfg.f3_count) || 4;
+   const divisor = lottoType === "49_6" ? 10 : 8;
+   filters.push({
+     id: 3,
+     exec: (comb) => {
+       let zoneMask = 0, zoneSize = 0;
+       const len = comb.length;
+       for (let m = 0; m < len; m++) {
+         let zone = (comb[m] + divisor - 1) / divisor | 0;
+         if (zone > 5) zone = 5;
+         const bit = 1 << zone;
+         if ((zoneMask & bit) === 0) { zoneMask |= bit; zoneSize++; }
+         if (zoneSize + (len - 1 - m) < targetCount) return false;
+       }
+       return zoneSize === targetCount;
+     }
+   });
+ }
 
-    // 【關卡 09：鄰號夾擊防線】
-    const f9_on = (cfg.f9_on === true || cfg.f9_on === 'true');
-    if (f9_on && neighborSet.size > 0) {
-        const targetMax = Number(cfg.f9_count) || 2;
-        filters.push({
-            exec: (comb) => {
-                let neiCount = 0;
-                const len = comb.length;
-                for (let m = 0; m < len; m++) {
-                    if (neighborSet.has(comb[m])) {
-                        neiCount++;
-                        if (neiCount > targetMax) return false;
-                    }
-                    if (neiCount + (len - 1 - m) <= targetMax) break;
-                }
-                return true;
-            }
-        });
-    }
+ // ⚙️ 【大數據防線：關卡 10 ── 連莊號封殺】
+ const f10_on = (cfg.f10_on === true || cfg.f10_on === 'true');
+ if (f10_on && lastPeriod.length > 0) {
+   const targetMax = Number(cfg.f10_max) || 2;
+   filters.push({
+     id: 10,
+     exec: (comb) => {
+       let repCount = 0;
+       for (let m = 0; m < comb.length; m++) {
+         if (lastPeriodSet.has(comb[m])) {
+           repCount++;
+           if (repCount > targetMax) return false;
+         }
+         if (repCount + (comb.length - 1 - m) <= targetMax) break;
+       }
+       return true;
+     }
+   });
+ }
 
-    // 【關卡 08：等差數字組構封鎖】
-    const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
-    if (f8_on) {
-        filters.push({
-            exec: (comb) => {
-                const limit = comb.length - 3;
-                for (let i = 0; i <= limit; i++) {
-                    const diff1 = comb[i + 1] - comb[i];
-                    if (diff1 >= 1 && diff1 <= 24 && diff1 === (comb[i + 2] - comb[i + 1])) return false;
-                }
-                return true;
-            }
-        });
-    }
+ // ⚙️ 【大數據防線：關卡 09 ── 鄰號夾擊防線】
+ const f9_on = (cfg.f9_on === true || cfg.f9_on === 'true');
+ if (f9_on && neighborSet.size > 0) {
+   const targetMax = Number(cfg.f9_count) || 2;
+   filters.push({
+     id: 9,
+     exec: (comb) => {
+       let neiCount = 0;
+       const len = comb.length;
+       for (let m = 0; m < len; m++) {
+         if (neighborSet.has(comb[m])) {
+           neiCount++;
+           if (neiCount > targetMax) return false;
+         }
+         if (neiCount + (len - 1 - m) <= targetMax) break;
+       }
+       return true;
+     }
+   });
+ }
 
-    // 【關卡 13：數字複雜度 AC 值雙重遍歷】
-    const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
-    if (f13_on) {
-        const targetMin = (Number(cfg.f13_min) || 6) + (pickCount - 1);
-        filters.push({
-            exec: (comb) => {
-                const len = comb.length;
-                const diffTable = new Uint8Array(80);
-                let diffCount = 0;
-                for (let m = 0; m < len; m++) {
-                    const numM = comb[m];
-                    for (let n = m + 1; n < len; n++) {
-                        const diff = comb[n] - numM; 
-                        if (diffTable[diff] === 0) { diffTable[diff] = 1; diffCount++; }
-                    }
-                    const remainingPairs = ((len - m - 1) * (len - m - 2)) / 2;
-                    if (diffCount + remainingPairs < targetMin) return false;
-                }
-                return diffCount >= targetMin;
-            }
-        });
-    }
+ // ⚙️ 【大數據防線：關卡 08 ── 等差數字組構封鎖】
+ const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
+ if (f8_on) {
+   filters.push({
+     id: 8,
+     exec: (comb) => {
+       const limit = comb.length - 3;
+       for (let i = 0; i <= limit; i++) {
+         const diff1 = comb[i + 1] - comb[i];
+         if (diff1 >= 1 && diff1 <= 24 && diff1 === (comb[i + 2] - comb[i + 1])) return false;
+       }
+       return true;
+     }
+   });
+ }
 
-    // ==========================================
-    // 【生存審查主閘門】
-    // ==========================================
-    // ========================================================
-    // 【局部點對點插入：16防線即時剃除率觀測儀】 ─── 🔬 🪙
-    // ========================================================
-    const killStats = new Uint32Array(16); // 0~15 關卡獨立死亡計數矩陣
-    let totalGeneratedTestCount = 0;      // 總隨機生成母體計數
+ // ⚙️ 【重型數學閘：關卡 13 ── 數字複雜度 AC 值雙重遍歷】(保留在最後：雙重迴圈開銷大)
+ const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
+ if (f13_on) {
+   const targetMin = (Number(cfg.f13_min) || 6) + (pickCount - 1);
+   filters.push({
+     id: 13,
+     exec: (comb) => {
+       const len = comb.length;
+       const diffTable = new Uint8Array(80);
+       let diffCount = 0;
+       for (let m = 0; m < len; m++) {
+         const numM = comb[m];
+         for (let n = m + 1; n < len; n++) {
+           const diff = comb[n] - numM; 
+           if (diffTable[diff] === 0) { diffTable[diff] = 1; diffCount++; }
+         }
+         const remainingPairs = ((len - m - 1) * (len - m - 2)) / 2;
+         if (diffCount + remainingPairs < targetMin) return false;
+       }
+       return diffCount >= targetMin;
+     }
+   });
+ }
 
-    // 每 5 秒鐘在後台控制台自動噴發一次【全條件算力剃除率觀測報告】
-    
+ // ========================================================
+ // 【生存審查主閘門：短路自癒引擎完全體】 ─── 🔬 🪙
+ // ========================================================
+ const killStats = new Uint32Array(16); // 0~15 關卡獨立死亡計數矩陣
+ let totalGeneratedTestCount = 0;       // 總計數
 
-    // 為現有 filters 陣列中的各個優化器晶片，動態綁定精密觀測 ID 指針
-    if (filters[0]) filters[0].id = 5;  // 奇偶
-    if (filters[1]) filters[1].id = 11; // 大小
-    if (filters[2]) filters[2].id = 6;  // 總和
-    if (filters[3]) filters[3].id = 3;  // 五大區塊
-    if (filters[4]) filters[4].id = 12; // 除三餘數
-    if (filters[5]) filters[5].id = 4;  // 同尾數
-    if (filters[6]) filters[6].id = 7;  // 連續號
-    if (filters[7]) filters[7].id = 14; // 質數
-    if (filters[8]) filters[8].id = 2;  // 首尾邊界
-    if (filters[9]) filters[9].id = 10; // 連莊號
-    if (filters[10]) filters[10].id = 9; // 鄰號
-    if (filters[11]) filters[11].id = 8; // 等差
-    if (filters[12]) filters[12].id = 13;// AC值
+ function isGeneSurvive(comb) {
+   totalGeneratedTestCount++; // 累加總隨機拋射母體
 
-    function isGeneSurvive(comb) {
-        totalGeneratedTestCount++; // 累加隨機生成的母體總數
-        
-        // A. 優先檢查條件 15 歷史分裂蒸發閘
-        if (f15_on) {
-            const splitCount = pickCount - 1;
-            let conflict = false;
-            const checkDfs = (start, curr) => {
-                if (conflict) return;
-                if (curr.length === splitCount) { if (historyEvapSet.has(curr.join(','))) conflict = true; return; }
-                for (let i = start; i < comb.length; i++) { checkDfs(i + 1, [...curr, comb[i]]); }
-            };
-            checkDfs(0, []);
-            if (conflict) { killStats[15]++; return false; } 
-        } else {
-            if (historyEvapSet.has(comb.join(','))) { killStats[15]++; return false; }
-        }
+   // 🏎【第一階段：輕量化短路過濾鏈極速沖刷】
+   // 優先把這 13 道基礎防線跑完，因為它們執行極快，可以當場消滅 95% 以上不合格的號碼
+   for (let i = 0; i < filters.length; i++) {
+     if (!filters[i].exec(comb)) {
+       killStats[filters[i].id]++; 
+       return false;
+     }
+   }
 
-        // B. 依序執行其餘過濾鏈，並精確捕捉被消滅的特定防線 ID
-        for (let i = 0; i < filters.length; i++) {
-            if (!filters[i].exec(comb)) {
-                const blockId = filters[i].id || 0;
-                killStats[blockId]++; 
-                return false;
-            }
-        }
-        return true; 
-    }
+   // 🏎【第二階段：最沉重的魔王級條件 15 移至最末端執行】
+   // 只有百分之百通過前面所有防線的精銳，才允許進來跑昂貴的 DFS 遞迴歷史比對！
+   if (f15_on) {
+     const splitCount = pickCount - 1;
+     let conflict = false;
+     const checkDfs = (start, curr) => {
+       if (conflict) return;
+       if (curr.length === splitCount) { 
+         if (historyEvapSet.has(curr.join(','))) conflict = true; 
+         return; 
+       }
+       for (let i = start; i < comb.length; i++) { 
+         checkDfs(i + 1, [...curr, comb[i]]); 
+       }
+     };
+     checkDfs(0, []);
+     if (conflict) { 
+       killStats[15]++; 
+       return false; 
+     } 
+   } else {
+     if (historyEvapSet.has(comb.join(','))) { 
+       killStats[15]++; 
+       return false; 
+     }
+   }
 
-
+   return true; // 恭喜安全生還！
+ }
     // ==========================================
     // 【第四階段】：微秒級快取抽樣引擎（保留 100% 全量隨機，算力暴增 10 倍）
     // ==========================================
