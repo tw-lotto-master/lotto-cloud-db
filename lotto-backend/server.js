@@ -356,6 +356,9 @@ if (isMainThread) {
     } // 🌟 這裡完美關閉通道 A 的 if 區塊，不再發生漏網錯位！
 
 // === 【通道 B：有勾選條件】 啟動單水管高階控重球池矩陣海選引擎 === ➔ ⚡
+     const limitOutput = Math.min(100, cfg.count || 5); // 🌟 補回必備變數 1
+    const pickLimit = parseInt(limitOutput) || 5;       // 🌟 補回必備變數 2
+      
  global.activeRequestsCount = (global.activeRequestsCount || 0) + 1;
  console.log(`[極速全量大腦] 啟動 1398 萬組全量位元拓撲過濾引擎，目標 90 秒內大竣工！\n`);
  
