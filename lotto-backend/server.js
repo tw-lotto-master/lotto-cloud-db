@@ -969,90 +969,8 @@ if (!isMainThread) {
     const poolLength = basePool.length;
     const requiredSlots = pickCount - favBalls.length;
 
-// 2026年大數據特徵挖角：精密數集計分矩陣 🌟
-// ======= 【2026終極改造修補】 ─── ======= 🟢 ⚡
-// 【修補漏洞：將高頻記憶體分配搬移至迴圈外層】
-// ======= 【2026終極改造精密修補】 ======= 🟢 ⚡
-const globalTailCache = new Uint8Array(10);
-const globalDiffCache = new Uint8Array(80);
 
-(async function runDeterministicBrain() {
-  const isLotto = lottoType === "49_6";
-  const maxNum = isLotto ? 49 : 39;
-  let localTotalGen = 0;
-  
-  // 🟢 【移入初始化】徹底消滅 TDZ 語法報錯黑洞
-  let foundCount = 0; 
-  
-  const breathe = () => new Promise(resolve => {
-    if (typeof setImmediate !== 'undefined') {
-      setImmediate(resolve);
-    } else {
-      setTimeout(resolve, 0);
-    }
-  });
-
-  const fSet = new Set(favBalls);
-  const remainingPool = [];
-  for (let i = 1; i <= maxNum; i++) {
-    if (!fSet.has(i)) remainingPool.push(i);
-  }
-
-  for (let i = remainingPool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    const temp = remainingPool[i];
-    remainingPool[i] = remainingPool[j];
-    remainingPool[j] = temp;
-  }
-
-  const rSlotsCount = requiredSlots;
-  const pLen = remainingPool.length;
-  let lastFlushTime = Date.now();
-
-  if (filters) {
-    filters.forEach(f => {
-      if (f.id === 4) {
-        f.exec = (comb) => {
-          globalTailCache.fill(0);
-          for (let m = 0; m < comb.length; m++) {
-            const tail = comb[m] % 10;
-            globalTailCache[tail]++;
-            if (globalTailCache[tail] > 
-                (Number(cfg.f4_max) || 2)) {
-              return false;
-            }
-          }
-          return true;
-        };
-      }
-      if (f.id === 13) {
-        f.exec = (comb) => {
-          const len = comb.length;
-          globalDiffCache.fill(0);
-          let diffCount = 0;
-          const targetMin = 
-            (Number(cfg.f13_min) || 6) + 
-            (pickCount - 1);
-          for (let m = 0; m < len; m++) {
-            const numM = comb[m];
-            for (let n = m + 1; n < len; n++) {
-              const diff = comb[n] - numM; 
-              if (globalDiffCache[diff] === 0) { 
-                globalDiffCache[diff] = 1; 
-                diffCount++; 
-              }
-            }
-            const remainingPairs = 
-              ((len - m - 1) * (len - m - 2)) / 2;
-            if (diffCount + remainingPairs < 
-                targetMin) return false;
-          }
-          return diffCount >= targetMin;
-        };
-      }
-    });
-  }
-
+  // ======= 【2026 精密融合完全體】 ======= 🟢 ⚡
   // 核心晶片：生還健康評分智慧節流發射器
   function evaluateAndPost(
     combination, 
@@ -1065,7 +983,7 @@ const globalDiffCache = new Uint8Array(80);
       if (
         foundCount % 50000 === 0 || 
         scannedCount >= 13983816 ||
-        foundCount <= pickLimit 
+        foundCount <= (parseInt(cfg.count) || 5)
       ) {
         let healthScore = 50; 
         const sumVal = combination.reduce(
@@ -1153,9 +1071,12 @@ const globalDiffCache = new Uint8Array(80);
                 if (rSlotsCount === 5) {
                   scannedCount++; localTotalGen++;
                   let combination = [...favBalls, 
-                    remainingPool[i0], remainingPool[i1], 
-                    remainingPool[i2], remainingPool[i3], 
-                    remainingPool[i4]].sort((a,b)=>a-b);
+                    remainingPool[i0], 
+                    remainingPool[i1], 
+                    remainingPool[i2], 
+                    remainingPool[i3], 
+                    remainingPool[i4]
+                  ].sort((a,b)=>a-b);
                   evaluateAndPost(
                     combination, isLotto, localTotalGen
                   );
@@ -1190,63 +1111,6 @@ const globalDiffCache = new Uint8Array(80);
     total: scannedCount 
   });
 })();
-
-
- // 【終極自癒修補：五萬組生還節流閥晶片】 🟢
- let foundCount = 0; 
- function evaluateAndPost(
-   combination, 
-   isLotto, 
-   totalCount
- ) {
-   if (isGeneSurvive(combination)) {
-     foundCount++; 
-
-     if (
-       foundCount % 50000 === 0 || 
-       scannedCount >= 13983816 ||
-       foundCount <= (parseInt(cfg.count) || 5)
-     ) {
-       let healthScore = 50; 
-
-       const sumVal = combination.reduce(
-         (x, y) => x + y, 0
-       );
-       const lowBound = isLotto ? 110 : 70;
-       const highBound = isLotto ? 185 : 125;
-       if (
-         sumVal >= lowBound && 
-         sumVal <= highBound
-       ) {
-         healthScore += 25;
-       }
-       
-       let oddsCount = 0;
-       combination.forEach(num => { 
-         if ((num & 1) === 1) oddsCount++; 
-       });
-       if (isLotto) {
-         if (oddsCount === 3) healthScore += 25;
-         else if (oddsCount === 2 || oddsCount === 4) {
-           healthScore += 10;
-         }
-       } else {
-         if (oddsCount === 2 || oddsCount === 3) {
-           healthScore += 25;
-         }
-       }
-       
-       // 通道解鎖，安全平滑發射
-       parentPort.postMessage({ 
-         type: 'FOUND_ONE_STREAM', 
-         data: combination, 
-         score: healthScore 
-       });
-     }
-   }
- }
- }
-
 
 // ───【全域端口大總門】：監聽 Render 埠口 ───
 const PORT = process.env.PORT || 3000;
