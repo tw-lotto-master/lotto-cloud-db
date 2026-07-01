@@ -440,7 +440,9 @@ if (isMainThread) {
         workers.push(worker);
 
         // ======= 【核心串流交互觀測接收艙】 ─── 🟢 🎯 =======
-                  // 🌟 點對點補丁：主線程代為接收底層 16 防線報表，並由主線程標籤親自打印！
+             worker.on('message', (msg) => {
+            if (isFinished) return;       
+      // 🌟 點對點補丁：主線程代為接收底層 16 防線報表，並由主線程標籤親自打印！
             if (msg.type === 'CORE_KILL_STATS') {
                 const k = msg.stats;
                 const total = msg.totalGen || 1;
@@ -465,8 +467,7 @@ if (isMainThread) {
                 return;
             }
 
-        worker.on('message', (msg) => {
-            if (isFinished) return;
+
             
             if (msg.type === 'TOTAL_SCAN_PROGRESS') {
                 liveScannedCount = msg.scanned;
