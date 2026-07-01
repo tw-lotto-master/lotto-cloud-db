@@ -285,8 +285,6 @@ if (isMainThread) {
     const dbUser = await User.findById(sessionUserId);
     if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
     const nowtime = new Date();
-
-       const nowtime = new Date();
     // 1. 驗證 30 天月費訂閱特權
     const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
     // 2. 驗證全新的 24 小時單次解鎖通行證特權
