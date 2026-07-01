@@ -973,22 +973,23 @@ if (!isMainThread) {
      [remainingPool[i], remainingPool[j]] = [remainingPool[j], remainingPool[i]];
    }
 
-   // 嵌套六碼/五碼數學指針極速大掃描
-   const rSlotsCount = requiredSlots;
-   const pLen = remainingPool.length;
+ // 嵌套六碼/五碼數學指針極速大掃描
+ const rSlotsCount = requiredSlots;
+ const pLen = remainingPool.length;
 
-   // 為了能自由控制 5碼(539) 或 6碼(大樂透) 的指針步進，我們使用通用的多維模擬
-   for (let i0 = 0; i0 < pLen; i0++) {
-     if (scannedCount >= 10000000) break; // 算力全量上限推高至 1000 萬組全覆蓋
+ // 🟢 【核心排氣改造】：將排氣閥精確提升至外層，徹底消滅執行緒霸佔
+ for (let i0 = 0; i0 < pLen; i0++) {
+   if (scannedCount >= 10000000) break; 
 
-     for (let i1 = i0 + 1; i1 < pLen; i1++) {
-       for (let i2 = i1 + 1; i2 < pLen; i2++) {
-         // 每掃描 10 萬組，強制執行非同步事件放鬆，將憋住的算力報表順暢推向主線程與前台 🏎
-         if (scannedCount % 100000 === 0) {
-           parentPort.postMessage({ type: 'CORE_KILL_STATS', stats: Array.from(killStats), totalGen: localTotalGen });
-           parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: 10000000 });
-           await breathe(); 
-         }
+   for (let i1 = i0 + 1; i1 < pLen; i1++) {
+     
+     // 🏎 每當跑完一輪 i1 中型矩陣，強制進行非同步排氣，把 CPU 控制權完美交還給主線程監聽埠口
+     parentPort.postMessage({ type: 'CORE_KILL_STATS', stats: Array.from(killStats), totalGen: localTotalGen });
+     parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: 10000000 });
+     await breathe(); 
+
+     for (let i2 = i1 + 1; i2 < pLen; i2++) {
+       // 🟢 移除了原本埋在第三層內部、導致排氣不及的舊 if (scannedCount % 100000 === 0) 區塊
 
          if (rSlotsCount === 3) {
            // 適用於最愛號碼鎖定 3 碼的情況 (3隨機 + 3最愛)
