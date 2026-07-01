@@ -1110,31 +1110,64 @@ const globalDiffCache = new Uint8Array(80);
   });
  })();
 
- function evaluateAndPost(combination, isLotto, totalCount) {
+ // 🟢 【終極自癒修補：五萬組生還節流閥晶片】
+ let foundCount = 0; // 全域生還計數器
+
+ function evaluateAndPost(
+   combination, 
+   isLotto, 
+   totalCount
+ ) {
    if (isGeneSurvive(combination)) {
-     let healthScore = 50; 
-     const sumVal = combination.reduce((x, y) => x + y, 0);
-     const lowBound = isLotto ? 110 : 70;
-     const highBound = isLotto ? 185 : 125;
-     if (sumVal >= lowBound && sumVal <= highBound) {
-       healthScore += 25;
+     foundCount++; // 累加生還總數
+
+     // 🏎️ 核心控流：生還組數每滿 50,000 組
+     // 或是已經是最後衝刺階段，才允許向主線程發射
+     // 這能釋放 99% 的通訊頻寬，前台進度條瞬間復活！
+     if (
+       foundCount % 50000 === 0 || 
+       scannedCount >= 13983816 ||
+       foundCount <= pickLimit // 前期快速填滿排行榜
+     ) {
+       let healthScore = 50; 
+       const sumVal = combination.reduce(
+         (x, y) => x + y, 0
+       );
+       const lowBound = isLotto ? 110 : 70;
+       const highBound = isLotto ? 185 : 125;
+       if (
+         sumVal >= lowBound && 
+         sumVal <= highBound
+       ) {
+         healthScore += 25;
+       }
+       
+       let oddsCount = 0;
+       combination.forEach(num => { 
+         if ((num & 1) === 1) oddsCount++; 
+       });
+       if (isLotto) {
+         if (oddsCount === 3) healthScore += 25;
+         else if (oddsCount === 2 || oddsCount === 4) {
+           healthScore += 10;
+         }
+       } else {
+         if (oddsCount === 2 || oddsCount === 3) {
+           healthScore += 25;
+         }
+       }
+       
+       // 通道解鎖，安全平滑發射
+       parentPort.postMessage({ 
+         type: 'FOUND_ONE_STREAM', 
+         data: combination, 
+         score: healthScore 
+       });
      }
-     let oddsCount = 0;
-     combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
-     if (isLotto) {
-       if (oddsCount === 3) healthScore += 25;
-       else if (oddsCount === 2 || oddsCount === 4) healthScore += 10;
-     } else {
-       if (oddsCount === 2 || oddsCount === 3) healthScore += 25;
-     }
-     parentPort.postMessage({ 
-       type: 'FOUND_ONE_STREAM', 
-       data: combination, 
-       score: healthScore 
-     });
    }
  }
-}
+ }
+
 
 // ───【全域端口大總門】：監聽 Render 埠口 ───
 const PORT = process.env.PORT || 3000;
