@@ -824,7 +824,58 @@ if (!isMainThread) {
     // ==========================================
     // 【生存審查主閘門】
     // ==========================================
+    // ========================================================
+    // 【局部點對點插入：16防線即時剃除率觀測儀】 ─── 🔬 🪙
+    // ========================================================
+    const killStats = new Uint32Array(16); // 0~15 關卡獨立死亡計數矩陣
+    let totalGeneratedTestCount = 0;      // 總隨機生成母體計數
+
+    // 每 5 秒鐘在後台控制台自動噴發一次【全條件算力剃除率觀測報告】
+    const reportTimer = setInterval(() => {
+        if (scannedCount >= 5000000 || typeof parentPort === 'undefined' || parentPort === null) {
+            return clearInterval(reportTimer);
+        }
+        const mem = process.memoryUsage();
+        console.log(`\n================== 🔬 16防線實時算力觀測報告 ==================`);
+        console.log(`[全局進度] 當前隨機生成母體: ${totalGeneratedTestCount} 組`);
+        console.log(`[內存監視] 當前子線程 RSS 佔用: ${(mem.rss / 1024 / 1024).toFixed(2)} MB`);
+        console.log(`------------------------------------------------------------`);
+        console.log(`【優先蒸發閘 條件15 (歷史重疊)】物理消滅 ➔ [ ${killStats[15]} ] 組 (剃除率: ${((killStats[15]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【物理攔截閘 條件05 (奇偶比例)】物理消滅 ➔ [ ${killStats[5]} ] 組 (剃除率: ${((killStats[5]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【物理攔截閘 條件11 (大小分流)】物理消滅 ➔ [ ${killStats[11]} ] 組 (剃除率: ${((killStats[11]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【物理攔截閘 條件06 (號碼總和)】物理消滅 ➔ [ ${killStats[6]} ] 組 (剃除率: ${((killStats[6]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【Downing防線 條件03 (五大區塊)】物理消滅 ➔ [ ${killStats[3]} ] 組 (剃除率: ${((killStats[3]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【Downing防線 條件12 (除三餘數)】物理消滅 ➔ [ ${killStats[12]} ] 組 (剃除率: ${((killStats[12]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【統計指標閘 條件04 (同尾限制)】物理消滅 ➔ [ ${killStats[4]} ] 組 (剃除率: ${((killStats[4]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【統計指標閘 條件07 (連續號牆)】物理消滅 ➔ [ ${killStats[7]} ] 組 (剃除率: ${((killStats[7]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【統計指標閘 條件14 (質數合數)】物理消滅 ➔ [ ${killStats[14]} ] 組 (剃除率: ${((killStats[14]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【熱區邊界閘 條件02 (首尾範圍)】物理消滅 ➔ [ ${killStats[2]} ] 組 (剃除率: ${((killStats[2]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【大數據殺手 條件10 (上期連莊)】物理消滅 ➔ [ ${killStats[10]} ] 組 (剃除率: ${((killStats[10]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【大數據殺手 條件09 (鄰號夾擊)】物理消滅 ➔ [ ${killStats[9]} ] 組 (剃除率: ${((killStats[9]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【數學規律閘 條件08 (等差數列)】物理消滅 ➔ [ ${killStats[8]} ] 組 (剃除率: ${((killStats[8]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`【重型數學閘 條件13 (AC值計算)】物理消滅 ➔ [ ${killStats[13]} ] 組 (剃除率: ${((killStats[13]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
+        console.log(`============================================================\n`);
+    }, 5000);
+
+    // 為現有 filters 陣列中的各個優化器晶片，動態綁定精密觀測 ID 指針
+    if (filters[0]) filters[0].id = 5;  // 奇偶
+    if (filters[1]) filters[1].id = 11; // 大小
+    if (filters[2]) filters[2].id = 6;  // 總和
+    if (filters[3]) filters[3].id = 3;  // 五大區塊
+    if (filters[4]) filters[4].id = 12; // 除三餘數
+    if (filters[5]) filters[5].id = 4;  // 同尾數
+    if (filters[6]) filters[6].id = 7;  // 連續號
+    if (filters[7]) filters[7].id = 14; // 質數
+    if (filters[8]) filters[8].id = 2;  // 首尾邊界
+    if (filters[9]) filters[9].id = 10; // 連莊號
+    if (filters[10]) filters[10].id = 9; // 鄰號
+    if (filters[11]) filters[11].id = 8; // 等差
+    if (filters[12]) filters[12].id = 13;// AC值
+
     function isGeneSurvive(comb) {
+        totalGeneratedTestCount++; // 累加隨機生成的母體總數
+        
+        // A. 優先檢查條件 15 歷史分裂蒸發閘
         if (f15_on) {
             const splitCount = pickCount - 1;
             let conflict = false;
@@ -834,15 +885,22 @@ if (!isMainThread) {
                 for (let i = start; i < comb.length; i++) { checkDfs(i + 1, [...curr, comb[i]]); }
             };
             checkDfs(0, []);
-            if (conflict) return false; 
+            if (conflict) { killStats[15]++; return false; } 
         } else {
-            if (historyEvapSet.has(comb.join(','))) return false;
+            if (historyEvapSet.has(comb.join(','))) { killStats[15]++; return false; }
         }
+
+        // B. 依序執行其餘過濾鏈，並精確捕捉被消滅的特定防線 ID
         for (let i = 0; i < filters.length; i++) {
-            if (!filters[i].exec(comb)) return false;
+            if (!filters[i].exec(comb)) {
+                const blockId = filters[i].id || 0;
+                killStats[blockId]++; 
+                return false;
+            }
         }
         return true; 
     }
+
 
     // ==========================================
     // 【第四階段】：微秒級快取抽樣引擎（保留 100% 全量隨機，算力暴增 10 倍）
