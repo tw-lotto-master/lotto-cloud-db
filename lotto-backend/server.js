@@ -440,111 +440,133 @@ if (isMainThread) {
         workers.push(worker);
 
         // ======= 【核心串流交互觀測接收艙】 ─── 🟢 🎯 =======
-             worker.on('message', (msg) => {
-            if (isFinished) return;       
-      // 🌟 點對點補丁：主線程代為接收底層 16 防線報表，並由主線程標籤親自打印！
-            if (msg.type === 'CORE_KILL_STATS') {
-                const k = msg.stats;
-                const total = msg.totalGen || 1;
-                console.log(`\n================== 🔬 16防線全量算力剃除率最終報告 ==================`);
-                console.log(`[全局進度] 子線程全量亂數隨機射出總母體: ${total} 組`);
-                console.log(`------------------------------------------------------------`);
-                console.log(`【優先蒸發閘 條件15 (歷史重疊)】物理消滅 ➔ [ ${k[15] || 0} ] 組 (剃除率: ${(((k[15]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【物理攔截閘 條件05 (奇偶比例)】物理消滅 ➔ [ ${k[5] || 0} ] 組 (剃除率: ${(((k[5]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【物理攔截閘 條件11 (大小分流)】物理消滅 ➔ [ ${k[11] || 0} ] 組 (剃除率: ${(((k[11]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【物理攔截閘 條件06 (號碼總和)】物理消滅 ➔ [ ${k[6] || 0} ] 組 (剃除率: ${(((k[6]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【Downing防線 條件03 (五大區塊)】物理消滅 ➔ [ ${k[3] || 0} ] 組 (剃除率: ${(((k[3]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【Downing防線 條件12 (除三餘數)】物理消滅 ➔ [ ${k[12] || 0} ] 組 (剃除率: ${(((k[12]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【統計指標閘 條件04 (同尾限制)】物理消滅 ➔ [ ${k[4] || 0} ] 組 (剃除率: ${(((k[4]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【統計指標閘 條件07 (連續號牆)】物理消滅 ➔ [ ${k[7] || 0} ] 組 (剃除率: ${(((k[7]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【統計指標閘 條件14 (質數合數)】物理消滅 ➔ [ ${k[14] || 0} ] 組 (剃除率: ${(((k[14]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【熱區邊界閘 條件02 (首尾範圍)】物理消滅 ➔ [ ${k[2] || 0} ] 組 (剃除率: ${(((k[2]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【大數據殺手 條件10 (上期連莊)】物理消滅 ➔ [ ${k[10] || 0} ] 組 (剃除率: ${(((k[10]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【大數據殺手 條件09 (鄰號夾擊)】物理消滅 ➔ [ ${k[9] || 0} ] 組 (剃除率: ${(((k[9]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【數學規律閘 條件08 (等差數列)】物理消滅 ➔ [ ${k[8] || 0} ] 組 (剃除率: ${(((k[8]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`【重型數學閘 條件13 (AC值計算)】物理消滅 ➔ [ ${k[13] || 0} ] 組 (剃除率: ${(((k[13]||0)/total)*100).toFixed(2)}%)`);
-                console.log(`============================================================\n`);
-                return;
-            }
+   // ======= 【核心串流交互觀測接收艙】 ─── ======= 🟢 🎯
+ // 【2026融合大腦改造：計分板淘汰賽晶片】
+ const leaderBoard = []; // 格式: { score: X, comb: [...], formatted: '...', unit: Y }
 
+ worker.on('message', (msg) => {
+ if (isFinished) return; 
+ 
+ // 點對點補丁：主線程代為接收底層 16 防線報表，並由主線程標籤親自打印！ 🌟
+ if (msg.type === 'CORE_KILL_STATS') {
+ const k = msg.stats;
+ const total = msg.totalGen || 1;
+ console.log(`\n================== 16防線全量算力剃除率最終報告 🔬 ==================`);
+ console.log(`[全局進度] 子線程全量亂數隨機射出總母體: ${total} 組`);
+ console.log(`------------------------------------------------------------`);
+ console.log(`【優先蒸發閘 條件15 (歷史重疊)】物理消滅 [ ${k[15] || 0} ] 組 (剃除率: ${(((k[15]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【物理攔截閘 條件05 (奇偶比例)】物理消滅 [ ${k[5] || 0} ] 組 (剃除率: ${(((k[5]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【物理攔截閘 條件11 (大小分流)】物理消滅 [ ${k[11] || 0} ] 組 (剃除率: ${(((k[11]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【物理攔截閘 條件06 (號碼總和)】物理消滅 [ ${k[6] || 0} ] 組 (剃除率: ${(((k[6]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【Downing防線 條件03 (五大區塊)】物理消滅 [ ${k[3] || 0} ] 組 (剃除率: ${(((k[3]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【Downing防線 條件12 (除三餘數)】物理消滅 [ ${k[12] || 0} ] 組 (剃除率: ${(((k[12]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【統計指標閘 條件04 (同尾限制)】物理消滅 [ ${k[4] || 0} ] 組 (剃除率: ${(((k[4]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【統計指標閘 條件07 (連續號牆)】物理消滅 [ ${k[7] || 0} ] 組 (剃除率: ${(((k[7]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【統計指標閘 條件14 (質數合數)】物理消滅 [ ${k[14] || 0} ] 組 (剃除率: ${(((k[14]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【熱區邊界閘 條件02 (首尾範圍)】物理消滅 [ ${k[2] || 0} ] 組 (剃除率: ${(((k[2]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【大數據殺手 條件10 (上期連莊)】物理消滅 [ ${k[10] || 0} ] 組 (剃除率: ${(((k[10]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【大數據殺手 條件09 (鄰號夾擊)】物理消滅 [ ${k[9] || 0} ] 組 (剃除率: ${(((k[9]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【數學規律閘 條件08 (等差數列)】物理消滅 [ ${k[8] || 0} ] 組 (剃除率: ${(((k[8]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`【重型數學閘 條件13 (AC值計算)】物理消滅 [ ${k[13] || 0} ] 組 (剃除率: ${(((k[13]||0)/total)*100).toFixed(2)}%)`);
+ console.log(`============================================================\n`);
+ return;
+ }
+ 
+ if (msg.type === 'TOTAL_SCAN_PROGRESS') {
+ liveScannedCount = msg.scanned;
+ let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / msg.total) * 100));
+ if (currentProgressPercent < 5) currentProgressPercent = 5;
+ res.write(JSON.stringify({ isProgress: true, percent: currentProgressPercent, currentMatch: leaderBoard.length }) + "\n");
+ return;
+ }
+ 
+ if (msg.type === 'FOUND_ONE_STREAM') {
+ const newComb = msg.data.map(Number);
+ const combScore = msg.score || 0; // 讀取子線程送來的綜合健康評分
+ const combKey = newComb.join(',');
+ 
+ // 觀測防線 01：全域防重複攔截
+ if (globalUniqueSet.has(combKey)) return;
+ // 觀測防線 02：Smart 聰明包牌大組互斥控制晶片
+ if (cfg.vipMode === 'smart') {
+ const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
+ let isInsideGroupConflict = false;
+ for (let ball of nonFavBalls) {
+ if (currentBigGroupUsedBallsSet.has(ball)) { 
+ isInsideGroupConflict = true; break; }
+ }
+ 
+ if (isInsideGroupConflict) {
+ if (liveScannedCount % 5000 === 0) {
+ console.log(`%c[算力自癒中] 檢測到高頻彩球碰撞死鎖，主線程已強制洗淨彩球桶，開啟分流！`, "color: #00ff00;");
+ currentBigGroupUsedBallsSet.clear();
+ }
+ return; 
+ }
+ nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
+ }
+ 
+ // 通過初步檢查，進行計分板動態 PK
+ const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
+ const mockNextIndex = leaderBoard.length + 1;
+ const currentUnit = Math.ceil(mockNextIndex / singleBigGroupLimit);
 
-            
-            if (msg.type === 'TOTAL_SCAN_PROGRESS') {
-                liveScannedCount = msg.scanned;
-                let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / msg.total) * 100));
-                if (currentProgressPercent < 5) currentProgressPercent = 5;
-                res.write(JSON.stringify({ isProgress: true, percent: currentProgressPercent, currentMatch: finalOutputCombs.length }) + "\n");
-                return;
-            }
-            
-            if (msg.type === 'FOUND_ONE_STREAM') {
-                const newComb = msg.data.map(Number);
-                const combKey = newComb.join(',');
-                
-                // 觀測防線 01：全域防重複攔截
-                if (globalUniqueSet.has(combKey)) return;
+ if (leaderBoard.length < pickLimit) {
+ // 計分板未滿，直接放入
+ globalUniqueSet.add(combKey);
+ leaderBoard.push({ score: combScore, comb: newComb, formatted, unit: currentUnit, key: combKey });
+ // 依分數從高到低排序
+ leaderBoard.sort((a, b) => b.score - a.score);
+ console.log(`[計分板入庫] 成功捕獲名牌 [得分: ${combScore} 分] -> : ${formatted}`);
+ } else {
+ // 計分板已滿，與最後一名（最低分）進行 PK
+ if (combScore > leaderBoard[leaderBoard.length - 1].score) {
+ const kicked = leaderBoard.pop(); // 剔除分數最低的號碼
+ globalUniqueSet.delete(kicked.key); // 解除重複鎖定
 
-                // 觀測防線 02：Smart 聰明包牌大組互斥控制晶片
-                if (cfg.vipMode === 'smart') {
-                    const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
-                    let isInsideGroupConflict = false;
-                    for (let ball of nonFavBalls) {
-                        if (currentBigGroupUsedBallsSet.has(ball)) { isInsideGroupConflict = true; break; }
-                    }
-                    
-                    if (isInsideGroupConflict) {
-                        // 🌟 自癒破壁機制：如果單組碰撞重試超過 5000 次或者大組彩球池已被抽乾，主動強制重置（Clear）球桶！
-                        // 這能徹底打破因過濾條件太嚴苛導致系統死鎖在第 7 組的死迴圈黑洞！
-                        if (liveScannedCount % 5000 === 0) {
-                            console.log(`%c[算力自癒中] 檢測到高頻彩球碰撞死鎖，主線程已強制洗淨彩球桶，開啟分流！`, "color: #00ff00;");
-                            currentBigGroupUsedBallsSet.clear();
-                        }
-                        return; // 拋棄此衝突組合，繼續等待下一組拋射
-                    }
-                    nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
-                }
-                
-                globalUniqueSet.add(combKey);
-                const nextIndex = finalOutputCombs.length + 1;
-                const indexStr = String(nextIndex).padStart(2, '0');
-                const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
-                const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
-                
-                console.log(`[黃金明牌入庫] 成功捕獲第 [${indexStr}] 組 (歸於第 ${currentUnit} 大組) : ${formatted}`);
-                finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
-                
-                if (cfg.vipMode === 'smart' && nextIndex % singleBigGroupLimit === 0) {
-                    console.log(`[大組大滿載] 第 ${currentUnit} 大組已就位，主線程洗牌重洗彩球桶！`);
-                    currentBigGroupUsedBallsSet.clear(); 
-                }
-                
-                if (finalOutputCombs.length >= pickLimit) {
-                    const currentMem = process.memoryUsage();
-                    console.log(`=======================================================`);
-                    console.log(`[極速大竣工] 完美集滿前端指定產量 ${pickLimit} 組！`);
-                    console.log(` 常駐記憶體 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]`);
-                    console.log(`=======================================================`);
-                    isFinished = true;
-                    workers.forEach(w => w.terminate());
-                    clearTimeout(safetyTimeout);
-                    global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
-                    resolve();
-                }
-            }
-        });
-    });
+ globalUniqueSet.add(combKey);
+ leaderBoard.push({ score: combScore, comb: newComb, formatted, unit: currentUnit, key: combKey });
+ leaderBoard.sort((a, b) => b.score - a.score); // 滾動式重新整榜
+ console.log(`[排行榜PK自癒] ${combScore}分 物理消滅了 ${kicked.score}分！新陣容已重組。`);
+ }
+ }
+ 
+ if (cfg.vipMode === 'smart' && leaderBoard.length % singleBigGroupLimit === 0) {
+ currentBigGroupUsedBallsSet.clear(); 
+ }
+ 
+ // 【2026融合大腦重大修改】：後端不再此時主動熔斷！改由外層的 safetyTimeout 或時間分片完畢時，統一撈取 leaderBoard 輸出！
+ }
+ });
+
+ // 輔助晶片：將計分板數據滾動倒出到原本的交付容器中，維持與前台的對齊
+ function compileLeaderboardToOutput() {
+ finalOutputCombs.length = 0; // 清空舊數集
+ leaderBoard.forEach((item, index) => {
+ const indexStr = String(index + 1).padStart(2, '0');
+ finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${item.unit} 大組) [評分: ${item.score}分] : ${item.formatted}\n`);
+ });
+ }
+ 
+ // 動態將此編譯函式掛載到全域，以便底下的超時或時間截止處理器能正確收網
+ global.compileOutput = compileLeaderboardToOutput;
+ });
+
 
     const heartbeatTimer = setInterval(() => {
         if (isFinished) return clearInterval(heartbeatTimer);
         res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100)) }) + "\n");
     }, 10000);
 
-    let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (全量掃描+大組互斥完全體)' : '一般篩選 (1398萬組全量暴力秒殺版)';
-    res.write(JSON.stringify({ 
-        success: true, 
-        outputText: `【VIP海選大竣工】中繼站本次隨機拋射掃描總數：${liveScannedCount} 組 \n 🎯\n【當前交付解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
-    }) + "\n");
-    res.end();
+ if (typeof global.compileOutput === 'function') global.compileOutput();
+ let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (動態計分淘汰賽+大組互斥融合體)' : '一般篩選 (分片賽區滾動PK排行版)';
+ res.write(JSON.stringify({ 
+ success: true, 
+ outputText: `【VIP融合大腦分選竣工】中繼站本分片隨機拋射總數：${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + 
+ finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+ }) + "\n");
+ res.end();
+
   } catch (globalErr) {
     console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
     try { res.write(JSON.stringify({ success: false, message: `後台突發故障` }) + "\n"); res.end(); } catch (e) {}
@@ -912,38 +934,70 @@ if (!isMainThread) {
     const poolLength = basePool.length;
     const requiredSlots = pickCount - favBalls.length;
 
-    while (scannedCount < 5000000) { 
-       parentPort.postMessage({ type: 'CORE_KILL_STATS', stats: Array.from(killStats), totalGen: totalGeneratedTestCount });
-        scannedCount++;
-        
-        // 🌟 極速隨機抽樣：消滅 Fisher-Yates 迴圈開銷，改用微秒級隨機指針
-        const randomSlots = [];
-        const usedIndices = new Set();
-        
-        while (randomSlots.length < requiredSlots) {
-            const randomIdx = Math.floor(Math.random() * poolLength);
-            if (!usedIndices.has(randomIdx)) {
-                usedIndices.add(randomIdx);
-                randomSlots.push(basePool[randomIdx]);
-            }
-        }
+// 2026年大數據特徵挖角：精密數集計分矩陣 🌟
+while (scannedCount < 5000000) { 
+ if (scannedCount % 2000 === 0) {
+ parentPort.postMessage({ type: 'CORE_KILL_STATS', stats: Array.from(killStats), totalGen: totalGeneratedTestCount });
+ }
+ scannedCount++;
+ const randomSlots = [];
+ const usedIndices = new Set();
+ while (randomSlots.length < requiredSlots) {
+ const randomIdx = Math.floor(Math.random() * poolLength);
+ if (!usedIndices.has(randomIdx)) {
+ usedIndices.add(randomIdx);
+ randomSlots.push(basePool[randomIdx]);
+ }
+ }
+ 
+ let combination = [...favBalls, ...randomSlots];
+ const uniqueCheckSet = new Set(combination);
+ if (uniqueCheckSet.size !== pickCount) {
+ continue; 
+ }
+ 
+ combination.sort((a, b) => a - b);
+ 
+ if (scannedCount % 15000 === 0) {
+ parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: maxCombinations });
+ }
+ 
+ if (isGeneSurvive(combination)) {
+ // 🟢 【大數據大腦注入】：開始計算號碼綜合健康分數（滿分 100）
+ let healthScore = 40; // 基礎生還分
 
-        // 完美認證與對齊條件 16（最愛號碼鎖定）
-        let combination = [...favBalls, ...randomSlots].sort((a, b) => a - b);
+ // 1. 總和鐘形曲線權重 (+20分)
+ const sumVal = combination.reduce((x, y) => x + y, 0);
+ const isLotto = lottoType === "49_6";
+ const lowBound = isLotto ? 110 : 70;
+ const highBound = isLotto ? 185 : 125;
+ if (sumVal >= lowBound && sumVal <= highBound) {
+ healthScore += 20;
+ }
 
-        // 每隔 15000 組向主執行緒發送心跳進度條信號
-        if (scannedCount % 15000 === 0) {
-            parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: maxCombinations });
-        }
+ // 2. 奇偶二分天下平衡權重 (+20分)
+ let oddsCount = 0;
+ combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
+ if (isLotto) {
+ if (oddsCount === 3) healthScore += 20; // 3奇3偶最完美
+ else if (oddsCount === 2 || oddsCount === 4) healthScore += 10;
+ } else {
+ if (oddsCount === 2 || oddsCount === 3) healthScore += 20; // 539的3奇2偶或2奇3偶最平衡
+ }
 
-        // 若這組純隨機產出的明牌安全通過生還閘，即時發射回主執行緒收卷
-        if (isGeneSurvive(combination)) {
-            parentPort.postMessage({ type: 'FOUND_ONE_STREAM', data: combination });
-        }
-    }
+ // 3. 首尾熱區物理壁壘 (+20分)
+ const headBall = combination[0];
+ const tailBall = combination[combination.length - 1];
+ const headLimit = 12;
+ const tailLimit = isLotto ? 38 : 28;
+ if (headBall <= headLimit) healthScore += 10;
+ if (tailBall >= tailLimit) healthScore += 10;
+
+ // 將計算完畢的黃金明牌連同健康分數一同射向主線程交互艙
+ parentPort.postMessage({ type: 'FOUND_ONE_STREAM', data: combination, score: healthScore });
+ }
 }
-
-
+}
 // ───【全域端口大總門】：監聽 Render 埠口 ───
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
