@@ -417,7 +417,7 @@ if (isMainThread) {
         const safetyTimeout = setTimeout(() => {
             const memSnapshot = process.memoryUsage();
             console.log(`=======================================================`);
-            console.log(`[海選阻斷] 觸及 3 分鐘極限安全壁壘，中繼站安全收卷交付現存組數。`);
+            console.log(`[海選阻斷] 觸及 5 分鐘極限安全壁壘，中繼站安全收卷交付現存組數。`);
             console.log(` 常駐記憶體 (RSS): [ ${(memSnapshot.rss / 1024 / 1024).toFixed(2)} MB ]`);
             console.log(`=======================================================`);
             
@@ -433,7 +433,7 @@ if (isMainThread) {
             }) + "\n");
             res.end();
             resolve();
-        }, 180000);
+        }, 300000);
 
         // 🌟 核心修正：將前端傳入的歷史資料庫作為 passedHistoryDB 精確指派進去，對齊底層！
         const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
