@@ -1192,26 +1192,23 @@ const globalDiffCache = new Uint8Array(80);
 })();
 
 
- // 🟢 【終極自癒修補：五萬組生還節流閥晶片】
- let foundCount = 0; // 全域生還計數器
-
+ // 【終極自癒修補：五萬組生還節流閥晶片】 🟢
+ let foundCount = 0; 
  function evaluateAndPost(
    combination, 
    isLotto, 
    totalCount
  ) {
    if (isGeneSurvive(combination)) {
-     foundCount++; // 累加生還總數
+     foundCount++; 
 
-     // 🏎️ 核心控流：生還組數每滿 50,000 組
-     // 或是已經是最後衝刺階段，才允許向主線程發射
-     // 這能釋放 99% 的通訊頻寬，前台進度條瞬間復活！
      if (
        foundCount % 50000 === 0 || 
        scannedCount >= 13983816 ||
-       foundCount <= pickLimit // 前期快速填滿排行榜
+       foundCount <= (parseInt(cfg.count) || 5)
      ) {
        let healthScore = 50; 
+
        const sumVal = combination.reduce(
          (x, y) => x + y, 0
        );
