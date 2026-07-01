@@ -261,19 +261,20 @@ if (isMainThread) {
       if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
     }
 // ======= 區塊 1 全新替換代碼 =======
-    if (!cfg) return res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n") || res.end();
-    const sessionUserId = req.user && req.user.userId;
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
-    const nowtime = new Date();
+    // 【金流自癒守護閘】：有條件且非 VIP 時才扣 10 點，完美切斷免費越權扣點黑洞！ 🎯
+    if (!isVipPass) {
+        const OPERATION_COST = 10;
+        if ((dbUser.points || 0) < OPERATION_COST) {
+            res.write(JSON.stringify({ success: false, status: 402, message: `點數不足！需消耗 ${OPERATION_COST} 點。` }) + "\n");
+            return res.end();
+        }
+        dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - OPERATION_COST);
+        await dbUser.save();
+        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: false }) + "\n");
+    } else {
+        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
+    }
 
-    const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
-    const isVipPass = (hasActiveSubscription || dbUser.isPaidMember === true || 
-        cfg.isPaidMember === true || cfg.isPaidMember === 'true' || 
-        cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || 
-        cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true');
-    const limitOutput = Math.min(100, cfg.count || 5);
-    const pickLimit = parseInt(limitOutput) || 5;
     
     const isNoConditions = (
         (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
