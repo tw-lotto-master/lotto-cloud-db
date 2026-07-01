@@ -162,21 +162,40 @@ app.post('/api/user/cancel-vip', async (req, res) => {
 });
 
 app.post('/api/user/single-unlock', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
-    const UNLOCK_COST = 10;
-    if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
-      return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階過濾防線需消耗 ${UNLOCK_COST} 點。` });
-    }
-    dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
-    dbUser.markModified('points');
-    await dbUser.save();
-    return res.json({ success: true, newPoints: dbUser.points });
-  } catch (err) { return res.status(500).json({ success: false, message: "雲端授權通道異常" }); }
+ try {
+     const sessionUserId = extractUserIdFromPayload(req);
+     if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+     const dbUser = await User.findById(sessionUserId);
+     if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
+     
+     // ─── 檢查是否仍在 24 小時通行證有效期內 ───
+     const now = new Date();
+     if (dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > now) {
+         return res.json({ success: true, message: "您已擁有 24 小時免扣點通行特權！", newPoints: dbUser.points });
+     }
+     
+     const UNLOCK_COST = 10;
+     if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
+         return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階過濾防線需消耗 ${UNLOCK_COST} 點。` });
+     }
+     
+     // 扣除 10 點並注入 24 小時（1天）截止線
+     dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
+     const expireTime = new Date();
+     expireTime.setHours(expireTime.getHours() + 24); // 精確發放 24 小時時效
+     dbUser.singleUnlockExpiresAt = expireTime;
+     
+     dbUser.markModified('points');
+     dbUser.markModified('singleUnlockExpiresAt');
+     await dbUser.save();
+     
+     console.log(`[通行證發放] 使用者 ${dbUser.username} 扣除 10 點，24小時免扣點通道開啟！`);
+     return res.json({ success: true, newPoints: dbUser.points, singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt });
+ } catch (err) { 
+     return res.status(500).json({ success: false, message: "雲端授權通道異常" }); 
+ }
 });
+
 
 // ─── 雲端收藏夾儲存與拉取 API ───
 app.post('/api/tickets/save', authenticateToken, async (req, res) => {
@@ -267,11 +286,22 @@ if (isMainThread) {
     if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
     const nowtime = new Date();
 
+       const nowtime = new Date();
+    // 1. 驗證 30 天月費訂閱特權
     const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
-    const isVipPass = (hasActiveSubscription || dbUser.isPaidMember === true || 
+    // 2. 驗證全新的 24 小時單次解鎖通行證特權
+    const hasValid24hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
+
+    // 彙整最高免扣點白名單權限
+    const isVipPass = (
+        hasActiveSubscription || 
+        hasValid24hPass || 
+        dbUser.isPaidMember === true || 
         cfg.isPaidMember === true || cfg.isPaidMember === 'true' || 
         cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || 
-        cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true');
+        cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true'
+    );
+    
     const limitOutput = Math.min(100, cfg.count || 5);
     const pickLimit = parseInt(limitOutput) || 5;
     
@@ -352,16 +382,16 @@ if (isMainThread) {
         }) + "\n");
         return res.end();
     } // 🌟 完美閉合通道 A 
-    if (!isVipPass) {
-        const OPERATION_COST = 10;
-        if ((dbUser.points || 0) < OPERATION_COST) {
-            res.write(JSON.stringify({ success: false, status: 402, message: `點數不足！需消耗 ${OPERATION_COST} 點。` }) + "\n");
-            return res.end();
-        }
-        dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - OPERATION_COST);
-        await dbUser.save();
-        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: false }) + "\n");
+     if (!isVipPass) {
+        // 如果沒有月費 VIP，也沒有 24 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
+        res.write(JSON.stringify({ 
+            success: false, 
+            status: 402, 
+            message: "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (10點)』獲取憑證！" 
+        }) + "\n");
+        return res.end();
     } else {
+        // 已持有時效憑證，綠色通道直接放行，0 點數消耗！
         res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
     }
 
@@ -411,8 +441,10 @@ if (isMainThread) {
         const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
         workers.push(worker);
 
+        // ======= 【核心串流交互觀測接收艙】 ─── 🟢 🎯 =======
         worker.on('message', (msg) => {
             if (isFinished) return;
+            
             if (msg.type === 'TOTAL_SCAN_PROGRESS') {
                 liveScannedCount = msg.scanned;
                 let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / msg.total) * 100));
@@ -420,33 +452,54 @@ if (isMainThread) {
                 res.write(JSON.stringify({ isProgress: true, percent: currentProgressPercent, currentMatch: finalOutputCombs.length }) + "\n");
                 return;
             }
+            
             if (msg.type === 'FOUND_ONE_STREAM') {
                 const newComb = msg.data.map(Number);
                 const combKey = newComb.join(',');
+                
+                // 觀測防線 01：全域防重複攔截
                 if (globalUniqueSet.has(combKey)) return;
 
+                // 觀測防線 02：Smart 聰明包牌大組互斥控制晶片
                 if (cfg.vipMode === 'smart') {
                     const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
                     let isInsideGroupConflict = false;
                     for (let ball of nonFavBalls) {
                         if (currentBigGroupUsedBallsSet.has(ball)) { isInsideGroupConflict = true; break; }
                     }
-                    if (isInsideGroupConflict) return;
+                    
+                    if (isInsideGroupConflict) {
+                        // 🌟 自癒破壁機制：如果單組碰撞重試超過 5000 次或者大組彩球池已被抽乾，主動強制重置（Clear）球桶！
+                        // 這能徹底打破因過濾條件太嚴苛導致系統死鎖在第 7 組的死迴圈黑洞！
+                        if (liveScannedCount % 5000 === 0) {
+                            console.log(`%c[算力自癒中] 檢測到高頻彩球碰撞死鎖，主線程已強制洗淨彩球桶，開啟分流！`, "color: #00ff00;");
+                            currentBigGroupUsedBallsSet.clear();
+                        }
+                        return; // 拋棄此衝突組合，繼續等待下一組拋射
+                    }
                     nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
                 }
+                
                 globalUniqueSet.add(combKey);
                 const nextIndex = finalOutputCombs.length + 1;
                 const indexStr = String(nextIndex).padStart(2, '0');
                 const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
                 const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
                 
+                console.log(`[黃金明牌入庫] 成功捕獲第 [${indexStr}] 組 (歸於第 ${currentUnit} 大組) : ${formatted}`);
                 finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
+                
                 if (cfg.vipMode === 'smart' && nextIndex % singleBigGroupLimit === 0) {
+                    console.log(`[大組大滿載] 第 ${currentUnit} 大組已就位，主線程洗牌重洗彩球桶！`);
                     currentBigGroupUsedBallsSet.clear(); 
                 }
+                
                 if (finalOutputCombs.length >= pickLimit) {
                     const currentMem = process.memoryUsage();
-                    console.log(`[極速竣工] 純隨機拓撲完成！完美集滿指定產量 ${pickLimit} 組！當前內存 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]`);
+                    console.log(`=======================================================`);
+                    console.log(`[極速大竣工] 完美集滿前端指定產量 ${pickLimit} 組！`);
+                    console.log(` 常駐記憶體 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]`);
+                    console.log(`=======================================================`);
                     isFinished = true;
                     workers.forEach(w => w.terminate());
                     clearTimeout(safetyTimeout);
