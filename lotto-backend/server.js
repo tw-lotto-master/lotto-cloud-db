@@ -440,6 +440,31 @@ if (isMainThread) {
         workers.push(worker);
 
         // ======= 【核心串流交互觀測接收艙】 ─── 🟢 🎯 =======
+                  // 🌟 點對點補丁：主線程代為接收底層 16 防線報表，並由主線程標籤親自打印！
+            if (msg.type === 'CORE_KILL_STATS') {
+                const k = msg.stats;
+                const total = msg.totalGen || 1;
+                console.log(`\n================== 🔬 16防線全量算力剃除率最終報告 ==================`);
+                console.log(`[全局進度] 子線程全量亂數隨機射出總母體: ${total} 組`);
+                console.log(`------------------------------------------------------------`);
+                console.log(`【優先蒸發閘 條件15 (歷史重疊)】物理消滅 ➔ [ ${k[15] || 0} ] 組 (剃除率: ${(((k[15]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【物理攔截閘 條件05 (奇偶比例)】物理消滅 ➔ [ ${k[5] || 0} ] 組 (剃除率: ${(((k[5]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【物理攔截閘 條件11 (大小分流)】物理消滅 ➔ [ ${k[11] || 0} ] 組 (剃除率: ${(((k[11]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【物理攔截閘 條件06 (號碼總和)】物理消滅 ➔ [ ${k[6] || 0} ] 組 (剃除率: ${(((k[6]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【Downing防線 條件03 (五大區塊)】物理消滅 ➔ [ ${k[3] || 0} ] 組 (剃除率: ${(((k[3]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【Downing防線 條件12 (除三餘數)】物理消滅 ➔ [ ${k[12] || 0} ] 組 (剃除率: ${(((k[12]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【統計指標閘 條件04 (同尾限制)】物理消滅 ➔ [ ${k[4] || 0} ] 組 (剃除率: ${(((k[4]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【統計指標閘 條件07 (連續號牆)】物理消滅 ➔ [ ${k[7] || 0} ] 組 (剃除率: ${(((k[7]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【統計指標閘 條件14 (質數合數)】物理消滅 ➔ [ ${k[14] || 0} ] 組 (剃除率: ${(((k[14]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【熱區邊界閘 條件02 (首尾範圍)】物理消滅 ➔ [ ${k[2] || 0} ] 組 (剃除率: ${(((k[2]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【大數據殺手 條件10 (上期連莊)】物理消滅 ➔ [ ${k[10] || 0} ] 組 (剃除率: ${(((k[10]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【大數據殺手 條件09 (鄰號夾擊)】物理消滅 ➔ [ ${k[9] || 0} ] 組 (剃除率: ${(((k[9]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【數學規律閘 條件08 (等差數列)】物理消滅 ➔ [ ${k[8] || 0} ] 組 (剃除率: ${(((k[8]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`【重型數學閘 條件13 (AC值計算)】物理消滅 ➔ [ ${k[13] || 0} ] 組 (剃除率: ${(((k[13]||0)/total)*100).toFixed(2)}%)`);
+                console.log(`============================================================\n`);
+                return;
+            }
+
         worker.on('message', (msg) => {
             if (isFinished) return;
             
@@ -831,31 +856,7 @@ if (!isMainThread) {
     let totalGeneratedTestCount = 0;      // 總隨機生成母體計數
 
     // 每 5 秒鐘在後台控制台自動噴發一次【全條件算力剃除率觀測報告】
-    const reportTimer = setInterval(() => {
-        if (scannedCount >= 5000000 || typeof parentPort === 'undefined' || parentPort === null) {
-            return clearInterval(reportTimer);
-        }
-        const mem = process.memoryUsage();
-        console.log(`\n================== 🔬 16防線實時算力觀測報告 ==================`);
-        console.log(`[全局進度] 當前隨機生成母體: ${totalGeneratedTestCount} 組`);
-        console.log(`[內存監視] 當前子線程 RSS 佔用: ${(mem.rss / 1024 / 1024).toFixed(2)} MB`);
-        console.log(`------------------------------------------------------------`);
-        console.log(`【優先蒸發閘 條件15 (歷史重疊)】物理消滅 ➔ [ ${killStats[15]} ] 組 (剃除率: ${((killStats[15]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【物理攔截閘 條件05 (奇偶比例)】物理消滅 ➔ [ ${killStats[5]} ] 組 (剃除率: ${((killStats[5]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【物理攔截閘 條件11 (大小分流)】物理消滅 ➔ [ ${killStats[11]} ] 組 (剃除率: ${((killStats[11]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【物理攔截閘 條件06 (號碼總和)】物理消滅 ➔ [ ${killStats[6]} ] 組 (剃除率: ${((killStats[6]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【Downing防線 條件03 (五大區塊)】物理消滅 ➔ [ ${killStats[3]} ] 組 (剃除率: ${((killStats[3]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【Downing防線 條件12 (除三餘數)】物理消滅 ➔ [ ${killStats[12]} ] 組 (剃除率: ${((killStats[12]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【統計指標閘 條件04 (同尾限制)】物理消滅 ➔ [ ${killStats[4]} ] 組 (剃除率: ${((killStats[4]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【統計指標閘 條件07 (連續號牆)】物理消滅 ➔ [ ${killStats[7]} ] 組 (剃除率: ${((killStats[7]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【統計指標閘 條件14 (質數合數)】物理消滅 ➔ [ ${killStats[14]} ] 組 (剃除率: ${((killStats[14]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【熱區邊界閘 條件02 (首尾範圍)】物理消滅 ➔ [ ${killStats[2]} ] 組 (剃除率: ${((killStats[2]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【大數據殺手 條件10 (上期連莊)】物理消滅 ➔ [ ${killStats[10]} ] 組 (剃除率: ${((killStats[10]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【大數據殺手 條件09 (鄰號夾擊)】物理消滅 ➔ [ ${killStats[9]} ] 組 (剃除率: ${((killStats[9]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【數學規律閘 條件08 (等差數列)】物理消滅 ➔ [ ${killStats[8]} ] 組 (剃除率: ${((killStats[8]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`【重型數學閘 條件13 (AC值計算)】物理消滅 ➔ [ ${killStats[13]} ] 組 (剃除率: ${((killStats[13]/totalGeneratedTestCount)*100 || 0).toFixed(2)}%)`);
-        console.log(`============================================================\n`);
-    }, 5000);
+    
 
     // 為現有 filters 陣列中的各個優化器晶片，動態綁定精密觀測 ID 指針
     if (filters[0]) filters[0].id = 5;  // 奇偶
@@ -911,6 +912,7 @@ if (!isMainThread) {
     const requiredSlots = pickCount - favBalls.length;
 
     while (scannedCount < 5000000) { 
+       parentPort.postMessage({ type: 'CORE_KILL_STATS', stats: Array.from(killStats), totalGen: totalGeneratedTestCount });
         scannedCount++;
         
         // 🌟 極速隨機抽樣：消滅 Fisher-Yates 迴圈開銷，改用微秒級隨機指針
