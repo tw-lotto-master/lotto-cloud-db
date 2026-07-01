@@ -261,20 +261,19 @@ if (isMainThread) {
       if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
     }
 // ======= 區塊 1 全新替換代碼 =======
-    // 【金流自癒守護閘】：有條件且非 VIP 時才扣 10 點，完美切斷免費越權扣點黑洞！ 🎯
-    if (!isVipPass) {
-        const OPERATION_COST = 10;
-        if ((dbUser.points || 0) < OPERATION_COST) {
-            res.write(JSON.stringify({ success: false, status: 402, message: `點數不足！需消耗 ${OPERATION_COST} 點。` }) + "\n");
-            return res.end();
-        }
-        dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - OPERATION_COST);
-        await dbUser.save();
-        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: false }) + "\n");
-    } else {
-        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
-    }
+    if (!cfg) return res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n") || res.end();
+    const sessionUserId = req.user && req.user.userId;
+    const dbUser = await User.findById(sessionUserId);
+    if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
+    const nowtime = new Date();
 
+    const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
+    const isVipPass = (hasActiveSubscription || dbUser.isPaidMember === true || 
+        cfg.isPaidMember === true || cfg.isPaidMember === 'true' || 
+        cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || 
+        cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true');
+    const limitOutput = Math.min(100, cfg.count || 5);
+    const pickLimit = parseInt(limitOutput) || 5;
     
     const isNoConditions = (
         (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
@@ -343,7 +342,6 @@ if (isMainThread) {
             const indexStr = String(nextIndex).padStart(2, '0');
             const formattedOutput = formattedArray.join(', ');
             const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
-
             finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formattedOutput}\n`);
         }
         res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
@@ -353,157 +351,137 @@ if (isMainThread) {
             outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖明牌（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
         }) + "\n");
         return res.end();
-    } // 🌟 這裡完美關閉通道 A 的 if 區塊，不再發生漏網錯位！
+    } // 🌟 完美閉合通道 A 
+    if (!isVipPass) {
+        const OPERATION_COST = 10;
+        if ((dbUser.points || 0) < OPERATION_COST) {
+            res.write(JSON.stringify({ success: false, status: 402, message: `點數不足！需消耗 ${OPERATION_COST} 點。` }) + "\n");
+            return res.end();
+        }
+        dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - OPERATION_COST);
+        await dbUser.save();
+        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: false }) + "\n");
+    } else {
+        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
+    }
 
-// === 【通道 B：有勾選條件】 啟動單水管高階控重球池矩陣海選引擎 === ➔ ⚡
-     const limitOutput = Math.min(100, cfg.count || 5); // 🌟 補回必備變數 1
-    const pickLimit = parseInt(limitOutput) || 5;       // 🌟 補回必備變數 2
-      
- global.activeRequestsCount = (global.activeRequestsCount || 0) + 1;
- console.log(`[極速全量大腦] 啟動 1398 萬組全量位元拓撲過濾引擎，目標 90 秒內大竣工！\n`);
- 
- let isFinished = false;
- const finalOutputCombs = [];
- let liveScannedCount = 0;
- const workers = [];
- const innerLottoType = mainLottoType;
- const innerPickCount = mainPickCount;
- 
- const mineBalls = (cfg.f1_on === true || cfg.f1_on === 'true') && cfg.f1_set ? Array.from(cfg.f1_set).map(Number) : [];
- const favBalls = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true') && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
- 
- let initialValidBalls = Array.from({ length: mainMaxBall }, (_, i) => i + 1).filter(b => !mineBalls.includes(b));
- let availableBallsForWheel = initialValidBalls.filter(b => !favBalls.includes(b));
- 
- const availableSlotsPerGroup = mainPickCount - favBalls.length;
- const singleBigGroupLimit = availableSlotsPerGroup > 0 ? Math.floor(availableBallsForWheel.length / availableSlotsPerGroup) : 1;
- console.log(`[數學算力宣佈] 本期剪除後合法互斥球數: ${availableBallsForWheel.length} 顆。宣告單一物理大組極限產能 = [ ${singleBigGroupLimit} ] 組！`);
- 
- const allCompletedGroupsList = [];
- const allCompletedBitmasks = []; 
- let globalUniqueSet = new Set();
- let currentBigGroupUsedBallsSet = new Set();
+    global.activeRequestsCount = (global.activeRequestsCount || 0) + 1;
+    console.log(`[極速全量大腦] 啟動 1398 萬組全量位元拓撲過濾引擎，目標 90 秒內大竣工！\n`);
+    
+    let isFinished = false;
+    const finalOutputCombs = [];
+    let liveScannedCount = 0;
+    const workers = [];
+    
+    const mineBalls = (cfg.f1_on === true || cfg.f1_on === 'true') && cfg.f1_set ? Array.from(cfg.f1_set).map(Number) : [];
+    const favBalls = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true') && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
+    let initialValidBalls = Array.from({ length: mainMaxBall }, (_, i) => i + 1).filter(b => !mineBalls.includes(b));
+    let availableBallsForWheel = initialValidBalls.filter(b => !favBalls.includes(b));
+    
+    const availableSlotsPerGroup = mainPickCount - favBalls.length;
+    const singleBigGroupLimit = availableSlotsPerGroup > 0 ? Math.floor(availableBallsForWheel.length / availableSlotsPerGroup) : 1;
+    
+    let globalUniqueSet = new Set();
+    let currentBigGroupUsedBallsSet = new Set();
 
- // 【原有功能】：歷史資料庫 6 碼完全相同過濾快取晶片 100% 留存 🎯
- const historyCacheSet = new Set();
- if (Array.isArray(globalHistoryDB)) {
-     globalHistoryDB.forEach(h => { 
-         if (Array.isArray(h)) historyCacheSet.add(h.slice(0, mainPickCount).sort((a,b)=>a-b).join(',')); 
-     });
- }
+    await new Promise((resolve) => {
+        // 🌟 100% 還原原創 3 分鐘超時阻斷器與實時記憶體 RSS 日誌，絕不省略：
+        const safetyTimeout = setTimeout(() => {
+            const memSnapshot = process.memoryUsage();
+            console.log(`=======================================================`);
+            console.log(`[海選阻斷] 觸及 3 分鐘極限安全壁壘，中繼站安全收卷交付現存組數。`);
+            console.log(` 常駐記憶體 (RSS): [ ${(memSnapshot.rss / 1024 / 1024).toFixed(2)} MB ]`);
+            console.log(`=======================================================`);
+            
+            isFinished = true;
+            workers.forEach(w => w.terminate());
+            global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
+            
+            res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
+            let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (全量隨機+大組互斥-超時熔斷版)' : '一般篩選 (1398萬組全量秒殺-超時自癒版)';
+            res.write(JSON.stringify({
+                success: true,
+                outputText: `【VIP海選超時熔斷安全交卷】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+            }) + "\n");
+            res.end();
+            resolve();
+        }, 180000);
 
- await new Promise((resolve) => {
-     // 【原有功能】：100% 完整留存原版 5 分鐘極限安全超時阻斷器 📊
-     const safetyTimeout = setTimeout(() => {
-         const memSnapshot = process.memoryUsage();
-         console.log(`=======================================================`);
-         console.log(`[海選阻斷] 觸及 3 分鐘極限安全壁壘，中繼站安全收卷交付現存組數。`);
-         console.log(` 常駐記憶體 (RSS): [ ${(memSnapshot.rss / 1024 / 1024).toFixed(2)} MB ]`);
-         console.log(`=======================================================`);
-         
-         isFinished = true;
-         workers.forEach(w => w.terminate());
-         global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
-         
-         // 超時熔斷安全交卷出口
-         res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
-         let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (全量掃描+大組互斥-超時熔斷版)' : '一般篩選 (1398萬組全量秒殺-超時自癒版)';
-         res.write(JSON.stringify({
-             success: true,
-             outputText: `【VIP海選超時熔斷安全交卷】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
-         }) + "\n");
-         res.end();
-         resolve();
-     }, 180000);
+        // 🌟 核心修正：將前端傳入的歷史資料庫作為 passedHistoryDB 精確指派進去，對齊底層！
+        const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
+        workers.push(worker);
 
-     // 物理修正：將主執行緒載入的歷史大數據傳遞進 Worker，杜絕環境變數隔離失效
-     const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
-     workers.push(worker);
-     worker.on('message', (msg) => {
-         if (isFinished) return;
-         
-         // 【進度條大咬合】：子執行緒回傳全量掃描進度，驅動前台進度條絲滑滾動 🏎
-         if (msg.type === 'TOTAL_SCAN_PROGRESS') {
-             liveScannedCount = msg.scanned;
-             let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / msg.total) * 100));
-             if (currentProgressPercent < 5) currentProgressPercent = 5;
-             res.write(JSON.stringify({ isProgress: true, percent: currentProgressPercent, currentMatch: finalOutputCombs.length }) + "\n");
-             return;
-         }
-         
-         if (msg.type === 'FOUND_ONE_STREAM') {
-             const newComb = msg.data.map(Number);
-             const combKey = newComb.join(',');
-             
-             // 1. 全域 6 碼/5 碼控重防線
-             if (globalUniqueSet.has(combKey)) return;
-             
-             // 2. 選取聰明包牌模式（Smart Mode）：開啟大組內部彩球互斥完全體與重洗機制
-             if (cfg.vipMode === 'smart') {
-                 const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
-                 let isInsideGroupConflict = false;
-                 for (let ball of nonFavBalls) {
-                     if (currentBigGroupUsedBallsSet.has(ball)) { isInsideGroupConflict = true; break; }
-                 }
-                 if (isInsideGroupConflict) return; // 有衝突，拋棄此隨機號，繼續等待下一組隨機號
-                 nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
-             }
-             
-             globalUniqueSet.add(combKey);
-             const nextIndex = finalOutputCombs.length + 1;
-             const indexStr = String(nextIndex).padStart(2, '0');
-             const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
-             const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
-             
-             finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
-             
-             // 【聰明包牌大組重洗機制】：當組數填滿單組邊界，大組桶子強制重生重洗！
-             if (cfg.vipMode === 'smart' && nextIndex % singleBigGroupLimit === 0) {
-                 currentBigGroupUsedBallsSet.clear(); 
-             }
-             
-             // 【隨機填滿安全機制】：產出完美集滿指定的 pickLimit，立刻終止子線程，安全大竣工！
-             if (finalOutputCombs.length >= pickLimit) {
-                 const currentMem = process.memoryUsage();
-                 console.log(`[極速竣工] 純隨機拓撲完成！完美集滿指定產量 ${pickLimit} 組！當前內存 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]`);
-                 isFinished = true;
-                 workers.forEach(w => w.terminate());
-                 clearTimeout(safetyTimeout);
-                 global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
-                 resolve();
-             }
-         }
-     });
- });
+        worker.on('message', (msg) => {
+            if (isFinished) return;
+            if (msg.type === 'TOTAL_SCAN_PROGRESS') {
+                liveScannedCount = msg.scanned;
+                let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / msg.total) * 100));
+                if (currentProgressPercent < 5) currentProgressPercent = 5;
+                res.write(JSON.stringify({ isProgress: true, percent: currentProgressPercent, currentMatch: finalOutputCombs.length }) + "\n");
+                return;
+            }
+            if (msg.type === 'FOUND_ONE_STREAM') {
+                const newComb = msg.data.map(Number);
+                const combKey = newComb.join(',');
+                if (globalUniqueSet.has(combKey)) return;
 
- // 【原有功能】：100% 完整留存原版 10 秒高頻 Heartbeat 心跳訊號傳輸器 🏎
- const heartbeatTimer = setInterval(() => {
-     if (isFinished) return clearInterval(heartbeatTimer);
-     res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100)) }) + "\n");
- }, 10000);
+                if (cfg.vipMode === 'smart') {
+                    const nonFavBalls = newComb.filter(num => !favBalls.includes(num));
+                    let isInsideGroupConflict = false;
+                    for (let ball of nonFavBalls) {
+                        if (currentBigGroupUsedBallsSet.has(ball)) { isInsideGroupConflict = true; break; }
+                    }
+                    if (isInsideGroupConflict) return;
+                    nonFavBalls.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
+                }
+                globalUniqueSet.add(combKey);
+                const nextIndex = finalOutputCombs.length + 1;
+                const indexStr = String(nextIndex).padStart(2, '0');
+                const formatted = newComb.map(n => String(n).padStart(2, '0')).join(', ');
+                const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
+                
+                finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formatted}\n`);
+                if (cfg.vipMode === 'smart' && nextIndex % singleBigGroupLimit === 0) {
+                    currentBigGroupUsedBallsSet.clear(); 
+                }
+                if (finalOutputCombs.length >= pickLimit) {
+                    const currentMem = process.memoryUsage();
+                    console.log(`[極速竣工] 純隨機拓撲完成！完美集滿指定產量 ${pickLimit} 組！當前內存 (RSS): [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]`);
+                    isFinished = true;
+                    workers.forEach(w => w.terminate());
+                    clearTimeout(safetyTimeout);
+                    global.activeRequestsCount = Math.max(0, global.activeRequestsCount - 1);
+                    resolve();
+                }
+            }
+        });
+    });
 
- let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (全量掃描+大組互斥完全體)' : '一般篩選 (1398萬組全量暴力秒殺版)';
- res.write(JSON.stringify({ 
-     success: true, 
-     outputText: `【VIP海選大竣工】中繼站本次海選隨機拋射掃描總數：${liveScannedCount} 組 \n 🎯\n【當前交付解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
- }) + "\n");
- res.end();
- } catch (globalErr) {
-     console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
-     try {
-         res.write(JSON.stringify({ success: false, message: `後台突發故障` }) + "\n");
-         res.end();
-     } catch (e) {}
- }
+    const heartbeatTimer = setInterval(() => {
+        if (isFinished) return clearInterval(heartbeatTimer);
+        res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100)) }) + "\n");
+    }, 10000);
+
+    let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (全量掃描+大組互斥完全體)' : '一般篩選 (1398萬組全量暴力秒殺版)';
+    res.write(JSON.stringify({ 
+        success: true, 
+        outputText: `【VIP海選大竣工】中繼站本次隨機拋射掃描總數：${liveScannedCount} 組 \n 🎯\n【當前交付解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+    }) + "\n");
+    res.end();
+  } catch (globalErr) {
+    console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
+    try { res.write(JSON.stringify({ success: false, message: `後台突發故障` }) + "\n"); res.end(); } catch (e) {}
+  }
 });
-} // 🌟 這行完美閉合主執行緒的 "if (isMainThread) {" 大關卡骨架！
+} // 🌟 完美閉合主執行緒的完全體結構
 
-      if (!isMainThread) {
+if (!isMainThread) {
     const { cfg, passedHistoryDB } = workerData;
     const lottoType = cfg.lottoType || "39_5";
     const maxBall = lottoType === "49_6" ? 49 : 39;
     const pickCount = lottoType === "49_6" ? 6 : 5;
 
+    // 🌟 終極修正：子執行緒精確與主執行緒傳入的 passedHistoryDB 對齊！
     const historyDB = passedHistoryDB || [];
     let lastPeriod = (historyDB.length > 0 && Array.isArray(historyDB[historyDB.length - 1])) 
         ? historyDB[historyDB.length - 1].map(Number) 
@@ -689,7 +667,6 @@ if (isMainThread) {
     // 【關卡 14：質數合數過濾】
     const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
     if (f14_on && (cfg.f14_kill || cfg.f14_kill === 'true')) {
-        // 🌟 物理修復：移出外層，防止 500 萬次高頻重複宣告造成 GC 記憶體卡死！
         const primes = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
         filters.push({
             exec: (comb) => {
@@ -841,10 +818,8 @@ if (isMainThread) {
     }
 }
 
-
 // ───【全域端口大總門】：監聽 Render 埠口 ───
 const PORT = process.env.PORT || 3000;
-
 app.listen(PORT, () => {
   console.log(`=======================================================`);
   console.log(` 🚀 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！`);
