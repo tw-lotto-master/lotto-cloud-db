@@ -1058,10 +1058,11 @@ const requiredSlots = pickCount - favBalls.length;
 } // ⚡【黃金自癒補丁】：精確閉合包裹整個 if (isMainThread) 或是 app 主閘門的關鍵大括號！
 
 // ───【2026 全域端口大總門】：監聽 Render 埠口並通電 ───
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const PORT = process.env.PORT || 10000; 
+
+app.listen(PORT, '0.0.0.0', () => {
   console.log("=======================================================");
-  console.log(" 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！ ");
-  console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
+  console.log(`  2026 LOTTO GA-WHEELING 后端大腦全外網通電成功！`);
+  console.log(`  多執行緒中繼站物理咬合通車，監聽廣域埠口：[ ${PORT} ]`);
   console.log("=======================================================");
 });
