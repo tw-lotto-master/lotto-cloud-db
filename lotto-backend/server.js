@@ -218,19 +218,45 @@ app.post('/api/tickets/save', authenticateToken, async (req, res) => {
   } catch (err) { return res.status(500).json({ success: false, message: '雲端同步失敗' }); }
 });
 
-app.get('/api/tickets/list', async (req, res) => {
-  let authHeader = req.headers['authorization'] || req.query.token;
-  if (authHeader === 'WAKEUP_PING') return res.json({ success: true, message: "WOKE" });
-  if (!authHeader) return res.status(401).json({ success: false, message: "Missing Token" });
+// =========================================================================
+// 🚀【後台接收艙：全新最高安全規格 POST 票券響應晶片】🚀
+// =========================================================================
+app.post('/api/tickets/list', async (req, res) => {
+  let authHeader = req.headers['authorization'] || req.body.token || req.query.token;
+  
+  if (authHeader === 'WAKEUP_PING') {
+    return res.json({ success: true, message: "WOKE" });
+  }
+  if (!authHeader) {
+    return res.status(401).json({ success: false, message: "Missing Token" });
+  }
+  
   try {
-    let token = authHeader.toString().trim().replace(/['"Bearer\s]/g, '');
+    let token = authHeader.toString().trim();
+    if (token.startsWith('Bearer ')) {
+      token = token.replace(/^Bearer\s+/, "").trim();
+    }
+    token = token.replace(/['"\r\n\t]/g, '');
+
+    // 解密操盤手授權憑證
     const decoded = jwt.verify(token, JWT_SECRET);
     const dbUser = await User.findById(decoded.userId || decoded._id || decoded.id);
-    if (!dbUser) return res.status(404).json({ success: false, message: '帳號不存在' });
-    const formattedTickets = (dbUser.savedTickets || []).map(t => typeof t === 'object' ? (t.content || JSON.stringify(t)) : t);
+    if (!dbUser) {
+      return res.status(404).json({ success: false, message: '帳號不存在' });
+    }
+    
+    // 格式化輸出雲端儲存清單
+    const formattedTickets = (dbUser.savedTickets || []).map(t => {
+      return typeof t === 'object' ? (t.content || JSON.stringify(t)) : String(t);
+    });
+    
     return res.json({ success: true, savedTickets: formattedTickets });
-  } catch { return res.status(411).json({ success: false, message: "憑證無效" }); }
+  } catch (err) { 
+    // ⚡【終極除惡補丁】：徹底物理閹割 411 狀態碼，改為標準合規的 401，永絕後患！
+    return res.status(401).json({ success: false, message: "憑證失效，請重新登入" }); 
+  }
 });
+
 if (isMainThread) {
   // 聰明包牌骨牌生牌演算法
   function generateSmartWheelingMatrix(cfg) {
