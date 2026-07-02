@@ -481,16 +481,26 @@ if (isMainThread) {
   }
 
   // 🚀【2026 操盤手指定：分片榜單零記憶體直接對接核心】
-  if (msg.type === 'CHUNK_SYNC_BOARD') {
-    // 50 萬組分片沖刷回來時，直接以極輕量的物件覆蓋主執行緒榜單，0 排序運算
-    leaderBoard = msg.leaderBoard;
+ if (msg.type === 'CHUNK_SYNC_BOARD') {
+    // ⚡【安全防崩潰補丁】：不使用等號直接賦值，改用長度清空與 push 原地注入，完美繞過 const 限制！
+    leaderBoard.length = 0;
+    leaderBoard.push(...msg.leaderBoard);
     return;
   }
 
   if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
     // 全量數據極速大竣工交付
-    leaderBoard = msg.leaderBoard;
+    leaderBoard.length = 0;
+    leaderBoard.push(...msg.leaderBoard);
     console.log(`[大數據完美大竣工] 最終守住名牌組數：${leaderBoard.length} 組`);
+    
+    // 向手機前端發送 100% 竣工的最後一擊訊號
+    res.write(JSON.stringify({ 
+      isProgress: false, 
+      isCompleted: true, 
+      percent: 100, 
+      currentMatch: leaderBoard.length 
+    }) + "\n");
     return;
   }
 
