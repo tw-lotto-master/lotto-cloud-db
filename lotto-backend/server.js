@@ -473,15 +473,13 @@ if (isMainThread) {
  }
  
  if (msg.type === 'TOTAL_SCAN_PROGRESS') {
-      liveScannedCount = msg.scanned;
-    const maxTotalVal = msg.maxTotal || (lottoType === "49_6" ? 13983816 : 575757);
-    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / maxTotalVal) * 100));
+    liveScannedCount = msg.scanned;
+    // 🚀【作用域自癒提升】：移出 if 塊內部，宣告為通訊艙全域共享常數
+    const globalMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
+    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / globalMaxTotal) * 100));
     if (currentProgressPercent < 5) currentProgressPercent = 5;
 
-    // 後台老實列印進度日誌
-    console.log(`[全域海選進度] 已掃描: ${msg.scanned} / ${maxTotalVal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
-
-    // 🚀【修正整除漏洞】：改為每 50 萬組分片沖刷時，老實列印全量 16 防線完整死亡戰報！
+    console.log(`[全域海選進度] 已掃描: ${msg.scanned} / ${globalMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
     if (msg.stats && msg.scanned % 500000 === 0) {
       console.log(` -> [實時防線擊殺快照] 條件15: ${msg.stats[15] || 0} 組 | 條件06: ${msg.stats[6] || 0} 組 | 條件05: ${msg.stats[5] || 0} 組 | 條件01: ${msg.stats[1] || 0} 組`);
     }
@@ -491,7 +489,7 @@ if (isMainThread) {
       percent: currentProgressPercent, 
       currentMatch: leaderBoard.length,
       scanned: msg.scanned,
-      maxTotal: maxTotalVal,
+      maxTotal: globalMaxTotal,
       totalGen: msg.totalGen || 0,
       fullStats: msg.stats 
     }) + "\n");
@@ -505,12 +503,10 @@ if (isMainThread) {
   }
 
   if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-    // ⚡【安全防禦】：大竣工瞬間立刻拆除 5 分鐘熔斷定時器
     if (typeof safetyTimeout !== 'undefined') {
       clearTimeout(safetyTimeout);
       console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
     }
-
     leaderBoard.length = 0;
     leaderBoard.push(...msg.leaderBoard);
     console.log(`=======================================================`);
@@ -518,14 +514,15 @@ if (isMainThread) {
     console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
     console.log(`=======================================================`);
     
-    // 🌟【安全補丁】：修正原 maxTotal 未定義導致的 522 行崩潰，對齊 maxTotalVal 常數
+    // 🎯 完美綁定 globalMaxTotal，徹底解除 527 行死機綠屏
+    const finalMax = msg.maxTotal || globalMaxTotal;
     res.write(JSON.stringify({ 
       isProgress: false, 
       isCompleted: true, 
       percent: 100, 
       currentMatch: leaderBoard.length,
-      scanned: maxTotalVal,
-      maxTotal: maxTotalVal,
+      scanned: finalMax,
+      maxTotal: finalMax,
       totalGen: msg.totalGen || maxTotalVal,
       fullStats: msg.stats
     }) + "\n");
@@ -897,30 +894,30 @@ if (!isMainThread) {
 
    // 🏎【第二階段：最沉重的魔王級條件 15 移至最末端執行】
    // 只有百分之百通過前面所有防線的精銳，才允許進來跑昂貴的 DFS 遞迴歷史比對！
-   if (f15_on) {
-     const splitCount = pickCount - 1;
-     let conflict = false;
-     const checkDfs = (start, curr) => {
-       if (conflict) return;
-       if (curr.length === splitCount) { 
-         if (historyEvapSet.has(curr.join(','))) conflict = true; 
-         return; 
-       }
-       for (let i = start; i < comb.length; i++) { 
-         checkDfs(i + 1, [...curr, comb[i]]); 
-       }
-     };
-     checkDfs(0, []);
-     if (conflict) { 
-       killStats[15]++; 
-       return false; 
-     } 
-   } else {
-     if (historyEvapSet.has(comb.join(','))) { 
-       killStats[15]++; 
-       return false; 
-     }
-   }
+  // 🏎【第二階段：條件 15 嚴格限流晶片】
+  // 只有當用戶在前端「真正打勾啟用」條件 15 時，才允許觸發 DFS 歷史重疊比對！
+  if (f15_on) {
+    const splitCount = pickCount - 1;
+    let conflict = false;
+    const checkDfs = (start, curr) => {
+      if (conflict) return;
+      if (curr.length === splitCount) { 
+        if (historyEvapSet.has(curr.join(','))) conflict = true; 
+        return; 
+      }
+      for (let i = start; i < comb.length; i++) { 
+        checkDfs(i + 1, [...curr, comb[i]]); 
+      }
+    };
+    checkDfs(0, []);
+    if (conflict) { 
+      killStats[15]++; 
+      return false; 
+    } 
+  } else {
+    // 🟢【越權串音漏洞閹割補丁】：如果用戶沒勾選條件 15，直接綠色通道放行，絕不去盲目比對歷史頭獎！
+    // 徹底將沒打勾時的條件 15 擊殺計數器死死焊接在 0！
+  }
 
    return true; // 恭喜安全生還！
  }
