@@ -1033,33 +1033,7 @@ const requiredSlots = pickCount - favBalls.length;
   parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: localLeaderBoard });
 })();
 
- // 核心晶片：生還健康評分發射器
- function evaluateAndPost(combination, isLotto, totalCount) {
-   if (isGeneSurvive(combination)) {
-     let healthScore = 50; // 提高基礎生還分
 
-     // 1. 總和鐘形曲線大數據評分 (+25分)
-     const sumVal = combination.reduce((x, y) => x + y, 0);
-     const lowBound = isLotto ? 110 : 70;
-     const highBound = isLotto ? 185 : 125;
-     if (sumVal >= lowBound && sumVal <= highBound) {
-       healthScore += 25;
-     }
-
-     // 2. 奇偶二分天下平衡評分 (+25分)
-     let oddsCount = 0;
-     combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
-     if (isLotto) {
-       if (oddsCount === 3) healthScore += 25;
-       else if (oddsCount === 2 || oddsCount === 4) healthScore += 10;
-     } else {
-       if (oddsCount === 2 || oddsCount === 3) healthScore += 25;
-     }
-
-     parentPort.postMessage({ type: 'FOUND_ONE_STREAM', data: combination, score: healthScore });
-   }
- }
- }
  // ───【全域端口大總門】：監聽 Render 埠口 ───
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
