@@ -450,68 +450,69 @@ if (isMainThread) {
     // 🚀【究極作用域補丁】：強行在所有 if 艙門的最頂端天花板宣告共享最大上限，徹底封殺 518 行變數未定義崩潰！
     const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
 
-    if (msg.type === 'TOTAL_SCAN_PROGRESS') {
-      liveScannedCount = msg.scanned;
-      let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
-      if (currentProgressPercent < 5) currentProgressPercent = 5;
+  if (msg.type === 'TOTAL_SCAN_PROGRESS') {
+    liveScannedCount = msg.scanned;
+    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
+    if (currentProgressPercent < 5) currentProgressPercent = 5;
+    console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
 
-      console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
-      
-      // 🔬【操盤手指定：16防線全景實時觀測大晶片】：一碼不漏，全量列印 1~16 道防線的動態擊殺數！
-      if (msg.stats && msg.scanned % 500000 === 0) {
-        const s = msg.stats;
-        console.log(` -> 📊 [16防線動態擊殺快照] `);
-        console.log(`    [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
-        console.log(`    [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
-        console.log(`    [數學防線] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
-        console.log(`    [歷史大數據] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
-        console.log(`    [終極防護牆] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數): ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
-        console.log(`---------------------------------------------------------------------------------------------------`);
-      }
-
-      res.write(JSON.stringify({ 
-        isProgress: true, 
-        percent: currentProgressPercent, 
-        currentMatch: leaderBoard.length,
-        scanned: msg.scanned,
-        maxTotal: absoluteMaxTotal,
-        totalGen: msg.totalGen || 0,
-        fullStats: msg.stats 
-      }) + "\n");
-      return;
+    // 🔬【16道防線全景算力擊殺快照】：一碼不漏，完整接收並列印 1 ~ 16 關卡獨立計數
+    if (msg.stats && msg.scanned % 500000 === 0) {
+      const s = msg.stats;
+      console.log(`\n======================= 📊 [16防線動態擊殺全景觀測] =======================`);
+      console.log(` 📌 [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
+      console.log(` 📌 [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
+      console.log(` 📌 [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
+      console.log(` 📌 [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
+      console.log(` 📌 [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數): ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
+      console.log(` 📌 [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
+      console.log(`=================================================================================\n`);
     }
 
-    if (msg.type === 'CHUNK_SYNC_BOARD') {
-      leaderBoard.length = 0;
-      leaderBoard.push(...msg.leaderBoard);
-      return;
-    }
+    res.write(JSON.stringify({ 
+      isProgress: true, 
+      percent: currentProgressPercent, 
+      currentMatch: leaderBoard.length,
+      scanned: msg.scanned,
+      maxTotal: absoluteMaxTotal,
+      totalGen: msg.totalGen || 0,
+      fullStats: msg.stats 
+    }) + "\n");
+    return;
+  }
 
-    if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-      if (typeof safetyTimeout !== 'undefined') {
-        clearTimeout(safetyTimeout);
-        console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
-      }
-      leaderBoard.length = 0;
-      leaderBoard.push(...msg.leaderBoard);
-      console.log(`=======================================================`);
-      console.log(`🎉 [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`);
-      console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
-      console.log(`=======================================================`);
-      
-      // 🚀 100% 安全對齊全域頂端 absoluteMaxTotal 變數，大竣工絕不崩潰！
-      res.write(JSON.stringify({ 
-        isProgress: false, 
-        isCompleted: true, 
-        percent: 100, 
-        currentMatch: leaderBoard.length,
-        scanned: absoluteMaxTotal,
-        maxTotal: absoluteMaxTotal,
-      totalGen: msg.totalGen || maxTotalVal,
+  if (msg.type === 'CHUNK_SYNC_BOARD') {
+    leaderBoard.length = 0;
+    leaderBoard.push(...msg.leaderBoard);
+    return;
+  }
+
+  if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+    if (typeof safetyTimeout !== 'undefined') {
+      clearTimeout(safetyTimeout);
+      console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+    }
+    leaderBoard.length = 0;
+    leaderBoard.push(...msg.leaderBoard);
+    console.log(`=======================================================`);
+    console.log(`🎉 [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`);
+    console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+    console.log(`=======================================================`);
+    
+    // 🚀【終極自癒拆彈】：徹底抹除舊殘留 maxTotalVal，完全對齊天花板共享常數 absoluteMaxTotal，100% 絕不崩潰！
+    res.write(JSON.stringify({ 
+      isProgress: false, 
+      isCompleted: true, 
+      percent: 100, 
+      currentMatch: leaderBoard.length,
+      scanned: absoluteMaxTotal,
+      maxTotal: absoluteMaxTotal,
+      totalGen: msg.totalGen || absoluteMaxTotal,
       fullStats: msg.stats
     }) + "\n");
     return;
   }
+
  });
 
  // 輔助晶片：將計分板數據滾動倒出到原本的交付容器中，維持與前台的對齊
