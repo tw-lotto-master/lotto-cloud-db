@@ -958,20 +958,31 @@ const requiredSlots = pickCount - favBalls.length;
     }
 
     // 🏆 原地殘酷 PK 淘汰賽：輸的組合當場被 JavaScript 垃圾回收銷毀，不佔任何 Byte
+        // 🏆【子執行緒原地殘酷 PK 淘汰賽 - 補齊大組單元特徵晶片】
+    // 輸的組合當場被 JavaScript 垃圾回收自動銷毀，0 記憶體內耗！
     if (localLeaderBoard.length < pickLimit) {
       const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
-      localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+      
+      // 🎯【自癒補丁】：自動依據當前入庫序號，動態推算其在聰明包牌特徵下的虛擬大組編號！
+      const currentUnitNum = Math.ceil((localLeaderBoard.length + 1) / (rSlotsCount > 0 ? rSlotsCount : 1));
+      
+      localLeaderBoard.push({ score: healthScore, comb: combination, formatted, unit: currentUnitNum });
       if (localLeaderBoard.length === pickLimit) {
         localLeaderBoard.sort((a, b) => b.score - a.score);
         minScoreInLocalBoard = localLeaderBoard[pickLimit - 1].score;
       }
     } else if (healthScore > minScoreInLocalBoard) {
-      localLeaderBoard.pop(); // 剔除最低分守門員
+      localLeaderBoard.pop(); // 物理剔除低分守門員
       const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
-      localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-      localLeaderBoard.sort((a, b) => b.score - a.score); // 僅對 100 組排序，毫無內耗
+      
+      // 🎯【自癒補丁】：殘酷 PK 擠進新血時，同樣補齊對應的大組 Y 指針單元
+      const currentUnitNum = Math.ceil((localLeaderBoard.length + 1) / (rSlotsCount > 0 ? rSlotsCount : 1));
+      
+      localLeaderBoard.push({ score: healthScore, comb: combination, formatted, unit: currentUnitNum });
+      localLeaderBoard.sort((a, b) => b.score - a.score); // 僅對 100 組微調排序，0 內耗
       minScoreInLocalBoard = localLeaderBoard[pickLimit - 1].score;
     }
+
   }
 
   // 【操盤手指定：50 萬組分片切割沖刷晶片】
