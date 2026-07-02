@@ -967,29 +967,58 @@ const requiredSlots = pickCount - favBalls.length;
   function processAndLocalPK(combination) {
     if (!isGeneSurvive(combination)) return; // 一條防線沒過，瞬間釋放記憶體
 
-    // 計算 2026 數據特徵分
-    let healthScore = 50; 
+    // =========================================================================
+    // 🔬【操盤手指定：動態特徵權重非對稱加減分不設限晶片】
+    // 徹底取消 100 分滿分天花板，多維特徵加減分在暫存器原地運算，0 記憶體開銷！
+    // =========================================================================
+    let healthScore = 0; 
     const sumVal = combination.reduce((x, y) => x + y, 0);
+
+    // 【特徵一：號碼總和常態加減分】
     const lowBound = isLotto ? 110 : 70;
     const highBound = isLotto ? 185 : 125;
-    if (sumVal >= lowBound && sumVal <= highBound) healthScore += 25;
+    if (sumVal >= lowBound && sumVal <= highBound) healthScore += 35;
+    else healthScore -= 15;
 
+    // 【特徵二：奇偶平衡加減分】
     let oddsCount = 0;
-    combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
+    for (let m = 0; m < combination.length; m++) {
+      if ((combination[m] & 1) === 1) oddsCount++;
+    }
     if (isLotto) {
-      if (oddsCount === 3) healthScore += 25;
-      else if (oddsCount === 2 || oddsCount === 4) healthScore += 10;
+      if (oddsCount === 3) healthScore += 30; // 3奇3偶，大加分！
+      else if (oddsCount === 2 || oddsCount === 4) healthScore += 15;
+      else healthScore -= 20; // 極端號碼，扣分！
     } else {
-      if (oddsCount === 2 || oddsCount === 3) healthScore += 25;
+      if (oddsCount === 2 || oddsCount === 3) healthScore += 30;
+      else healthScore -= 20;
     }
 
-    // 🏆 原地殘酷 PK 淘汰賽：輸的組合當場被 JavaScript 垃圾回收銷毀，不佔任何 Byte
-        // 🏆【子執行緒原地殘酷 PK 淘汰賽 - 補齊大組單元特徵晶片】
-    // 輸的組合當場被 JavaScript 垃圾回收自動銷毀，0 記憶體內耗！
+    // 【特徵三：大小分流加減分】
+    const midPoint = isLotto ? 25 : 20;
+    const bigCount = combination.filter(n => n >= midPoint).length;
+    if (isLotto) {
+      if (bigCount === 3) healthScore += 25;
+      else if (bigCount === 2 || bigCount === 4) healthScore += 10;
+      else healthScore -= 15;
+    } else {
+      if (bigCount === 2 || bigCount === 3) healthScore += 25;
+      else healthScore -= 15;
+    }
+
+    // 【特徵四：連號黃金規律篩選】
+    let consecutiveCount = 0;
+    for (let c = 0; c < combination.length - 1; c++) {
+      if (combination[c + 1] - combination[c] === 1) consecutiveCount++;
+    }
+    if (consecutiveCount === 1) healthScore += 20; // 最符合開獎常態一組連號
+    else if (consecutiveCount > 2) healthScore -= 25;
+
+    // =========================================================================
+    // 🏆【子執行緒原地殘酷 PK 淘汰賽：動態階梯汰舊換新晶片】
+    // =========================================================================
     if (localLeaderBoard.length < pickLimit) {
       const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
-      
-      // 🎯【自癒補丁】：自動依據當前入庫序號，動態推算其在聰明包牌特徵下的虛擬大組編號！
       const currentUnitNum = Math.ceil((localLeaderBoard.length + 1) / (rSlotsCount > 0 ? rSlotsCount : 1));
       
       localLeaderBoard.push({ score: healthScore, comb: combination, formatted, unit: currentUnitNum });
@@ -1000,15 +1029,12 @@ const requiredSlots = pickCount - favBalls.length;
     } else if (healthScore > minScoreInLocalBoard) {
       localLeaderBoard.pop(); // 物理剔除低分守門員
       const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
-      
-      // 🎯【自癒補丁】：殘酷 PK 擠進新血時，同樣補齊對應的大組 Y 指針單元
       const currentUnitNum = Math.ceil((localLeaderBoard.length + 1) / (rSlotsCount > 0 ? rSlotsCount : 1));
       
       localLeaderBoard.push({ score: healthScore, comb: combination, formatted, unit: currentUnitNum });
       localLeaderBoard.sort((a, b) => b.score - a.score); // 僅對 100 組微調排序，0 內耗
       minScoreInLocalBoard = localLeaderBoard[pickLimit - 1].score;
     }
-
   }
 
   // 【操盤手指定：50 萬組分片切割沖刷晶片】
@@ -1035,7 +1061,10 @@ const requiredSlots = pickCount - favBalls.length;
     }
   }
 
-  // 【2026 完全體：多維拓撲限流分片迴圈晶片】
+  // =========================================================================
+  // ⚡【2026 商用完全體：多維隨機碎裂拓撲流動晶片】
+  // 彩球池已被 Fisher-Yates 物理打碎！此迴圈將以全域碎裂網格起跑，徹底粉碎先入為主死鎖！
+  // =========================================================================
   for (let i0 = 0; i0 < pLen; i0++) {
     if (scannedCount >= maxCombinations) break;
     for (let i1 = i0 + 1; i1 < pLen; i1++) {
@@ -1043,27 +1072,27 @@ const requiredSlots = pickCount - favBalls.length;
         if (rSlotsCount === 3) {
           scannedCount++; localTotalGen++;
           await triggerChunkFlush();
-          let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2]].sort((a,b)=>a-b);
+          let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2]].sort((a, b) => a - b);
           processAndLocalPK(combination);
         } else {
           for (let i3 = i2 + 1; i3 < pLen; i3++) {
             if (rSlotsCount === 4) {
               scannedCount++; localTotalGen++;
               await triggerChunkFlush();
-              let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3]].sort((a,b)=>a-b);
+              let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3]].sort((a, b) => a - b);
               processAndLocalPK(combination);
             } else {
               for (let i4 = i3 + 1; i4 < pLen; i4++) {
                 if (rSlotsCount === 5) { 
                   scannedCount++; localTotalGen++;
                   await triggerChunkFlush();
-                  let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3], remainingPool[i4]].sort((a,b)=>a-b);
+                  let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3], remainingPool[i4]].sort((a, b) => a - b);
                   processAndLocalPK(combination);
                 } else {
                   for (let i5 = i4 + 1; i5 < pLen; i5++) {
                     scannedCount++; localTotalGen++;
                     await triggerChunkFlush();
-                    let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3], remainingPool[i4], remainingPool[i5]].sort((a,b)=>a-b);
+                    let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3], remainingPool[i4], remainingPool[i5]].sort((a, b) => a - b);
                     processAndLocalPK(combination);
                   }
                 }
@@ -1074,6 +1103,7 @@ const requiredSlots = pickCount - favBalls.length;
       }
     }
   }
+
   
   // 竣工大收網：將最終死守下來的精選 100 組全量交付主線程
   parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, total: scannedCount, stats: Array.from(killStats), totalGen: localTotalGen });
