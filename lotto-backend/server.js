@@ -602,7 +602,7 @@ if (!isMainThread) {
     // 【第一階段：優先判定條件 15 分裂】
     // ==========================================
     const historyEvapSet = new Set();
-    const f15_on = (cfg.f15_kill === true || cfg.f15_kill === 'true' || cfg.f15_on === true || cfg.f15_on === 'true');
+   const f15_on = (cfg.f15_on === true || cfg.f15_on === 'true');
 
     if (Array.isArray(historyDB)) {
         historyDB.forEach(h => {
@@ -982,14 +982,15 @@ if (!isMainThread) {
    if (scannedCount >= 10000000) break; 
 
    for (let i1 = i0 + 1; i1 < pLen; i1++) {
-     
-     // 🏎 每當跑完一輪 i1 中型矩陣，強制進行非同步排氣，把 CPU 控制權完美交還給主線程監聽埠口
-     parentPort.postMessage({ type: 'CORE_KILL_STATS', stats: Array.from(killStats), totalGen: localTotalGen });
-     parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: 10000000 });
-     await breathe(); 
 
      for (let i2 = i1 + 1; i2 < pLen; i2++) {
        // 🟢 移除了原本埋在第三層內部、導致排氣不及的舊 if (scannedCount % 100000 === 0) 區塊
+
+        if (scannedCount % 500000 === 0) {
+                parentPort.postMessage({ type: 'CORE_KILL_STATS', stats: Array.from(killStats), totalGen: localTotalGen });
+                parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: 10000000 });
+                await breathe(); 
+            }
 
          if (rSlotsCount === 3) {
            // 適用於最愛號碼鎖定 3 碼的情況 (3隨機 + 3最愛)
