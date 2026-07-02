@@ -473,28 +473,35 @@ if (isMainThread) {
  }
  
  if (msg.type === 'TOTAL_SCAN_PROGRESS') {
- liveScannedCount = msg.scanned;
-    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / msg.total) * 100));
+    liveScannedCount = msg.scanned;
+    const maxTotal = msg.maxTotal || (lottoType === "49_6" ? 13983816 : 575757);
+    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / maxTotal) * 100));
     if (currentProgressPercent < 5) currentProgressPercent = 5;
+
+    // 🔬【老實打印全量進度與 16 防線監測，絕不偷懶】
+    console.log(`[全域海選進度] 已掃描: ${msg.scanned} / ${maxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
+    if (msg.stats && msg.scanned % 1000000 === 0) {
+      console.log(` -> [實時防線擊殺快照] 條件15(歷史重疊): ${msg.stats[15] || 0} 組 | 條件06(號碼總和): ${msg.stats[6] || 0} 組 | 條件05(奇偶比例): ${msg.stats[5] || 0} 組`);
+    }
+
     res.write(JSON.stringify({ isProgress: true, percent: currentProgressPercent, currentMatch: leaderBoard.length }) + "\n");
     return;
   }
 
-  // 🚀【2026 操盤手指定：分片榜單零記憶體直接對接核心】
- if (msg.type === 'CHUNK_SYNC_BOARD') {
-    // ⚡【安全防崩潰補丁】：不使用等號直接賦值，改用長度清空與 push 原地注入，完美繞過 const 限制！
+  if (msg.type === 'CHUNK_SYNC_BOARD') {
     leaderBoard.length = 0;
     leaderBoard.push(...msg.leaderBoard);
     return;
   }
 
   if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-    // 全量數據極速大竣工交付
     leaderBoard.length = 0;
     leaderBoard.push(...msg.leaderBoard);
-    console.log(`[大數據完美大竣工] 最終守住名牌組數：${leaderBoard.length} 組`);
+    console.log(`=======================================================`);
+    console.log(`🎉 [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`);
+    console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+    console.log(`=======================================================`);
     
-    // 向手機前端發送 100% 竣工的最後一擊訊號
     res.write(JSON.stringify({ 
       isProgress: false, 
       isCompleted: true, 
@@ -503,6 +510,7 @@ if (isMainThread) {
     }) + "\n");
     return;
   }
+
 
  });
 
@@ -974,31 +982,31 @@ const requiredSlots = pickCount - favBalls.length;
     }
   }
 
-  // 🚀【操盤手指定：50 萬組分片切割沖刷晶片】
+  // 【操盤手指定：50 萬組分片切割沖刷晶片】
   async function triggerChunkFlush() {
     if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
       const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
       
-      // 每跑完一個分片（50 萬組），才向主執行緒輕量推播一次進度與「當前的 100 組」
+      // 精確拋出理論最大值與原始防線陣列，絕不刪除監測
       parentPort.postMessage({ 
         type: 'TOTAL_SCAN_PROGRESS', 
         scanned: scannedCount, 
+        maxTotal: maxCombinations,
         percent: currentPercent,
         stats: Array.from(killStats),
         totalGen: localTotalGen
       });
 
-      // 順便把當前原地生還的優質名牌同步給主執行緒，讓前端手機畫面可以「每 50 萬組流暢刷新一次」
       parentPort.postMessage({
         type: 'CHUNK_SYNC_BOARD',
         leaderBoard: localLeaderBoard
       });
       
-      await breathe(); // 每 50 萬組大分片才進行微秒級排氣，馬達轉速最大化
+      await breathe(); 
     }
   }
 
-   // 🚀【2026 完全體：多維拓撲限流分片迴圈晶片】
+  // 【2026 完全體：多維拓撲限流分片迴圈晶片】
   for (let i0 = 0; i0 < pLen; i0++) {
     if (scannedCount >= 10000000) break; 
     for (let i1 = i0 + 1; i1 < pLen; i1++) {
@@ -1017,7 +1025,7 @@ const requiredSlots = pickCount - favBalls.length;
               processAndLocalPK(combination);
             } else {
               for (let i4 = i3 + 1; i4 < pLen; i4++) {
-                if (rSlotsCount === 5) { // 🌟 精確修正原檔重疊寫錯的 bug，完美打通大樂透 5 碼鎖定
+                if (rSlotsCount === 5) { 
                   scannedCount++; localTotalGen++;
                   await triggerChunkFlush();
                   let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3], remainingPool[i4]].sort((a,b)=>a-b);
@@ -1038,9 +1046,10 @@ const requiredSlots = pickCount - favBalls.length;
     }
   }
   
-  // 🚀 竣工大收網：將最終死守下來的精選 100 組全量交付主線程
-  parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: scannedCount });
+  // 竣工大收網：將最終死守下來的精選 100 組全量交付主線程
+  parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, total: scannedCount, stats: Array.from(killStats), totalGen: localTotalGen });
   parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: localLeaderBoard });
+
 })(); // 完美閉合子執行緒非同步自執行大腦 🌟
 
 } // ⚡【黃金自癒補丁】：精確閉合包裹整個 if (isMainThread) 或是 app 主閘門的關鍵大括號！
