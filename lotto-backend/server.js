@@ -1028,17 +1028,18 @@ const requiredSlots = pickCount - favBalls.length;
     }
   }
   
-  // 竣工大收網：將最終死守下來的精選 100 組全量交付主線程
+  // 🚀 竣工大收網：將最終死守下來的精選 100 組全量交付主線程
   parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: scannedCount });
   parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: localLeaderBoard });
-})();
+})(); // 完美閉合子執行緒非同步自執行大腦 🌟
 
+} // ⚡【黃金自癒補丁】：精確閉合包裹整個 if (isMainThread) 或是 app 主閘門的關鍵大括號！
 
- // ───【全域端口大總門】：監聽 Render 埠口 ───
+// ───【2026 全域端口大總門】：監聽 Render 埠口並通電 ───
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`=======================================================`);
-  console.log(` 🚀 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！`);
-  console.log(` 📡 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
+  console.log(` 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！`); 🚀
+  console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`); 📡
   console.log(`=======================================================`);
 });
