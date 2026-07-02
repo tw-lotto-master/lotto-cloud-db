@@ -445,84 +445,68 @@ if (isMainThread) {
  const leaderBoard = []; // 格式: { score: X, comb: [...], formatted: '...', unit: Y }
 
  worker.on('message', (msg) => {
- if (isFinished) return; 
- 
- // 點對點補丁：主線程代為接收底層 16 防線報表，並由主線程標籤親自打印！ 🌟
- if (msg.type === 'CORE_KILL_STATS') {
- const k = msg.stats;
- const total = msg.totalGen || 1;
- console.log(`\n================== 16防線全量算力剃除率最終報告 🔬 ==================`);
- console.log(`[全局進度] 子線程全量亂數隨機射出總母體: ${total} 組`);
- console.log(`------------------------------------------------------------`);
- console.log(`【優先蒸發閘 條件15 (歷史重疊)】物理消滅 [ ${k[15] || 0} ] 組 (剃除率: ${(((k[15]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【物理攔截閘 條件05 (奇偶比例)】物理消滅 [ ${k[5] || 0} ] 組 (剃除率: ${(((k[5]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【物理攔截閘 條件11 (大小分流)】物理消滅 [ ${k[11] || 0} ] 組 (剃除率: ${(((k[11]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【物理攔截閘 條件06 (號碼總和)】物理消滅 [ ${k[6] || 0} ] 組 (剃除率: ${(((k[6]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【Downing防線 條件03 (五大區塊)】物理消滅 [ ${k[3] || 0} ] 組 (剃除率: ${(((k[3]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【Downing防線 條件12 (除三餘數)】物理消滅 [ ${k[12] || 0} ] 組 (剃除率: ${(((k[12]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【統計指標閘 條件04 (同尾限制)】物理消滅 [ ${k[4] || 0} ] 組 (剃除率: ${(((k[4]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【統計指標閘 條件07 (連續號牆)】物理消滅 [ ${k[7] || 0} ] 組 (剃除率: ${(((k[7]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【統計指標閘 條件14 (質數合數)】物理消滅 [ ${k[14] || 0} ] 組 (剃除率: ${(((k[14]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【熱區邊界閘 條件02 (首尾範圍)】物理消滅 [ ${k[2] || 0} ] 組 (剃除率: ${(((k[2]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【大數據殺手 條件10 (上期連莊)】物理消滅 [ ${k[10] || 0} ] 組 (剃除率: ${(((k[10]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【大數據殺手 條件09 (鄰號夾擊)】物理消滅 [ ${k[9] || 0} ] 組 (剃除率: ${(((k[9]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【數學規律閘 條件08 (等差數列)】物理消滅 [ ${k[8] || 0} ] 組 (剃除率: ${(((k[8]||0)/total)*100).toFixed(2)}%)`);
- console.log(`【重型數學閘 條件13 (AC值計算)】物理消滅 [ ${k[13] || 0} ] 組 (剃除率: ${(((k[13]||0)/total)*100).toFixed(2)}%)`);
- console.log(`============================================================\n`);
- return;
- }
- 
- if (msg.type === 'TOTAL_SCAN_PROGRESS') {
-    liveScannedCount = msg.scanned;
-    // 🚀【作用域自癒提升】：移出 if 塊內部，宣告為通訊艙全域共享常數
-    const globalMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
-    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / globalMaxTotal) * 100));
-    if (currentProgressPercent < 5) currentProgressPercent = 5;
+    if (isFinished) return;
 
-    console.log(`[全域海選進度] 已掃描: ${msg.scanned} / ${globalMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
-    if (msg.stats && msg.scanned % 500000 === 0) {
-      console.log(` -> [實時防線擊殺快照] 條件15: ${msg.stats[15] || 0} 組 | 條件06: ${msg.stats[6] || 0} 組 | 條件05: ${msg.stats[5] || 0} 組 | 條件01: ${msg.stats[1] || 0} 組`);
+    // 🚀【究極作用域補丁】：強行在所有 if 艙門的最頂端天花板宣告共享最大上限，徹底封殺 518 行變數未定義崩潰！
+    const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
+
+    if (msg.type === 'TOTAL_SCAN_PROGRESS') {
+      liveScannedCount = msg.scanned;
+      let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
+      if (currentProgressPercent < 5) currentProgressPercent = 5;
+
+      console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
+      
+      // 🔬【操盤手指定：16防線全景實時觀測大晶片】：一碼不漏，全量列印 1~16 道防線的動態擊殺數！
+      if (msg.stats && msg.scanned % 500000 === 0) {
+        const s = msg.stats;
+        console.log(` -> 📊 [16防線動態擊殺快照] `);
+        console.log(`    [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
+        console.log(`    [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
+        console.log(`    [數學防線] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
+        console.log(`    [歷史大數據] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
+        console.log(`    [終極防護牆] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數): ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
+        console.log(`---------------------------------------------------------------------------------------------------`);
+      }
+
+      res.write(JSON.stringify({ 
+        isProgress: true, 
+        percent: currentProgressPercent, 
+        currentMatch: leaderBoard.length,
+        scanned: msg.scanned,
+        maxTotal: absoluteMaxTotal,
+        totalGen: msg.totalGen || 0,
+        fullStats: msg.stats 
+      }) + "\n");
+      return;
     }
 
-    res.write(JSON.stringify({ 
-      isProgress: true, 
-      percent: currentProgressPercent, 
-      currentMatch: leaderBoard.length,
-      scanned: msg.scanned,
-      maxTotal: globalMaxTotal,
-      totalGen: msg.totalGen || 0,
-      fullStats: msg.stats 
-    }) + "\n");
-    return;
-  }
-
-  if (msg.type === 'CHUNK_SYNC_BOARD') {
-    leaderBoard.length = 0;
-    leaderBoard.push(...msg.leaderBoard);
-    return;
-  }
-
-  if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-    if (typeof safetyTimeout !== 'undefined') {
-      clearTimeout(safetyTimeout);
-      console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+    if (msg.type === 'CHUNK_SYNC_BOARD') {
+      leaderBoard.length = 0;
+      leaderBoard.push(...msg.leaderBoard);
+      return;
     }
-    leaderBoard.length = 0;
-    leaderBoard.push(...msg.leaderBoard);
-    console.log(`=======================================================`);
-    console.log(`🎉 [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`);
-    console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
-    console.log(`=======================================================`);
-    
-    // 🎯 完美綁定 globalMaxTotal，徹底解除 527 行死機綠屏
-    const finalMax = msg.maxTotal || globalMaxTotal;
-    res.write(JSON.stringify({ 
-      isProgress: false, 
-      isCompleted: true, 
-      percent: 100, 
-      currentMatch: leaderBoard.length,
-      scanned: finalMax,
-      maxTotal: finalMax,
+
+    if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+      if (typeof safetyTimeout !== 'undefined') {
+        clearTimeout(safetyTimeout);
+        console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+      }
+      leaderBoard.length = 0;
+      leaderBoard.push(...msg.leaderBoard);
+      console.log(`=======================================================`);
+      console.log(`🎉 [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`);
+      console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+      console.log(`=======================================================`);
+      
+      // 🚀 100% 安全對齊全域頂端 absoluteMaxTotal 變數，大竣工絕不崩潰！
+      res.write(JSON.stringify({ 
+        isProgress: false, 
+        isCompleted: true, 
+        percent: 100, 
+        currentMatch: leaderBoard.length,
+        scanned: absoluteMaxTotal,
+        maxTotal: absoluteMaxTotal,
       totalGen: msg.totalGen || maxTotalVal,
       fullStats: msg.stats
     }) + "\n");
