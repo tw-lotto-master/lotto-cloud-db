@@ -478,13 +478,19 @@ if (isMainThread) {
     let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / maxTotal) * 100));
     if (currentProgressPercent < 5) currentProgressPercent = 5;
 
-    // 🔬【老實打印全量進度與 16 防線監測，絕不偷懶】
+    // 後台老實列印日誌
     console.log(`[全域海選進度] 已掃描: ${msg.scanned} / ${maxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
-    if (msg.stats && msg.scanned % 1000000 === 0) {
-      console.log(` -> [實時防線擊殺快照] 條件15(歷史重疊): ${msg.stats[15] || 0} 組 | 條件06(號碼總和): ${msg.stats[6] || 0} 組 | 條件05(奇偶比例): ${msg.stats[5] || 0} 組`);
-    }
 
-    res.write(JSON.stringify({ isProgress: true, percent: currentProgressPercent, currentMatch: leaderBoard.length }) + "\n");
+    // 🚀【超導即時推播】：將全量 16 防線擊殺數據、總生成、已掃描即時注入數據流發射給手機端！
+    res.write(JSON.stringify({ 
+      isProgress: true, 
+      percent: currentProgressPercent, 
+      currentMatch: leaderBoard.length,
+      scanned: msg.scanned,
+      maxTotal: maxTotal,
+      totalGen: msg.totalGen || 0,
+      fullStats: msg.stats // 將原始的 16 防線陣列直接空投給手機
+    }) + "\n");
     return;
   }
 
@@ -495,6 +501,12 @@ if (isMainThread) {
   }
 
   if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+    // ⚡【終點線拆彈補丁】：子執行緒真正 100% 跑完大竣工了，立刻物理拆除 5 分鐘安全定時器，防止撞車抹除數據！
+    if (typeof safetyTimeout !== 'undefined') {
+      clearTimeout(safetyTimeout);
+      console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+    }
+
     leaderBoard.length = 0;
     leaderBoard.push(...msg.leaderBoard);
     console.log(`=======================================================`);
@@ -506,11 +518,14 @@ if (isMainThread) {
       isProgress: false, 
       isCompleted: true, 
       percent: 100, 
-      currentMatch: leaderBoard.length 
+      currentMatch: leaderBoard.length,
+      scanned: maxTotal,
+      maxTotal: maxTotal,
+      totalGen: msg.totalGen || maxTotal,
+      fullStats: msg.stats
     }) + "\n");
     return;
   }
-
 
  });
 
@@ -1008,7 +1023,7 @@ const requiredSlots = pickCount - favBalls.length;
 
   // 【2026 完全體：多維拓撲限流分片迴圈晶片】
   for (let i0 = 0; i0 < pLen; i0++) {
-    if (scannedCount >= 10000000) break; 
+    if (scannedCount >= maxCombinations) break;
     for (let i1 = i0 + 1; i1 < pLen; i1++) {
       for (let i2 = i1 + 1; i2 < pLen; i2++) {
         if (rSlotsCount === 3) {
