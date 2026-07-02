@@ -1038,8 +1038,8 @@ const requiredSlots = pickCount - favBalls.length;
 // ───【2026 全域端口大總門】：監聽 Render 埠口並通電 ───
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(` 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！`); 🚀
-  console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`); 📡
-  console.log(`=======================================================`);
+  console.log("=======================================================");
+  console.log(" 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！ ");
+  console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
+  console.log("=======================================================");
 });
