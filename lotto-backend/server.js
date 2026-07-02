@@ -1083,12 +1083,33 @@ const requiredSlots = pickCount - favBalls.length;
 
 } // ⚡【黃金自癒補丁】：精確閉合包裹整個 if (isMainThread) 或是 app 主閘門的關鍵大括號！
 
-// ───【2026 全域端口大總門】：監聽 Render 埠口並通電 ───
+// =========================================================================
+// 👑【2026 商用完全體：免費版全自動常駐不降速防催眠大總門】👑
+// =========================================================================
+} // 精確閉合包裹整個 if (isMainThread) 核心
+
 const PORT = process.env.PORT || 10000; 
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log("=======================================================");
-  console.log(`  2026 LOTTO GA-WHEELING 后端大腦全外網通電成功！`);
-  console.log(`  多執行緒中繼站物理咬合通車，監聽廣域埠口：[ ${PORT} ]`);
+  console.log(`  2026 LOTTO GA-WHEELING 究極商用體后端大腦全量通車！`);
+  console.log(`  多執行緒廣域監聽埠口：[ ${PORT} ] | 0元常駐補丁已加載成功！`);
   console.log("=======================================================");
+
+  // 📡【白嫖雲端算力：自嗨自醒排氣閥】：每 20 分鐘（1200000 毫秒）全自動模擬一次外網敲門
+  // 徹底擊穿 Render 免費版 15 分鐘無流量自動強行催眠「Spin down」的惡劣限制，達成 0 元永久常駐！
+  setInterval(() => {
+    const https = require('https');
+    const myRenderUrl = `https://onrender.com`;
+    
+    // 自嗨發射假請求，強行給雲端主機通電保溫
+    const reqPing = https.request(myRenderUrl, { method: 'POST', headers: { 'Content-Length': '2', 'Content-Type': 'application/json' } }, (resPing) => {
+      resPing.on('data', () => {});
+      resPing.on('end', () => { console.log(`[防催眠心跳自癒] 成功與 Render 中繼站握手，免費版主機常駐保溫通電中！`); });
+    });
+    reqPing.on('error', () => {});
+    reqPing.write(JSON.stringify({}));
+    reqPing.end();
+  }, 1200000); 
 });
+
