@@ -1031,7 +1031,7 @@ const requiredSlots = pickCount - favBalls.length;
   // 竣工大收網：將最終死守下來的精選 100 組全量交付主線程
   parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: scannedCount });
   parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: localLeaderBoard });
-
+})();
 
  // 核心晶片：生還健康評分發射器
  function evaluateAndPost(combination, isLotto, totalCount) {
