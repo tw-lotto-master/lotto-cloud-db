@@ -638,23 +638,9 @@ if (!isMainThread) {
     // ==========================================
     // 【第三階段】：過濾鏈由大到小排序 (高剃除率主力)
     // ==========================================
- // ========================================================
- // 🏎️ 【2026 終極超頻核心：歷史頭獎二進位遮罩預編譯】 ───
- // ========================================================
- // 將 44 頁歷史頭獎在啟動時扁平化編譯為 BigInt 位元矩陣，將 DFS 遞迴開銷永久降為 O(1) 常數時間！
- const historyEvapBitmasks = [];
- if (typeof historyEvapSet !== 'undefined' && historyEvapSet.size > 0) {
-   for (let item of historyEvapSet) {
-     const nums = item.split(',').map(Number);
-     let mask = 0n;
-     for (let n of nums) { mask |= (1n << BigInt(n)); }
-     historyEvapBitmasks.push(mask);
-   }
- }
-
  const filters = [];
 
- // ⚡ [第一排：0.01微秒級純數值短路閘] ── 關卡 02：首尾邊界熱區檢查 (剃除率 40%+)
+ // ⚙️ 【極速最前線：關卡 02 ── 首尾邊界熱區檢查】(提權理由: 僅看頭尾兩碼, 0.1微秒完成, 剔除率超高)
  const f2_on = (cfg.f2_on === true || cfg.f2_on === 'true');
  if (f2_on) {
    const f2_min = Number(cfg.f2_min) || 15;
@@ -669,7 +655,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第一排：0.01微秒級純數值短路閘] ── 關卡 06：號碼總和範圍
+ // ⚙️ 【極速最前線：關卡 06 ── 號碼總和範圍】(提權理由: 純加法運算極快, 一鍵封殺大批極端數字)
  const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
  if (f6_on) {
    const defaultLow = lottoType === "49_6" ? 110 : 70;
@@ -679,13 +665,13 @@ if (!isMainThread) {
    filters.push({
      id: 6,
      exec: (comb) => {
-       const sumValue = comb[0] + comb[1] + comb[2] + comb[3] + comb[4] + (comb[5] || 0);
+       const sumValue = comb.reduce((a, b) => a + b, 0);
        return !(sumValue < f6_low || sumValue > f6_high);
      }
    });
  }
 
- // ⚡ [第二排：0.1微秒級位元與基本計數閘] ── 關卡 11：大小數比例分流
+ // ⚙️ 【中階防線：關卡 11 ── 大小數比例分流】
  const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
  if (f11_on && (cfg.f11_kill || cfg.f11_kill === 'true')) {
    const midPoint = lottoType === "49_6" ? 25 : 20;
@@ -702,7 +688,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第二排：0.1微秒級位元與基本計數閘] ── 關卡 05：奇偶比例動態防禦 (位元優化版)
+ // ⚙️ 【中階防線：關卡 05 ── 奇偶比例動態防禦】
  const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
  if (f5_on) {
    const isLotto = lottoType === "49_6";
@@ -728,7 +714,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第二排：0.1微秒級位元與基本計數閘] ── 關卡 12：除三餘數 012 路
+ // ⚙️ 【結構防線：關卡 12 ── 除三餘數 012 路】
  const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
  if (f12_on && (cfg.f12_kill || cfg.f12_kill === 'true')) {
    filters.push({
@@ -747,7 +733,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第三排：常規緩存遍歷閘] ── 關卡 04：同尾數上限限制
+ // ⚙️ 【結構防線：關卡 04 ── 同尾數上限限制】
  const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
  if (f4_on) {
    const targetMax = Number(cfg.f4_max) || 2;
@@ -765,7 +751,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第三排：常規緩存遍歷閘] ── 關卡 07：連續號碼牆攔截
+ // ⚙️ 【結構防線：關卡 07 ── 連續號碼牆攔截】
  const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
  if (f7_on) {
    const targetLen = Number(cfg.f7_len) || 3;
@@ -784,7 +770,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第三排：常規緩存遍歷閘] ── 關卡 14：質數合數過濾
+ // ⚙️ 【結構防線：關卡 14 ── 質數合數過濾】
  const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
  if (f14_on && (cfg.f14_kill || cfg.f14_kill === 'true')) {
    const primes = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
@@ -800,7 +786,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第三排：常規緩存遍歷閘] ── 關卡 03：五大物理區塊落點
+ // ⚙️ 【結構防線：關卡 03 ── 五大物理區塊落點】
  const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
  if (f3_on) {
    const targetCount = Number(cfg.f3_count) || 4;
@@ -822,7 +808,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第四排：大數據對照閘] ── 關卡 10：連莊號封殺
+ // ⚙️ 【大數據防線：關卡 10 ── 連莊號封殺】
  const f10_on = (cfg.f10_on === true || cfg.f10_on === 'true');
  if (f10_on && lastPeriod.length > 0) {
    const targetMax = Number(cfg.f10_max) || 2;
@@ -842,7 +828,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第四排：大數據對照閘] ── 關卡 09：鄰號夾擊防線
+ // ⚙️ 【大數據防線：關卡 09 ── 鄰號夾擊防線】
  const f9_on = (cfg.f9_on === true || cfg.f9_on === 'true');
  if (f9_on && neighborSet.size > 0) {
    const targetMax = Number(cfg.f9_count) || 2;
@@ -863,7 +849,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第四排：大數據對照閘] ── 關卡 08：等差數字組構封鎖
+ // ⚙️ 【大數據防線：關卡 08 ── 等差數字組構封鎖】
  const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
  if (f8_on) {
    filters.push({
@@ -879,7 +865,7 @@ if (!isMainThread) {
    });
  }
 
- // ⚡ [第五排：高開銷重型數學閘] ── 關卡 13：數字複雜度 AC 值雙重遍歷
+ // ⚙️ 【重型數學閘：關卡 13 ── 數字複雜度 AC 值雙重遍歷】(保留在最後：雙重迴圈開銷大)
  const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
  if (f13_on) {
    const targetMin = (Number(cfg.f13_min) || 6) + (pickCount - 1);
@@ -904,30 +890,16 @@ if (!isMainThread) {
  }
 
  // ========================================================
- // 【生存審查主閘門：16防線短路觀測完全體】
+ // 【生存審查主閘門：短路自癒引擎完全體】 ─── 🔬 🪙
  // ========================================================
- const killStats = new Uint32Array(16); 
- let totalGeneratedTestCount = 0;       
-
- // 【精密指針重分配】：完美保留原本的形式與觀測 ID
- if (filters) filters.id = 2;  
- if (filters) filters.id = 6;  
- if (filters) filters.id = 11; 
- if (filters) filters.id = 5;  
- if (filters) filters.id = 12; 
- if (filters) filters.id = 4;  
- if (filters) filters.id = 7;  
- if (filters) filters.id = 14; 
- if (filters) filters.id = 3;  
- if (filters) filters.id = 10; 
- if (filters) filters.id = 9;  
- if (filters) filters.id = 8;  
- if (filters) filters.id = 13; 
+ const killStats = new Uint32Array(16); // 0~15 關卡獨立死亡計數矩陣
+ let totalGeneratedTestCount = 0;       // 總計數
 
  function isGeneSurvive(comb) {
-   totalGeneratedTestCount++; 
+   totalGeneratedTestCount++; // 累加總隨機拋射母體
 
-   // 🏎️ [階段 A] 15道常規防線極速短路沖刷（0.1微秒內秒殺 95% 垃圾垃圾號碼）
+   // 🏎【第一階段：輕量化短路過濾鏈極速沖刷】
+   // 優先把這 13 道基礎防線跑完，因為它們執行極快，可以當場消滅 95% 以上不合格的號碼
    for (let i = 0; i < filters.length; i++) {
      if (!filters[i].exec(comb)) {
        killStats[filters[i].id]++; 
@@ -935,32 +907,35 @@ if (!isMainThread) {
      }
    }
 
-   // 🏎️ [階段 B] 魔王條件 15 歷史頭獎 ── 降維位元超頻對決
-   // 通過前 15 道關卡的精銳，才配執行位元運算，彻底免除字串拼接與遞迴開銷！
-   if (historyEvapBitmasks.length > 0) {
-     let currentMask = 0n;
-     for (let i = 0; i < comb.length; i++) { currentMask |= (1n << BigInt(comb[i])); }
-
-     const targetOverlapLimit = f15_on ? BigInt(pickCount - 1) : BigInt(pickCount);
-     
-     for (let i = 0; i < historyEvapBitmasks.length; i++) {
-       // 利用位元與運算計數交集球數
-       let intersect = currentMask & historyEvapBitmasks[i];
-       let matchCount = 0n;
-       while (intersect > 0n) {
-         matchCount += intersect & 1n;
-         intersect >>= 1n;
+   // 🏎【第二階段：最沉重的魔王級條件 15 移至最末端執行】
+   // 只有百分之百通過前面所有防線的精銳，才允許進來跑昂貴的 DFS 遞迴歷史比對！
+   if (f15_on) {
+     const splitCount = pickCount - 1;
+     let conflict = false;
+     const checkDfs = (start, curr) => {
+       if (conflict) return;
+       if (curr.length === splitCount) { 
+         if (historyEvapSet.has(curr.join(','))) conflict = true; 
+         return; 
        }
-       if (matchCount >= targetOverlapLimit) {
-         killStats[15]++;
-         return false;
+       for (let i = start; i < comb.length; i++) { 
+         checkDfs(i + 1, [...curr, comb[i]]); 
        }
+     };
+     checkDfs(0, []);
+     if (conflict) { 
+       killStats[15]++; 
+       return false; 
+     } 
+   } else {
+     if (historyEvapSet.has(comb.join(','))) { 
+       killStats[15]++; 
+       return false; 
      }
    }
 
-   return true; 
+   return true; // 恭喜安全生還！
  }
-
     // ==========================================
     // 【第四階段】：微秒級快取抽樣引擎（保留 100% 全量隨機，算力暴增 10 倍）
     // ==========================================
@@ -969,155 +944,123 @@ if (!isMainThread) {
     const poolLength = basePool.length;
     const requiredSlots = pickCount - favBalls.length;
 
+// 2026年大數據特徵挖角：精密數集計分矩陣 🌟
+// ======= 【2026終極改造：決定論指針步進海選內核】 ─── ======= 🟢 ⚡
+ (async function runDeterministicBrain() {
+   const isLotto = lottoType === "49_6";
+   const maxNum = isLotto ? 49 : 39;
+   
+   // 利用指針直接生成天生不重複、無內耗的決定論組合
+   // 為了保證隨機沖刷的多樣性，我們以外部傳入或基礎隨機起點做擾動步進
+   let localTotalGen = 0;
+   
+   // 建立一個輕量的非同步事件排氣閥，防止 Node.js 事件循環憋死導致前台卡死
+   const breathe = () => new Promise(resolve => {
+     if (typeof setImmediate !== 'undefined') setImmediate(resolve);
+     else setTimeout(resolve, 0);
+   });
 
-  // ======= 【2026 精密融合完全體】 ======= 🟢 ⚡
-  // 核心晶片：生還健康評分智慧節流發射器
-  function evaluateAndPost(
-    combination, 
-    isLotto, 
-    totalCount
-  ) {
-    if (isGeneSurvive(combination)) {
-      foundCount++; 
+   // 建立一組基底池，排除 favBalls 之後的可用剩餘彩球
+   const fSet = new Set(favBalls);
+   const remainingPool = [];
+   for (let i = 1; i <= maxNum; i++) {
+     if (!fSet.has(i)) remainingPool.push(i);
+   }
 
-      if (
-        foundCount % 50000 === 0 || 
-        scannedCount >= 13983816 ||
-        foundCount <= (parseInt(cfg.count) || 5)
-      ) {
-        let healthScore = 50; 
-        const sumVal = combination.reduce(
-          (x, y) => x + y, 0
-        );
-        const lowBound = isLotto ? 110 : 70;
-        const highBound = isLotto ? 185 : 125;
-        if (
-          sumVal >= lowBound && 
-          sumVal <= highBound
-        ) {
-          healthScore += 25;
-        }
-        
-        let oddsCount = 0;
-        combination.forEach(num => { 
-          if ((num & 1) === 1) oddsCount++; 
-        });
-        if (isLotto) {
-          if (oddsCount === 3) healthScore += 25;
-          else if (oddsCount === 2 || 
-                   oddsCount === 4) {
-            healthScore += 10;
-          }
-        } else {
-          if (oddsCount === 2 || 
-              oddsCount === 3) {
-            healthScore += 25;
-          }
-        }
-        
-        parentPort.postMessage({ 
-          type: 'FOUND_ONE_STREAM', 
-          data: combination, 
-          score: healthScore 
-        });
-      }
-    }
-  }
+   // 洗牌剩餘彩球池，擴大指針步進時的特徵覆蓋率（兼顧決定論與隨機多樣性）
+   for (let i = remainingPool.length - 1; i > 0; i--) {
+     const j = Math.floor(Math.random() * (i + 1));
+     [remainingPool[i], remainingPool[j]] = [remainingPool[j], remainingPool[i]];
+   }
 
-  // 嵌套數學指針極速大掃描
-  for (let i0 = 0; i0 < pLen; i0++) {
-    if (scannedCount >= 13983816) break;
+ // 嵌套六碼/五碼數學指針極速大掃描
+ const rSlotsCount = requiredSlots;
+ const pLen = remainingPool.length;
 
-    for (let i1 = i0 + 1; i1 < pLen; i1++) {
-      
-      const now = Date.now();
-      if (now - lastFlushTime > 500) {
-        parentPort.postMessage({ 
-          type: 'CORE_KILL_STATS', 
-          stats: Array.from(killStats), 
-          totalGen: localTotalGen 
-        });
-        parentPort.postMessage({ 
-          type: 'TOTAL_SCAN_PROGRESS', 
-          scanned: scannedCount, 
-          total: 13983816 
-        });
-        await breathe(); 
-        lastFlushTime = now;
-      }
+ // 🟢 【核心排氣改造】：將排氣閥精確提升至外層，徹底消滅執行緒霸佔
+ for (let i0 = 0; i0 < pLen; i0++) {
+   if (scannedCount >= 10000000) break; 
 
-      for (let i2 = i1 + 1; i2 < pLen; i2++) {
-        if (rSlotsCount === 3) {
-          scannedCount++; localTotalGen++;
-          let combination = [...favBalls, 
-            remainingPool[i0], remainingPool[i1], 
-            remainingPool[i2]].sort((a,b)=>a-b);
-          evaluateAndPost(
-            combination, isLotto, localTotalGen
-          );
-        } else {
-          for (let i3 = i2 + 1; i3 < pLen; i3++) {
-            if (rSlotsCount === 4) {
-              scannedCount++; localTotalGen++;
-              let combination = [...favBalls, 
-                remainingPool[i0], remainingPool[i1], 
-                remainingPool[i2], remainingPool[i3]
-              ].sort((a,b)=>a-b);
-              evaluateAndPost(
-                combination, isLotto, localTotalGen
-              );
-            } else {
-              for (let i4 = i3 + 1; i4 < pLen; i4++) {
-                if (rSlotsCount === 5) {
-                  scannedCount++; localTotalGen++;
-                  let combination = [...favBalls, 
-                    remainingPool[i0], 
-                    remainingPool[i1], 
-                    remainingPool[i2], 
-                    remainingPool[i3], 
-                    remainingPool[i4]
-                  ].sort((a,b)=>a-b);
-                  evaluateAndPost(
-                    combination, isLotto, localTotalGen
-                  );
-                } else {
-                  for (let i5 = i4 + 1; i5 < pLen; i5++) {
-                    scannedCount++; localTotalGen++;
-                    let combination = [...favBalls, 
-                      remainingPool[i0], 
-                      remainingPool[i1], 
-                      remainingPool[i2], 
-                      remainingPool[i3], 
-                      remainingPool[i4], 
-                      remainingPool[i5]
-                    ].sort((a,b)=>a-b);
-                    evaluateAndPost(
-                      combination, isLotto, localTotalGen
-                    );
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
+   for (let i1 = i0 + 1; i1 < pLen; i1++) {
+     
+     // 🏎 每當跑完一輪 i1 中型矩陣，強制進行非同步排氣，把 CPU 控制權完美交還給主線程監聽埠口
+     parentPort.postMessage({ type: 'CORE_KILL_STATS', stats: Array.from(killStats), totalGen: localTotalGen });
+     parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: 10000000 });
+     await breathe(); 
 
-    }
-  }
+     for (let i2 = i1 + 1; i2 < pLen; i2++) {
+       // 🟢 移除了原本埋在第三層內部、導致排氣不及的舊 if (scannedCount % 100000 === 0) 區塊
 
-  parentPort.postMessage({ 
-    type: 'TOTAL_SCAN_PROGRESS', 
-    scanned: scannedCount, 
-    total: scannedCount 
-  });
-})();
+         if (rSlotsCount === 3) {
+           // 適用於最愛號碼鎖定 3 碼的情況 (3隨機 + 3最愛)
+           scannedCount++; localTotalGen++;
+           let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2]].sort((a,b)=>a-b);
+           evaluateAndPost(combination, isLotto, localTotalGen);
+         } else {
+           // 標準或少碼鎖定的通用多層遞歸向下走
+           for (let i3 = i2 + 1; i3 < pLen; i3++) {
+             if (rSlotsCount === 4) {
+               scannedCount++; localTotalGen++;
+               let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3]].sort((a,b)=>a-b);
+               evaluateAndPost(combination, isLotto, localTotalGen);
+             } else {
+               for (let i4 = i3 + 1; i4 < pLen; i4++) {
+                 if (rSlotsCount === 5) {
+                   scannedCount++; localTotalGen++;
+                   let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3], remainingPool[i4]].sort((a,b)=>a-b);
+                   evaluateAndPost(combination, isLotto, localTotalGen);
+                 } else {
+                   for (let i5 = i4 + 1; i5 < pLen; i5++) {
+                     scannedCount++; localTotalGen++;
+                     let combination = [...favBalls, remainingPool[i0], remainingPool[i1], remainingPool[i2], remainingPool[i3], remainingPool[i4], remainingPool[i5]].sort((a,b)=>a-b);
+                     evaluateAndPost(combination, isLotto, localTotalGen);
+                   }
+                 }
+               }
+             }
+           }
+         }
 
-// ───【全域端口大總門】：監聽 Render 埠口 ───
+       }
+     }
+   }
+
+   // 指針大會師結束，發送最終收網進度
+   parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, total: scannedCount });
+ })();
+
+ // 核心晶片：生還健康評分發射器
+ function evaluateAndPost(combination, isLotto, totalCount) {
+   if (isGeneSurvive(combination)) {
+     let healthScore = 50; // 提高基礎生還分
+
+     // 1. 總和鐘形曲線大數據評分 (+25分)
+     const sumVal = combination.reduce((x, y) => x + y, 0);
+     const lowBound = isLotto ? 110 : 70;
+     const highBound = isLotto ? 185 : 125;
+     if (sumVal >= lowBound && sumVal <= highBound) {
+       healthScore += 25;
+     }
+
+     // 2. 奇偶二分天下平衡評分 (+25分)
+     let oddsCount = 0;
+     combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
+     if (isLotto) {
+       if (oddsCount === 3) healthScore += 25;
+       else if (oddsCount === 2 || oddsCount === 4) healthScore += 10;
+     } else {
+       if (oddsCount === 2 || oddsCount === 3) healthScore += 25;
+     }
+
+     parentPort.postMessage({ type: 'FOUND_ONE_STREAM', data: combination, score: healthScore });
+   }
+ }
+ }
+ // ───【全域端口大總門】：監聽 Render 埠口 ───
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
- console.log(`=======================================================`);
- console.log(` 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！`);
- console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
- console.log(`=======================================================`);
+  console.log(`=======================================================`);
+  console.log(` 🚀 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！`);
+  console.log(` 📡 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
+  console.log(`=======================================================`);
 });
-
