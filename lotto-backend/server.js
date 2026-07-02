@@ -473,23 +473,27 @@ if (isMainThread) {
  }
  
  if (msg.type === 'TOTAL_SCAN_PROGRESS') {
-    liveScannedCount = msg.scanned;
-    const maxTotal = msg.maxTotal || (lottoType === "49_6" ? 13983816 : 575757);
-    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / maxTotal) * 100));
+      liveScannedCount = msg.scanned;
+    const maxTotalVal = msg.maxTotal || (lottoType === "49_6" ? 13983816 : 575757);
+    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / maxTotalVal) * 100));
     if (currentProgressPercent < 5) currentProgressPercent = 5;
 
-    // 後台老實列印日誌
-    console.log(`[全域海選進度] 已掃描: ${msg.scanned} / ${maxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
+    // 後台老實列印進度日誌
+    console.log(`[全域海選進度] 已掃描: ${msg.scanned} / ${maxTotalVal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
 
-    // 🚀【超導即時推播】：將全量 16 防線擊殺數據、總生成、已掃描即時注入數據流發射給手機端！
+    // 🚀【修正整除漏洞】：改為每 50 萬組分片沖刷時，老實列印全量 16 防線完整死亡戰報！
+    if (msg.stats && msg.scanned % 500000 === 0) {
+      console.log(` -> [實時防線擊殺快照] 條件15: ${msg.stats[15] || 0} 組 | 條件06: ${msg.stats[6] || 0} 組 | 條件05: ${msg.stats[5] || 0} 組 | 條件01: ${msg.stats[1] || 0} 組`);
+    }
+
     res.write(JSON.stringify({ 
       isProgress: true, 
       percent: currentProgressPercent, 
       currentMatch: leaderBoard.length,
       scanned: msg.scanned,
-      maxTotal: maxTotal,
+      maxTotal: maxTotalVal,
       totalGen: msg.totalGen || 0,
-      fullStats: msg.stats // 將原始的 16 防線陣列直接空投給手機
+      fullStats: msg.stats 
     }) + "\n");
     return;
   }
@@ -501,7 +505,7 @@ if (isMainThread) {
   }
 
   if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-    // ⚡【終點線拆彈補丁】：子執行緒真正 100% 跑完大竣工了，立刻物理拆除 5 分鐘安全定時器，防止撞車抹除數據！
+    // ⚡【安全防禦】：大竣工瞬間立刻拆除 5 分鐘熔斷定時器
     if (typeof safetyTimeout !== 'undefined') {
       clearTimeout(safetyTimeout);
       console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
@@ -514,19 +518,19 @@ if (isMainThread) {
     console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
     console.log(`=======================================================`);
     
+    // 🌟【安全補丁】：修正原 maxTotal 未定義導致的 522 行崩潰，對齊 maxTotalVal 常數
     res.write(JSON.stringify({ 
       isProgress: false, 
       isCompleted: true, 
       percent: 100, 
       currentMatch: leaderBoard.length,
-      scanned: maxTotal,
-      maxTotal: maxTotal,
-      totalGen: msg.totalGen || maxTotal,
+      scanned: maxTotalVal,
+      maxTotal: maxTotalVal,
+      totalGen: msg.totalGen || maxTotalVal,
       fullStats: msg.stats
     }) + "\n");
     return;
   }
-
  });
 
  // 輔助晶片：將計分板數據滾動倒出到原本的交付容器中，維持與前台的對齊
