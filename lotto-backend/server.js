@@ -1087,9 +1087,6 @@ function isGeneSurvive(comb) {
 // =========================================================================
 // ====== 【舊程式碼範圍（截圖中的第 1088 到 1091 行）】 ======
 let scannedCount = 0;
-const maxCombinations = lottoType === "49_6" ? 13983816 : 575757;
-const poolLength = basePool.length;
-const requiredSlots = pickCount - favBalls.length;
 
 
 // 🎯 滿血自癒晶片：根據地雷排除後的真實 basePool 長度，自動計算實際排列組合總數
