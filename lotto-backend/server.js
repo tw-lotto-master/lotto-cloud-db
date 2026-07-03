@@ -16,8 +16,15 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' }));
 
-const JWT_SECRET = 'FREE_LOTTO_SECRET_2026';
-const TRUE_MONGO_URI = process.env.MONGO_URI || "mongodb+srv://bingooo16888_db_user:bingo19880429@cluster0.t33ebvn.mongodb.net/lotto?retryWrites=true&w=majority&appName=Cluster0";
+const JWT_SECRET = process.env.JWT_SECRET;
+const TRUE_MONGO_URI = process.env.MONGO_URI;
+
+if (!JWT_SECRET) {
+  throw new Error('Missing required environment variable: JWT_SECRET');
+}
+if (!TRUE_MONGO_URI) {
+  throw new Error('Missing required environment variable: MONGO_URI');
+}
 
 mongoose.models = {};
 mongoose.modelSchemas = {};
@@ -39,27 +46,32 @@ const UserSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
 // ─── 憑證清洗中間件 ───
+function normalizeBearerToken(rawToken) {
+  if (!rawToken) return '';
+  return String(rawToken).trim().replace(/^Bearer\s+/i, '').replace(/['"\r\n\t]/g, '');
+}
+
+function getTokenFromRequest(req) {
+  return normalizeBearerToken(req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token));
+}
+
 function authenticateToken(req, res, next) {
   if (req.method === 'OPTIONS') return next();
   try {
-    let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token);
-    if (!authHeader) return res.status(411).json({ success: false, message: '權限鎖定：請登入會員' });
-    let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '');
-    if (tokenString.startsWith('Bearer ')) tokenString = tokenString.substring(7).trim();
-    if (tokenString.startsWith('Bearer')) tokenString = tokenString.substring(6).trim();
+    const tokenString = getTokenFromRequest(req);
+    if (!tokenString) return res.status(411).json({ success: false, message: 'Missing auth token' });
     const decoded = jwt.verify(tokenString, JWT_SECRET);
     req.user = { userId: String(decoded.userId || decoded._id || decoded.id).trim() };
     next();
   } catch (err) {
-    return res.status(401).json({ success: false, message: '驗證令牌失效或已過期' });
+    return res.status(401).json({ success: false, message: 'Invalid auth token' });
   }
 }
 
 function extractUserIdFromPayload(req) {
   try {
-    let authHeader = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token);
-    if (!authHeader) return null;
-    let tokenString = authHeader.trim().replace(/['"\r\n\t]/g, '').replace(/Bearer\s?/g, '');
+    const tokenString = getTokenFromRequest(req);
+    if (!tokenString) return null;
     const decoded = jwt.verify(tokenString, JWT_SECRET);
     return String(decoded.userId || decoded._id || decoded.id).trim();
   } catch { return null; }
@@ -218,19 +230,23 @@ app.post('/api/tickets/save', authenticateToken, async (req, res) => {
   } catch (err) { return res.status(500).json({ success: false, message: '雲端同步失敗' }); }
 });
 
-app.get('/api/tickets/list', async (req, res) => {
-  let authHeader = req.headers['authorization'] || req.query.token;
-  if (authHeader === 'WAKEUP_PING') return res.json({ success: true, message: "WOKE" });
-  if (!authHeader) return res.status(401).json({ success: false, message: "Missing Token" });
+async function listSavedTickets(req, res) {
+  const rawAuth = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token);
+  if (rawAuth === 'WAKEUP_PING') return res.json({ success: true, message: "WOKE" });
+  const token = normalizeBearerToken(rawAuth);
+  if (!token) return res.status(401).json({ success: false, message: "Missing Token" });
   try {
-    let token = authHeader.toString().trim().replace(/^Bearer\s+/i, '').replace(/['"\r\n\t]/g, '');
     const decoded = jwt.verify(token, JWT_SECRET);
     const dbUser = await User.findById(decoded.userId || decoded._id || decoded.id);
-    if (!dbUser) return res.status(404).json({ success: false, message: '帳號不存在' });
+    if (!dbUser) return res.status(404).json({ success: false, message: 'User not found' });
     const formattedTickets = (dbUser.savedTickets || []).map(t => typeof t === 'object' ? (t.content || JSON.stringify(t)) : t);
     return res.json({ success: true, savedTickets: formattedTickets });
-  } catch { return res.status(411).json({ success: false, message: "憑證無效" }); }
-});
+  } catch {
+    return res.status(401).json({ success: false, message: "Invalid token" });
+  }
+}
+app.get('/api/tickets/list', listSavedTickets);
+app.post('/api/tickets/list', listSavedTickets);
 if (isMainThread) {
   // 聰明包牌骨牌生牌演算法
   function generateSmartWheelingMatrix(cfg) {
@@ -967,7 +983,7 @@ const requiredSlots = pickCount - favBalls.length;
     }
 
     // 🏆 原地殘酷 PK 淘汰賽：輸的組合當場被 JavaScript 垃圾回收銷毀，不佔任何 Byte
-    if (localLeaderBoard.length < pickLimit) {
+    if (localLeaderBoard.length < candidateLimit) {
       const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
       localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
       if (localLeaderBoard.length === pickLimit) {
@@ -1000,7 +1016,7 @@ const requiredSlots = pickCount - favBalls.length;
 
       parentPort.postMessage({
         type: 'CHUNK_SYNC_BOARD',
-        leaderBoard: localLeaderBoard
+        leaderBoard: diversifyBoard(localLeaderBoard)
       });
       
       await breathe(); 
@@ -1049,7 +1065,7 @@ const requiredSlots = pickCount - favBalls.length;
   
   // 竣工大收網：將最終死守下來的精選 100 組全量交付主線程
   parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, total: scannedCount, stats: Array.from(killStats), totalGen: localTotalGen });
-  parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: localLeaderBoard });
+  parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: diversifyBoard(localLeaderBoard) });
 
 })(); // 完美閉合子執行緒非同步自執行大腦 🌟
 
