@@ -1090,21 +1090,30 @@ let scannedCount = 0;
 
 
 // 🎯 滿血自癒晶片：根據地雷排除後的真實 basePool 長度，自動計算實際排列組合總數
+// ====== 【直接整塊複製覆蓋：將條件 16 喜愛號升級為源頭降維降階公式】 ======
 const getDynamicMaxCombs = () => {
   const n = basePool.length;
-  const k = lottoType === "49_6" ? 6 : 5;
-  if (n < k) return 0;
+  // 🎯 滿血自癒修正：如果用戶有勾選皇家喜愛號，必開號的個數會被源頭扣除，公式降維為 (n - 喜愛號個數) 選 (6 - 喜愛號個數)
+  const hasFav = cfg.vip_fav_on === true || cfg.vip_fav_on === 'true';
+  const favCount = hasFav && typeof favBalls !== 'undefined' ? favBalls.length : 0;
+  
+  const n_final = n - favCount;
+  const k_final = (lottoType === "49_6" ? 6 : 5) - favCount;
+  
+  if (n_final < k_final || k_final < 0) return 0;
+  
   let numerator = 1, denominator = 1;
-  for (let i = 0; i < k; i++) {
-    numerator *= (n - i);
+  for (let i = 0; i < k_final; i++) {
+    numerator *= (n_final - i);
     denominator *= (i + 1);
   }
   return Math.floor(numerator / denominator);
 };
 
+// 全自動對齊最新降維最大值，彻底消滅 18% 的通訊 Pending 吊死
 const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 575757);
 const poolLength = basePool.length;
-const requiredSlots = pickCount - favBalls.length;
+const requiredSlots = pickCount - (typeof favBalls !== 'undefined' ? favBalls.length : 0);
 
 
 (async function runDeterministicBrain() {
