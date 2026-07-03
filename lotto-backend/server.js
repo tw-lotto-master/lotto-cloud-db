@@ -504,8 +504,8 @@ worker.on('message', (msg) => {
     }) + "\n");
     
     // 如果 Express 的 Socket 網路緩衝區被灌滿，老實監聽 drain 事件，等排乾後再允許後續寫入
-    if (!amIFlooded && res.socket) {
-      worker.ref(); // 防止子執行緒與垃圾回收在此空檔死鎖
+     if (!amIFlooded && res.socket && typeof workers !== 'undefined' && workers.length > 0) {
+      workers.forEach(w => { if(w && typeof w.ref === 'function') w.ref(); });
     }
     return;
   }
