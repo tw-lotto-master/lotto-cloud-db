@@ -1092,7 +1092,7 @@ if (f15_on) {
 
 // 👑 恭喜安全生還！通過全後端 1~16 條魔鬼防線的所有考驗，全線點火通車！
 return true; 
-} // 關閉整個 isGeneSurvive 總閘門
+
   
 // =========================================================================
 // 🔥【2026 終極完全體：零記憶體極速拓撲海選內核】🔥
@@ -1266,7 +1266,7 @@ const requiredSlots = pickCount - favBalls.length;
   parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: diversifyBoard(localLeaderBoard) });
 
 })(); // 完美閉合子執行緒非同步自執行大腦 🌟
-
+}
 // ───【2026 全域端口大總門】：監聽 Render 埠口並通電 ───
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
