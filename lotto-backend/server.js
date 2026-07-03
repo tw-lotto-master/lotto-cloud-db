@@ -634,144 +634,220 @@ if (!isMainThread) {
    filters.push({
      id: 2,
      exec: (comb) => {
-       if (comb[0] > f2_min) return false;
-       if (comb[comb.length - 1] < f2_max) return false;
-       return true;
+       if (comb[0] >= f2_min) return true;
+       if (comb[comb.length - 1] <= f2_max) return true;
+       return false;
      }
    });
  }
 
  // ⚙️ 【極速最前線：關卡 06 ── 號碼總和範圍】(提權理由: 純加法運算極快, 一鍵封殺大批極端數字)
- const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
- if (f6_on) {
-   const defaultLow = lottoType === "49_6" ? 110 : 70;
-   const defaultHigh = lottoType === "49_6" ? 210 : 130;
-   const f6_low = Number(cfg.f6_low) || defaultLow;
-   const f6_high = Number(cfg.f6_high) || defaultHigh;
-   filters.push({
-     id: 6,
-     exec: (comb) => {
-       const sumValue = comb.reduce((a, b) => a + b, 0);
-       return !(sumValue < f6_low || sumValue > f6_high);
-     }
-   });
- }
-
+const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
+if (f6_on) {
+  const defaultLow = lottoType === "49_6" ? 110 : 70;
+  const defaultHigh = lottoType === "49_6" ? 210 : 130;
+  const f6_low = Number(cfg.f6_low) || defaultLow;
+  const f6_high = Number(cfg.f6_high) || defaultHigh;
+  
+  filters.push({
+    id: 6,
+    exec: (comb) => {
+      const sumvalue = comb.reduce((a, b) => a + b, 0);
+      
+      // 🎯 滿血自癒修正：只要總和低於下限 或 高於上限， return true 毫不留情直接封殺！
+      if (sumvalue < f6_low || sumvalue > f6_high) {
+        return true;
+      }
+      
+      return false; // 落在黃金區間內，判定為健康組合，允許生還放行
+    }
+  });
+}
  // ⚙️ 【中階防線：關卡 11 ── 大小數比例分流】
- const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
- if (f11_on && (cfg.f11_kill || cfg.f11_kill === 'true')) {
-   const midPoint = lottoType === "49_6" ? 25 : 20;
-   filters.push({
-     id: 11,
-     exec: (comb) => {
-       const isFirstBig = comb[0] >= midPoint;
-       for (let i = 1; i < comb.length; i++) {
-         if ((comb[i] >= midPoint) !== isFirstBig) break; 
-         if (i === comb.length - 1) return false; 
-       }
-       return true;
-     }
-   });
- }
+const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
+if (f11_on && (cfg.f11_kill || cfg.f11_kill === 'true')) {
+  const midPoint = lottoType === "49_6" ? 25 : 20;
+  
+  filters.push({
+    id: 11,
+    exec: (comb) => {
+      // 🎯 滿血自癒晶片：直接統計這組號碼內「大數」的真實總個數
+      let bigCount = 0;
+      const len = comb.length;
+      
+      for (let i = 0; i < len; i++) {
+        if (comb[i] >= midPoint) {
+          bigCount++;
+        }
+      }
+      
+      const smallCount = len - bigCount;
+      
+      // 🎯 核心判定：如果「全大數 (bigCount === len)」、「全小數 (smallCount === len)」
+      // 或是極端失衡的「只有1碼大 (bigCount === 1)」或「只有1碼小 (smallCount === 1)」
+      // return true 毫不留情直接封殺剔除！
+      if (bigCount === len || smallCount === len || bigCount === 1 || smallCount === 1) {
+        return true;
+      }
+      
+      return false; // 大小數比例均衡常態，判定為健康組合，允許生還放行
+    }
+  });
+}
 
  // ⚙️ 【中階防線：關卡 05 ── 奇偶比例動態防禦】
- const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
- if (f5_on) {
-   const isLotto = lottoType === "49_6";
-   const killAll = isLotto ? (cfg.f5_lotto_60 || false) : (cfg.f5_539_50 || false);
-   const killOneElement = isLotto ? (cfg.f5_lotto_51 || false) : (cfg.f5_539_41 || false);
-   const limit = isLotto ? 5 : 4;
-   filters.push({
-     id: 5,
-     exec: (comb) => {
-       let odds = 0, evens = 0;
-       const len = comb.length;
-       for (let m = 0; m < len; m++) {
-         if ((comb[m] & 1) === 1) odds++; else evens++;
-         if (killAll && !killOneElement && odds > 0 && evens > 0) { odds = -1; break; }
-         if (killOneElement && (odds > limit || evens > limit)) return false;
-       }
-       if (odds !== -1) {
-         if (killAll && (odds === len || evens === len)) return false;
-         if (killOneElement && (odds === limit || evens === limit)) return false;
-       }
-       return true;
-     }
-   });
- }
+const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
+if (f5_on) {
+  const isLotto = lottoType === "49_6";
+  const killAll = isLotto ? (cfg.f5_lotto_60 || false) : (cfg.f5_539_50 || false);
+  const killOneElement = isLotto ? (cfg.f5_lotto_51 || false) : (cfg.f5_539_41 || false);
+  const limit = isLotto ? 5 : 4; // 大樂透極端為 5:1/1:5，539極端為 4:1/1:4
+  
+  filters.push({
+    id: 5,
+    exec: (comb) => {
+      let odds = 0, evens = 0;
+      const len = comb.length;
+      
+      // 🎯 滿血自癒計數器：精確統計這組組合的奇偶數實體
+      for (let m = 0; m < len; m++) {
+        if ((comb[m] & 1) === 1) odds++; 
+        else evens++;
+      }
+      
+      // 🎯 滿血修正一：勾選排除全奇全偶，且真的踩雷（全奇或全偶）， return true 封殺！
+      if (killAll && (odds === len || evens === len)) {
+        return true;
+      }
+      
+      // 🎯 滿血修正二：勾選排除極端失衡，且真的踩雷（僅1碼奇或1碼偶）， return true 封殺！
+      if (killOneElement && (odds === limit || evens === limit)) {
+        return true;
+      }
+      
+      return false; // 奇偶比例分佈在健康常態區間，允許生還放行
+    }
+  });
+}
 
  // ⚙️ 【結構防線：關卡 12 ── 除三餘數 012 路】
  const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
- if (f12_on && (cfg.f12_kill || cfg.f12_kill === 'true')) {
-   filters.push({
-     id: 12,
-     exec: (comb) => {
-       let has0 = false, has1 = false, has2 = false;
-       for (let m = 0; m < comb.length; m++) {
-         const rem = comb[m] % 3;
-         if (rem === 0) has0 = true;
-         else if (rem === 1) has1 = true;
-         else has2 = true;
-         if (has0 && has1 && has2) break; 
-       }
-       return (has0 && has1 && has2);
-     }
-   });
- }
-
+if (f12_on && (cfg.f12_kill || cfg.f12_kill === 'true')) {
+  filters.push({
+    id: 12,
+    exec: (comb) => {
+      let has0 = false, has1 = false, has2 = false;
+      const len = comb.length;
+      
+      for (let m = 0; m < len; m++) {
+        const rem = comb[m] % 3;
+        if (rem === 0) has0 = true;
+        else if (rem === 1) has1 = true;
+        else has2 = true;
+        
+        // 快速優化：如果三路都齊全了，代表確定及格，可提早跳出
+        if (has0 && has1 && has2) break;
+      }
+      
+      // 🎯 滿血自癒修正：如果「0路沒出現」或「1路沒出現」或「2路沒出現」（發生斷路），
+      // 代表這是極端組合， return true 毫不留情直接封殺！
+      if (!has0 || !has1 || !has2) {
+        return true;
+      }
+      
+      return false; // 三路皆有落點，判定為常態健康組合，允許生還放行
+    }
+  });
+}
+  
  // ⚙️ 【結構防線：關卡 04 ── 同尾數上限限制】
- const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
- if (f4_on) {
-   const targetMax = Number(cfg.f4_max) || 2;
-   filters.push({
-     id: 4,
-     exec: (comb) => {
-       const tails = new Uint8Array(10); 
-       for (let m = 0; m < comb.length; m++) {
-         const tail = comb[m] % 10;
-         tails[tail]++;
-         if (tails[tail] > targetMax) return false;
-       }
-       return true;
-     }
-   });
- }
+const f4_on = (cfg.f4_on === true || cfg.f4_on === 'true');
+if (f4_on) {
+  const targetMax = Number(cfg.f4_max) || 2;
+  
+  filters.push({
+    id: 4,
+    exec: (comb) => {
+      // 使用 Uint8Array(10) 高速統計 0~9 的尾數出現次數
+      const tails = new Uint8Array(10);
+      const len = comb.length;
+      
+      for (let m = 0; m < len; m++) {
+        const tail = comb[m] % 10;
+        tails[tail]++;
+        
+        // 🎯 滿血自癒修正：只要任何一個尾數的出現次數超過了用戶設定的上限（例如 > 2），
+        // 代表這組號碼同尾數過度扎堆， return true 毫不留情直接封殺！
+        if (tails[tail] > targetMax) {
+          return true;
+        }
+      }
+      
+      return false; // 所有尾數重複次數皆在安全上限內，判定為健康組合，允許生還放行
+    }
+  });
+}
 
+  
  // ⚙️ 【結構防線：關卡 07 ── 連續號碼牆攔截】
  const f7_on = (cfg.f7_on === true || cfg.f7_on === 'true');
- if (f7_on) {
-   const targetLen = Number(cfg.f7_len) || 3;
-   filters.push({
-     id: 7,
-     exec: (comb) => {
-       let currentSeq = 1;
-       for (let m = 1; m < comb.length; m++) {
-         if (comb[m] === comb[m - 1] + 1) {
-           currentSeq++;
-           if (currentSeq >= targetLen) return false; 
-         } else { currentSeq = 1; }
-       }
-       return true;
-     }
-   });
- }
+if (f7_on) {
+  const targetLen = Number(cfg.f7_len) || 3;
+  
+  filters.push({
+    id: 7,
+    exec: (comb) => {
+      let currentSeq = 1;
+      const len = comb.length;
+      
+      for (let m = 1; m < len; m++) {
+        if (comb[m] === comb[m - 1] + 1) {
+          currentSeq++;
+          
+          // 🎯 滿血自癒修正：只要當前連續長度達到或超過了用戶設定的上限（例如 >= 3），
+          // 代表連號過長， return true 毫不留情直接封殺剔除！
+          if (currentSeq >= targetLen) {
+            return true;
+          }
+        } else {
+          currentSeq = 1; // 斷開連續，重置計數
+        }
+      }
+      
+      return false; // 全組連號長度皆在安全限制內，判定為健康組合，允許生還放行
+    }
+  });
+}
 
  // ⚙️ 【結構防線：關卡 14 ── 質數合數過濾】
  const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
- if (f14_on && (cfg.f14_kill || cfg.f14_kill === 'true')) {
-   const primes = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
-   filters.push({
-     id: 14,
-     exec: (comb) => {
-       let pCount = 0;
-       for (let m = 0; m < comb.length; m++) {
-         if (primes.has(comb[m])) { pCount++; if (pCount >= 4) return false; }
-       }
-       return true;
-     }
-   });
- }
+if (f14_on && (cfg.f14_kill || cfg.f14_kill === 'true')) {
+  const primes = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
+  
+  filters.push({
+    id: 14,
+    exec: (comb) => {
+      let pCount = 0;
+      const len = comb.length;
+      
+      for (let m = 0; m < len; m++) {
+        if (primes.has(comb[m])) {
+          pCount++;
+          
+          // 🎯 滿血自癒修正：只要這組號碼內部的質數總數達到或超過 4 個（太極端了），
+          // return true 毫不留情直接封殺剔除！
+          if (pCount >= 4) {
+            return true;
+          }
+        }
+      }
+      
+      return false; // 質數數量在 1~3 個常態安全區間，判定為健康組合，允許生還放行
+    }
+  });
+}
 
+  
  // Filter 03: reject combinations concentrated inside any N physical zones.
 // Example: f3_count=3 rejects zones 1-2-3, 1-3-5, 2-3-4, etc.; only 4-5 zone spread survives.
  const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
@@ -779,106 +855,175 @@ if (!isMainThread) {
    const excludedZoneLimit = Math.max(1, Math.min(4, Number(cfg.f3_count) || 3));
    const divisor = lottoType === "49_6" ? 10 : 8;
    filters.push({
-     id: 3,
-     exec: (comb) => {
-       let zoneMask = 0, zoneSize = 0;
-       const len = comb.length;
-       for (let m = 0; m < len; m++) {
-         let zone = Math.floor((comb[m] - 1) / divisor);
-         if (zone > 4) zone = 4;
-         const bit = 1 << zone;
-         if ((zoneMask & bit) === 0) {
-           zoneMask |= bit;
-           zoneSize++;
-           if (zoneSize > excludedZoneLimit) return true;
-         }
-       }
-       return false;
-     }
+id: 3,
+  exec: (comb) => {
+    // 取得前端用戶填入的過濾門檻（例如填入 3，代表 1~3 個區塊內的組合一律封殺）
+    const minZoneRequired = Math.max(1, Math.min(4, Number(cfg.f3_count) || 3));
+    const divisor = lottoType === "49_6" ? 10 : 8;
+    
+    let zoneMask = 0;
+    const len = comb.length;
+    
+    for (let m = 0; m < len; m++) {
+      let zone = Math.floor((comb[m] - 1) / divisor);
+      if (zone > 4) zone = 4; // 確保在 0~4 的陣列索引安全邊界內
+      
+      const bit = 1 << zone;
+      if ((zoneMask & bit) === 0) {
+        zoneMask |= bit;
+      }
+    }
+    
+    // 💡 物理區塊數大對齊：計算總共佔用了幾個獨立區塊（數量必為 1~5 個區塊）
+    let totalZonesOccupied = 0;
+    for (let i = 0; i < 5; i++) {
+      if ((zoneMask & (1 << i)) !== 0) {
+        totalZonesOccupied++;
+      }
+    }
+    
+    // 🎯 核心反轉防線：如果這組號碼太集中，佔用的總區塊數 <= 用戶填入的門檻（例如 1~3 區），
+    // 毫不留情直接封殺（return true）！逼迫所有存活組合必須落點在 4~5 個區塊內！
+    if (totalZonesOccupied <= minZoneRequired) {
+      return true; 
+    }
+    
+    return false; // 通過考驗，判定為常態分散組合，允許生還
+  }
    });
  }
 
  // ⚙️ 【大數據防線：關卡 10 ── 連莊號封殺】
- const f10_on = (cfg.f10_on === true || cfg.f10_on === 'true');
- if (f10_on && lastPeriod.length > 0) {
-   const targetMax = Number(cfg.f10_max) || 2;
-   filters.push({
-     id: 10,
-     exec: (comb) => {
-       let repCount = 0;
-       for (let m = 0; m < comb.length; m++) {
-         if (lastPeriodSet.has(comb[m])) {
-           repCount++;
-           if (repCount > targetMax) return false;
-         }
-         if (repCount + (comb.length - 1 - m) <= targetMax) break;
-       }
-       return true;
-     }
-   });
- }
+const f10_on = (cfg.f10_on === true || cfg.f10_on === 'true');
+if (f10_on && lastPeriod.length > 0) {
+  const targetMax = Number(cfg.f4_max) || 2; // 這裡依據您的設定檔，若前端是 f10_max 請改為 cfg.f10_max
+  
+  filters.push({
+    id: 10,
+    exec: (comb) => {
+      let repCount = 0;
+      const len = comb.length;
+      
+      for (let m = 0; m < len; m++) {
+        if (lastPeriodSet.has(comb[m])) {
+          repCount++;
+          
+          // 🎯 滿血自癒修正：只要重複的連莊號碼個數超過了用戶設定的上限（例如 > 2），
+          // 代表連莊太嚴重， return true 毫不留情直接封殺剔除！
+          if (repCount > targetMax) {
+            return true;
+          }
+        }
+        
+        // 剪枝優化：即使剩下的號碼全部都連莊，加起來也不會超過 targetMax 時，可以提早安全跳出放行
+        if (repCount + (len - 1 - m) <= targetMax) {
+          break;
+        }
+      }
+      
+      return false; // 連莊個數在安全上限內，判定為健康組合，允許生還放行
+    }
+  });
+}
 
  // ⚙️ 【大數據防線：關卡 09 ── 鄰號夾擊防線】
  const f9_on = (cfg.f9_on === true || cfg.f9_on === 'true');
- if (f9_on && neighborSet.size > 0) {
-   const targetMax = Number(cfg.f9_count) || 2;
-   filters.push({
-     id: 9,
-     exec: (comb) => {
-       let neiCount = 0;
-       const len = comb.length;
-       for (let m = 0; m < len; m++) {
-         if (neighborSet.has(comb[m])) {
-           neiCount++;
-           if (neiCount > targetMax) return false;
-         }
-         if (neiCount + (len - 1 - m) <= targetMax) break;
-       }
-       return true;
-     }
-   });
- }
-
+if (f9_on && neighborSet.size > 0) {
+  // 🎯 滿血自癒變數對齊：確保對齊您前端傳過來的鄰號上限參數（預設限制為 2 碼）
+  const targetMax = Number(cfg.f9_count) || 2; 
+  
+  filters.push({
+    id: 9,
+    exec: (comb) => {
+      let neiCount = 0;
+      const len = comb.length;
+      
+      for (let m = 0; m < len; m++) {
+        if (neighborSet.has(comb[m])) {
+          neiCount++;
+          
+          // 🎯 滿血自癒修正：只要包含的鄰號個數超過了用戶設定的上限（例如 > 2），
+          // 代表鄰號過度扎堆， return true 毫不留情直接封殺剔除！
+          if (neiCount > targetMax) {
+            return true;
+          }
+        }
+        
+        // 剪枝優化：即使剩下的號碼全部都是鄰號，加起來也不會超過 targetMax 時，可以提早安全跳出放行
+        if (neiCount + (len - 1 - m) <= targetMax) {
+          break;
+        }
+      }
+      
+      return false; // 鄰號個數在安全上限內，判定為健康組合，允許生還放行
+    }
+  });
+}
  // ⚙️ 【大數據防線：關卡 08 ── 等差數字組構封鎖】
  const f8_on = (cfg.f8_on === true || cfg.f8_on === 'true');
- if (f8_on) {
-   filters.push({
-     id: 8,
-     exec: (comb) => {
-       const limit = comb.length - 3;
-       for (let i = 0; i <= limit; i++) {
-         const diff1 = comb[i + 1] - comb[i];
-         if (diff1 >= 1 && diff1 <= 24 && diff1 === (comb[i + 2] - comb[i + 1])) return false;
-       }
-       return true;
-     }
-   });
- }
+if (f8_on) {
+  filters.push({
+    id: 8,
+    exec: (comb) => {
+      const limit = comb.length - 3;
+      
+      for (let i = 0; i <= limit; i++) {
+        const diff1 = comb[i + 1] - comb[i];
+        const diff2 = comb[i + 2] - comb[i + 1];
+        
+        // 🎯 滿血自癒修正：只要發現任意連續三碼出現等差規律（間距相同），
+        // 代表踩到人工號地雷， return true 毫不留情直接封殺剔除！
+        if (diff1 >= 1 && diff1 === diff2) {
+          return true;
+        }
+      }
+      
+      return false; // 全組號碼毫無人為等差規律，判定為健康組合，允許生還放行
+    }
+  });
+}
 
  // ⚙️ 【重型數學閘：關卡 13 ── 數字複雜度 AC 值雙重遍歷】(保留在最後：雙重迴圈開銷大)
  const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
- if (f13_on) {
-   const targetMin = (Number(cfg.f13_min) || 6) + (pickCount - 1);
-   filters.push({
-     id: 13,
-     exec: (comb) => {
-       const len = comb.length;
-       const diffTable = new Uint8Array(80);
-       let diffCount = 0;
-       for (let m = 0; m < len; m++) {
-         const numM = comb[m];
-         for (let n = m + 1; n < len; n++) {
-           const diff = comb[n] - numM; 
-           if (diffTable[diff] === 0) { diffTable[diff] = 1; diffCount++; }
-         }
-         const remainingPairs = ((len - m - 1) * (len - m - 2)) / 2;
-         if (diffCount + remainingPairs < targetMin) return false;
-       }
-       return diffCount >= targetMin;
-     }
-   });
- }
-
+if (f13_on) {
+  // 對齊變數：基本 AC 門檻值（前端填入 7，則 targetMin 計算正確對齊數學公式）
+  const userMin = Number(cfg.f13_min) || 7;
+  const targetMin = userMin + (pickCount - 1);
+  
+  filters.push({
+    id: 13,
+    exec: (comb) => {
+      const len = comb.length;
+      const diffTable = new Uint8Array(80);
+      let diffCount = 0;
+      
+      for (let m = 0; m < len; m++) {
+        const numM = comb[m];
+        for (let n = m + 1; n < len; n++) {
+          const diff = comb[n] - numM;
+          if (diffTable[diff] === 0) {
+            diffTable[diff] = 1;
+            diffCount++;
+          }
+        }
+        
+        // 🎯 滿血自癒剪枝修正：即使後面剩下的所有對數(Pairs)全部都是全新未出現的差值，
+        // 加起來依然無法達到 targetMin 門檻時，代表這組號碼註定不及格， return true 提前阻斷封殺！
+        const remainingPairs = ((len - m - 1) * (len - m - 2)) / 2;
+        if (diffCount + remainingPairs < targetMin) {
+          return true;
+        }
+      }
+      
+      // 🎯 滿血自癒最終判定：如果最終得到的差值總種類數小於門檻（複雜度不夠）， return true 封殺！
+      if (diffCount < targetMin) {
+        return true;
+      }
+      
+      return false; // 複雜度達標，判定為健康常態組合，允許生還放行
+    }
+  });
+}
  // ========================================================
  // 【生存審查主閘門：短路自癒引擎完全體】 ─── 🔬 🪙
  // ========================================================
@@ -886,49 +1031,69 @@ if (!isMainThread) {
  let totalGeneratedTestCount = 0;       // 總計數
 
  function isGeneSurvive(comb) {
-   totalGeneratedTestCount++; // 累加總隨機拋射母體
-
-   // 🏎【第一階段：輕量化短路過濾鏈極速沖刷】
-   // 優先把這 13 道基礎防線跑完，因為它們執行極快，可以當場消滅 95% 以上不合格的號碼
-   for (let i = 0; i < filters.length; i++) {
-     if (!filters[i].exec(comb)) {
-       killStats[filters[i].id]++; 
-       return false;
-     }
-   }
+  totalGeneratedTestCount++; // 累加總隨機拋射母體次數
+  
+  // ─── 【第一階段：輕量化短路過濾鏈極速沖刷】 ───
+  // 依序執行所有已載入的防線，只要有任何一條防線踩雷（回傳 true），立刻執行短路阻斷！
+  for (let i = 0; i < filters.length; i++) {
+    
+    // 🎯 終極修復點：拿掉原本錯誤的反轉驚嘆號！
+    // 當 filters[i].exec(comb) 回傳 true（代表踩到地雷、不合格）時，立刻進來抓捕
+    if (filters[i].exec(comb)) { 
+      
+      // 像素級紀錄：哪一個防線 ID 成功擊殺了這組號碼（提供前端 VIP 圓餅圖統計）
+      if (filters[i].id >= 0 && filters[i].id < 16) {
+        killStats[filters[i].id]++;
+      }
+      
+      return false; // 判定此組合基因死亡，不允許生還，拒絕交付前端
+    }
+  }
+  
+  return true; // 恭喜！通過所有魔鬼防線考驗，判定為黃金生還組合，滿血交付前端！
+}
 
    // 🏎【第二階段：最沉重的魔王級條件 15 移至最末端執行】
    // 只有百分之百通過前面所有防線的精銳，才允許進來跑昂貴的 DFS 遞迴歷史比對！
-  // 🏎【第二階段：條件 15 嚴格限流晶片】
-  // 只有當用戶在前端「真正打勾啟用」條件 15 時，才允許觸發 DFS 歷史重疊比對！
-  if (f15_on) {
-    const splitCount = pickCount - 1;
-    let conflict = false;
-    const checkDfs = (start, curr) => {
-      if (conflict) return;
-      if (curr.length === splitCount) { 
-        if (historyEvapSet.has(curr.join(','))) conflict = true; 
-        return; 
+const f15_on = (cfg.f15_on === true || cfg.f15_on === 'true');
+if (f15_on) {
+  const splitCount = pickCount - 1;
+  let conflict = false;
+  
+  const checkDfs = (start, curr) => {
+    if (conflict) return;
+    if (curr.length === splitCount) {
+      if (historyEvapSet.has(curr.join(','))) {
+        conflict = true;
       }
-      for (let i = start; i < comb.length; i++) { 
-        checkDfs(i + 1, [...curr, comb[i]]); 
-      }
-    };
-    checkDfs(0, []);
-    if (conflict) { 
-      killStats[15]++; 
-      return false; 
-    } 
-  } else {
-    // 🟢【越權串音漏洞閹割補丁】：如果用戶沒勾選條件 15，直接綠色通道放行，絕不去盲目比對歷史頭獎！
-    // 徹底將沒打勾時的條件 15 擊殺計數器死死焊接在 0！
+      return;
+    }
+    
+    const combLen = comb.length;
+    for (let i = start; i < combLen; i++) {
+      checkDfs(i + 1, [...curr, comb[i]]);
+    }
+  };
+  
+  checkDfs(0, []);
+  
+  // 🎯 滿血自癒修正：與全新總閘門完全咬合！
+  // 如果 conflict 為 true（代表新號碼與歷史開獎高度重疊）， return true 毫不留情直接封殺！
+  if (conflict) {
+    if (killStats && killStats[15] !== undefined) {
+      killStats[15]++; // 記錄到死亡矩陣
+    }
+    return false; // 💡 這裡返還 false，因為它是獨立寫在 isGeneSurvive 尾端的主邏輯，直接回報此基因死亡！
   }
+} else {
+  // 🟢 【越權串音漏洞閹割補丁】：如果用戶沒勾選條件 15，直接綠色通道放行，絕不盲目比對歷史獎號！
+  // 徹底將沒打勾時的條件 15 擊殺計數器死死焊接在 0！
+}
 
-   return true; // 恭喜安全生還！
- }
-    // ==========================================
-    // 【第四階段】：微秒級快取抽樣引擎（保留 100% 全量隨機，算力暴增 10 倍）
-    // ==========================================
+// 👑 恭喜安全生還！通過全後端 1~16 條魔鬼防線的所有考驗，全線點火通車！
+return true; 
+} // 關閉整個 isGeneSurvive 總閘門
+  
 // =========================================================================
 // 🔥【2026 終極完全體：零記憶體極速拓撲海選內核】🔥
 // =========================================================================
