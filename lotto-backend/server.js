@@ -772,10 +772,11 @@ if (!isMainThread) {
    });
  }
 
- // ⚙️ 【結構防線：關卡 03 ── 五大物理區塊落點】
+ // Filter 03: reject combinations concentrated inside any N physical zones.
+// Example: f3_count=3 rejects zones 1-2-3, 1-3-5, 2-3-4, etc.; only 4-5 zone spread survives.
  const f3_on = (cfg.f3_on === true || cfg.f3_on === 'true');
  if (f3_on) {
-   const targetCount = Number(cfg.f3_count) || 4;
+   const excludedZoneLimit = Math.max(1, Math.min(4, Number(cfg.f3_count) || 3));
    const divisor = lottoType === "49_6" ? 10 : 8;
    filters.push({
      id: 3,
@@ -783,13 +784,16 @@ if (!isMainThread) {
        let zoneMask = 0, zoneSize = 0;
        const len = comb.length;
        for (let m = 0; m < len; m++) {
-         let zone = (comb[m] + divisor - 1) / divisor | 0;
-         if (zone > 5) zone = 5;
+         let zone = Math.floor((comb[m] - 1) / divisor);
+         if (zone > 4) zone = 4;
          const bit = 1 << zone;
-         if ((zoneMask & bit) === 0) { zoneMask |= bit; zoneSize++; }
-         if (zoneSize + (len - 1 - m) < targetCount) return false;
+         if ((zoneMask & bit) === 0) {
+           zoneMask |= bit;
+           zoneSize++;
+           if (zoneSize > excludedZoneLimit) return true;
+         }
        }
-       return zoneSize === targetCount;
+       return false;
      }
    });
  }
@@ -941,7 +945,32 @@ const requiredSlots = pickCount - favBalls.length;
   // ⚡【子執行緒原地排行榜】：完全不拋射物件給主執行緒，在原地留 100 組，其餘秒刪！
   let localLeaderBoard = [];
   let minScoreInLocalBoard = -99999;
-  const pickLimit = 100;
+  const pickLimit = Math.min(100, Math.max(1, Number(cfg.count) || 100));
+  const candidateLimit = Math.max(800, pickLimit * 8);
+
+  function overlapCount(a, b) {
+    const bSet = new Set(b);
+    let count = 0;
+    for (const n of a) if (bSet.has(n)) count++;
+    return count;
+  }
+
+  function diversifyBoard(candidates) {
+    const sorted = [...candidates].sort((a, b) => b.score - a.score);
+    const selected = [];
+    const strictOverlap = pickCount >= 6 ? 2 : 2;
+    for (let maxOverlap = strictOverlap; selected.length < pickLimit && maxOverlap <= pickCount - 1; maxOverlap++) {
+      for (const item of sorted) {
+        if (selected.length >= pickLimit) break;
+        if (selected.some(existing => existing.formatted === item.formatted)) continue;
+        if (selected.every(existing => overlapCount(existing.comb, item.comb) <= maxOverlap)) selected.push(item);
+      }
+    }
+    selected.forEach((item, idx) => {
+      item.unit = Math.floor(idx / Math.max(1, Math.floor(maxNum / pickCount))) + 1;
+    });
+    return selected;
+  }
 
   const breathe = () => new Promise(resolve => {
     if (typeof setImmediate !== 'undefined') setImmediate(resolve);
@@ -986,16 +1015,16 @@ const requiredSlots = pickCount - favBalls.length;
     if (localLeaderBoard.length < candidateLimit) {
       const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
       localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-      if (localLeaderBoard.length === pickLimit) {
+      if (localLeaderBoard.length === candidateLimit) {
         localLeaderBoard.sort((a, b) => b.score - a.score);
-        minScoreInLocalBoard = localLeaderBoard[pickLimit - 1].score;
+        minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
       }
     } else if (healthScore > minScoreInLocalBoard) {
       localLeaderBoard.pop(); // 剔除最低分守門員
       const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
       localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
       localLeaderBoard.sort((a, b) => b.score - a.score); // 僅對 100 組排序，毫無內耗
-      minScoreInLocalBoard = localLeaderBoard[pickLimit - 1].score;
+      minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
     }
   }
 
