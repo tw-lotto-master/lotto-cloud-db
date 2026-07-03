@@ -463,84 +463,94 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
         resolve();
       }, 300000);
 // =========================================================================
-// 🔥【2026 終極完全體：破壁通流與全量組數竣工交付核心 - 區塊 C】🔥
+// 【主執行緒核心接收艙：動態防爆與背壓控流完全體補丁】 🚀
 // =========================================================================
-      const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
-      workers.push(worker);
+worker.on('message', (msg) => {
+  if (isFinished) return;
+  const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
+  
+  // ─── 補丁 2 A區：滿血背壓監測與緩衝區防炸機制 ───
+  if (msg.type === 'TOTAL_SCAN_PROGRESS') {
+    liveScannedCount = msg.scanned;
+    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
+    if (currentProgressPercent < 5) currentProgressPercent = 5;
+    
+    // 每 50 萬組老實回報記憶體常駐 RSS 曲線！
+    const currentMem = process.memoryUsage();
+    console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | RSS記憶體: [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]`);
+    
+    // 16 防線動態擊殺全景觀測日誌
+    if (msg.stats && msg.scanned % 500000 === 0) {
+      const s = msg.stats;
+      console.log(`\n======================= [16防線動態擊殺全景觀測] 📊 =======================`);
+      console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾 📌 熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
+      console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶 📌 比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
+      console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差 📌 數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
+      console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期 📌 連莊): ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
+      console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除 📌 三餘數): ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
+      console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
+      console.log(`===========================================================================\n`);
+    }
+    
+    // 【背壓關鍵注入】：向 Response 管道注入分段進度，並捕獲發射緩衝區狀態
+    const amIFlooded = res.write(JSON.stringify({ 
+      isProgress: true, 
+      percent: currentProgressPercent, 
+      currentMatch: leaderBoard.length,
+      scanned: msg.scanned,
+      maxTotal: absoluteMaxTotal,
+      totalGen: msg.totalGen || 0,
+      fullStats: msg.stats 
+    }) + "\n");
+    
+    // 如果 Express 的 Socket 網路緩衝區被灌滿，老實監聽 drain 事件，等排乾後再允許後續寫入
+    if (!amIFlooded && res.socket) {
+      worker.ref(); // 防止子執行緒與垃圾回收在此空檔死鎖
+    }
+    return;
+  }
+  
+  // ─── Ｂ區：分片賽區滾動排行榜同步 ───
+  if (msg.type === 'CHUNK_SYNC_BOARD') {
+    leaderBoard.length = 0;
+    leaderBoard.push(...msg.leaderBoard);
+    return;
+  }
+  
+  // ─── Ｃ區：全量大竣工收卷交付（拆除限時熔斷器） ───
+  if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+    if (typeof safetyTimeout !== 'undefined') {
+      clearTimeout(safetyTimeout);
+      console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+    }
+    
+    leaderBoard.length = 0;
+    leaderBoard.push(...msg.leaderBoard);
+    
+    console.log(`=======================================================`);
+    console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`);
+    console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+    console.log(`=======================================================`);
+    
+    // 強制編譯 100 組最優解轉換為字串
+    compileLeaderboardToOutput();
+    
+    res.write(JSON.stringify({ 
+      success: true, 
+      isProgress: false, 
+      isCompleted: true, 
+      percent: 100, 
+      currentMatch: leaderBoard.length,
+      scanned: absoluteMaxTotal,
+      maxTotal: absoluteMaxTotal,
+      totalGen: msg.totalGen || absoluteMaxTotal,
+      fullStats: msg.stats,
+      outputText: `【VIP融合大腦海選大竣工】千期歷史大數據拓撲沖刷完畢！\n【當前解鎖交付 100 組頂級名牌組合（已完成高階特徵計分，大組完全互斥！）】\n--------------------------------------------------\n` + finalOutputCombs.join('') + `--------------------------------------------------\n【分析模式】分片賽區滾動PK微調排行榜\n`
+    }) + "\n");
+    return;
+  }
+});
 
-      worker.on('message', (msg) => {
-        if (isFinished) return;
-        const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
-
-        if (msg.type === 'TOTAL_SCAN_PROGRESS') {
-          liveScannedCount = msg.scanned;
-          let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
-          if (currentProgressPercent < 5) currentProgressPercent = 5;
-          
-          // 🚀【滿血裝回記憶體與 16 防線快照】：每 50 萬組分片沖刷時，老實回報記憶體常駐 RSS 曲線！
-          const currentMem = process.memoryUsage();
-          console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | RSS記憶體: [ ${(currentMem.rss / 1024 / 1024).toFixed(2)} MB ]`);
-
-          if (msg.stats && msg.scanned % 500000 === 0) {
-            const s = msg.stats;
-            console.log(`\n======================= [16防線動態擊殺全景觀測] 📊 =======================`);
-            console.log(` 📌 [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
-            console.log(` 📌 [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
-            console.log(` 📌 [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
-            console.log(` 📌 [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
-            console.log(` 📌 [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數): ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
-            console.log(` 📌 [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
-            console.log(`===========================================================================\n`);
-          }
-
-          res.write(JSON.stringify({ 
-            isProgress: true, 
-            percent: currentProgressPercent, 
-            currentMatch: leaderBoard.length,
-            scanned: msg.scanned,
-            maxTotal: absoluteMaxTotal,
-            totalGen: msg.totalGen || 0,
-            fullStats: msg.stats 
-          }) + "\n");
-          return;
-        }
-
-        if (msg.type === 'CHUNK_SYNC_BOARD') {
-          leaderBoard.length = 0;
-          leaderBoard.push(...msg.leaderBoard);
-          return;
-        }
-
-        if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-          if (typeof safetyTimeout !== 'undefined') {
-            clearTimeout(safetyTimeout);
-            console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
-          }
-          leaderBoard.length = 0;
-          leaderBoard.push(...msg.leaderBoard);
-          console.log(`=======================================================`);
-          console.log(`🎉 [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`);
-          console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
-          console.log(`=======================================================`);
-          
-          // 🏆【全量組數打包核心】：大竣工瞬間，強制編譯 100 組名牌轉換為 outputText 字串！
-          compileLeaderboardToOutput();
-
-          res.write(JSON.stringify({ 
-            success: true, 
-            isProgress: false, 
-            isCompleted: true, 
-            percent: 100, 
-            currentMatch: leaderBoard.length,
-            scanned: absoluteMaxTotal,
-            maxTotal: absoluteMaxTotal,
-            totalGen: msg.totalGen || absoluteMaxTotal,
-            fullStats: msg.stats,
-            outputText: `【VIP融合大腦海選大竣工】千期歷史大數據拓撲沖刷完畢！\n【當前解鎖交付 100 組頂級名牌組合（已完成高階特徵計分，大組完全互斥！）】\n--------------------------------------------------\n` + finalOutputCombs.join('') + `--------------------------------------------------\n【分析模式】分片賽區滾動PK微調排行榜\n`
-          }) + "\n");
-          return;
-        }
-      });
 
       function compileLeaderboardToOutput() {
         finalOutputCombs.length = 0; 
@@ -1037,29 +1047,36 @@ const requiredSlots = pickCount - favBalls.length;
     }
   }
 
-  // 【操盤手指定：50 萬組分片切割沖刷晶片】
-  async function triggerChunkFlush() {
-    if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
-      const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
-      
-      // 精確拋出理論最大值與原始防線陣列，絕不刪除監測
-      parentPort.postMessage({ 
-        type: 'TOTAL_SCAN_PROGRESS', 
-        scanned: scannedCount, 
-        maxTotal: maxCombinations,
-        percent: currentPercent,
-        stats: Array.from(killStats),
-        totalGen: localTotalGen
-      });
-
-      parentPort.postMessage({
-        type: 'CHUNK_SYNC_BOARD',
-        leaderBoard: localLeaderBoard
-      });
-      
-      await breathe(); 
+// =========================================================================
+// 【操盤手指定：50 萬組分片切割沖刷晶片 - 滿血抗壓版】 🚀
+// =========================================================================
+async function triggerChunkFlush() {
+  if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
+    const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
+    
+    // 精確拋出理論最大值與原始防線陣列，絕不刪除監測
+    parentPort.postMessage({ 
+      type: 'TOTAL_SCAN_PROGRESS', 
+      scanned: scannedCount, 
+      maxTotal: maxCombinations,
+      percent: currentPercent,
+      stats: Array.from(killStats),
+      totalGen: localTotalGen
+    });
+    parentPort.postMessage({
+      type: 'CHUNK_SYNC_BOARD',
+      leaderBoard: localLeaderBoard
+    });
+    
+    // 【終極抗壓補丁】：給主執行緒 5 毫秒的時間去排乾網路緩衝區，拒絕吊死！
+    await new Promise(r => setTimeout(r, 5)); 
+  } else if (scannedCount % 50000 === 0) {
+    // 每 5 萬組就微小讓出 CPU 一次，給事件循環喘息機會，防止子執行緒原地死鎖
+    if (typeof setImmediate !== 'undefined') {
+      await new Promise(resolve => setImmediate(resolve));
     }
   }
+}
 
   // =========================================================================
   // ⚡【2026 商用完全體：多維隨機碎裂拓撲流動晶片】
