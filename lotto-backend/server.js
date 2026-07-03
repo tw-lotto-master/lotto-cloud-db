@@ -1024,74 +1024,62 @@ if (f13_on) {
     }
   });
 }
- // ========================================================
- // 【生存審查主閘門：短路自癒引擎完全體】 ─── 🔬 🪙
- // ========================================================
- const killStats = new Uint32Array(16); // 0~15 關卡獨立死亡計數矩陣
- let totalGeneratedTestCount = 0;       // 總計數
+// =========================================================================
+// 【2026 後端大腦生存審查總閘門 ── 100% 變數咬合、括號完全體】
+// =========================================================================
+const killStats = new Uint32Array(16); // 0~15 關卡獨立死亡計數矩陣
+let totalGeneratedTestCount = 0; // 總計數
 
- function isGeneSurvive(comb) {
+function isGeneSurvive(comb) {
   totalGeneratedTestCount++; // 累加總隨機拋射母體次數
-  
+ 
   // ─── 【第一階段：輕量化短路過濾鏈極速沖刷】 ───
-  // 依序執行所有已載入的防線，只要有任何一條防線踩雷（回傳 true），立刻執行短路阻斷！
   for (let i = 0; i < filters.length; i++) {
-    
-    // 🎯 終極修復點：拿掉原本錯誤的反轉驚嘆號！
-    // 當 filters[i].exec(comb) 回傳 true（代表踩到地雷、不合格）時，立刻進來抓捕
     if (filters[i].exec(comb)) { 
-      
-      // 像素級紀錄：哪一個防線 ID 成功擊殺了這組號碼（提供前端 VIP 圓餅圖統計）
       if (filters[i].id >= 0 && filters[i].id < 16) {
         killStats[filters[i].id]++;
       }
-      
-      return false; // 判定此組合基因死亡，不允許生還，拒絕交付前端
+      return false; // 判定此組合基因死亡，不允許生還
     }
   }
-  
-  return true; // 恭喜！通過所有魔鬼防線考驗，判定為黃金生還組合，滿血交付前端！
-}
-
-   // 🏎【第二階段：最沉重的魔王級條件 15 移至最末端執行】
-   // 只有百分之百通過前面所有防線的精銳，才允許進來跑昂貴的 DFS 遞迴歷史比對！
-
-if (f15_on) {
-  const splitCount = pickCount - 1;
-  let conflict = false;
-  
-  const checkDfs = (start, curr) => {
-    if (conflict) return;
-    if (curr.length === splitCount) {
-      if (historyEvapSet.has(curr.join(','))) {
-        conflict = true;
+ 
+  // ─── 【第二階段：最沉重的魔王級條件 15 移至最末端執行】 ───
+  // 🎯 滿血自癒修正：將條件 15 牢牢鎖在 isGeneSurvive 內部，確保 comb 變數 100% 存在、絕不噴未定義錯誤！
+  if (f15_on) {
+    const splitCount = pickCount - 1;
+    let conflict = false;
+ 
+    const checkDfs = (start, curr) => {
+      if (conflict) return;
+      if (curr.length === splitCount) {
+        if (historyEvapSet.has(curr.join(','))) {
+          conflict = true;
+        }
+        return;
       }
-      return;
+ 
+      const combLen = comb.length;
+      for (let i = start; i < combLen; i++) {
+        checkDfs(i + 1, [...curr, comb[i]]);
+      }
+    };
+ 
+    checkDfs(0, []);
+ 
+    // 如果 conflict 為 true（代表新號碼與歷史開獎高度重疊）， return true 毫不留情直接封殺！
+    if (conflict) {
+      if (killStats && killStats[15] !== undefined) {
+        killStats[15]++; // 記錄到死亡矩陣
+      }
+      return false; // 基因死亡，攔截剔除
     }
-    
-    const combLen = comb.length;
-    for (let i = start; i < combLen; i++) {
-      checkDfs(i + 1, [...curr, comb[i]]);
-    }
-  };
-  
-  checkDfs(0, []);
-  
-  // 🎯 滿血自癒修正：與全新總閘門完全咬合！
-  // 如果 conflict 為 true（代表新號碼與歷史開獎高度重疊）， return true 毫不留情直接封殺！
-  if (conflict) {
-    if (killStats && killStats[15] !== undefined) {
-      killStats[15]++; // 記錄到死亡矩陣
-    }
-    return false; // 💡 這裡返還 false，因為它是獨立寫在 isGeneSurvive 尾端的主邏輯，直接回報此基因死亡！
+  } else {
+    // 【越權串音漏洞閹割補丁】：如果用戶沒勾選條件 15，直接綠色通道放行
   }
-} else {
-  // 🟢 【越權串音漏洞閹割補丁】：如果用戶沒勾選條件 15，直接綠色通道放行，絕不盲目比對歷史獎號！
-  // 徹底將沒打勾時的條件 15 擊殺計數器死死焊接在 0！
-}
 
-// 👑 恭喜安全生還！通過全後端 1~16 條魔鬼防線的所有考驗，全線點火通車！
-return true; 
+  // 👑 恭喜安全生還！通過全後端 1~16 條魔鬼防線的所有考驗，全線點火通車！
+  return true; 
+} // 🎯 完美閉合整個 function isGeneSurvive(comb)，把所有的括號黑洞物理消滅！
 
   
 // =========================================================================
