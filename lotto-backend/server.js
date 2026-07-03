@@ -1091,8 +1091,6 @@ const maxCombinations = lottoType === "49_6" ? 13983816 : 575757;
 const poolLength = basePool.length;
 const requiredSlots = pickCount - favBalls.length;
 
-// ====== 【新程式碼範圍（100% 精確對齊，直接複製覆蓋）】 ======
-let scannedCount = 0;
 
 // 🎯 滿血自癒晶片：根據地雷排除後的真實 basePool 長度，自動計算實際排列組合總數
 const getDynamicMaxCombs = () => {
