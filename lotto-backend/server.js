@@ -1207,12 +1207,12 @@ const requiredSlots = pickCount - (typeof favBalls !== 'undefined' ? favBalls.le
     }
   }
 
-  // 【操盤手指定：50 萬組分片切割沖刷晶片】
+// ====== 【後端 server.js 覆蓋代碼：防爆穿透節流總閘門（100% 括號完全體）】 ======
+  // 【操盤手指定：50 萬組分片切割工作艙 ── 注入高頻防爆通訊節流晶片】
   async function triggerChunkFlush() {
     if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
       const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
       
-      // 精確拋出理論最大值與原始防線陣列，絕不刪除監測
       parentPort.postMessage({ 
         type: 'TOTAL_SCAN_PROGRESS', 
         scanned: scannedCount, 
@@ -1221,15 +1221,21 @@ const requiredSlots = pickCount - (typeof favBalls !== 'undefined' ? favBalls.le
         stats: Array.from(killStats),
         totalGen: localTotalGen
       });
-
+      
       parentPort.postMessage({
         type: 'CHUNK_SYNC_BOARD',
         leaderBoard: diversifyBoard(localLeaderBoard)
       });
       
-      await breathe(); 
+      // 🎯 滿血防爆補丁：在高速高頻突發噴射時，強制讓 Node.js event loop 微秒級停頓呼吸，
+      // 徹底拉開三個進度封包的物理發送距離，擊碎 Render 的 Pending 攔截鐵門！
+      await new Promise(res => {
+        if (typeof setImmediate !== 'undefined') setImmediate(res);
+        else setTimeout(res, 1);
+      });
     }
   }
+
 
   // 【2026 完全體：多維拓撲限流分片迴圈晶片】
   for (let i0 = 0; i0 < pLen; i0++) {
