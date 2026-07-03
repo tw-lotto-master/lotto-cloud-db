@@ -1055,7 +1055,7 @@ if (f13_on) {
 
    // 🏎【第二階段：最沉重的魔王級條件 15 移至最末端執行】
    // 只有百分之百通過前面所有防線的精銳，才允許進來跑昂貴的 DFS 遞迴歷史比對！
-f15_on = (cfg.f15_on === true || cfg.f15_on === 'true');
+
 if (f15_on) {
   const splitCount = pickCount - 1;
   let conflict = false;
