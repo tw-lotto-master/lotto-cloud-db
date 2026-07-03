@@ -1085,10 +1085,32 @@ function isGeneSurvive(comb) {
 // =========================================================================
 // 🔥【2026 終極完全體：零記憶體極速拓撲海選內核】🔥
 // =========================================================================
+// ====== 【舊程式碼範圍（截圖中的第 1088 到 1091 行）】 ======
 let scannedCount = 0;
 const maxCombinations = lottoType === "49_6" ? 13983816 : 575757;
 const poolLength = basePool.length;
 const requiredSlots = pickCount - favBalls.length;
+
+// ====== 【新程式碼範圍（100% 精確對齊，直接複製覆蓋）】 ======
+let scannedCount = 0;
+
+// 🎯 滿血自癒晶片：根據地雷排除後的真實 basePool 長度，自動計算實際排列組合總數
+const getDynamicMaxCombs = () => {
+  const n = basePool.length;
+  const k = lottoType === "49_6" ? 6 : 5;
+  if (n < k) return 0;
+  let numerator = 1, denominator = 1;
+  for (let i = 0; i < k; i++) {
+    numerator *= (n - i);
+    denominator *= (i + 1);
+  }
+  return Math.floor(numerator / denominator);
+};
+
+const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 575757);
+const poolLength = basePool.length;
+const requiredSlots = pickCount - favBalls.length;
+
 
 (async function runDeterministicBrain() {
   const isLotto = lottoType === "49_6";
