@@ -1098,10 +1098,6 @@ return true;
 // 🔥【2026 終極完全體：零記憶體極速拓撲海選內核】🔥
 // =========================================================================
 let scannedCount = 0;
-
-// 🎯 滿血自癒晶片：全自動對齊子線程與主線程的變數名稱，徹底消滅 ReferenceError 斷路黑洞！
-const lottoType = typeof cfg !== 'undefined' ? (cfg.lottoType || '39_5') : '39_5';
-
 const maxCombinations = lottoType === "49_6" ? 13983816 : 575757;
 const poolLength = basePool.length;
 const requiredSlots = pickCount - favBalls.length;
