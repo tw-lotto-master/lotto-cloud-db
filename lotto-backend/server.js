@@ -1263,8 +1263,6 @@ const requiredSlots = pickCount - favBalls.length;
 
 })(); // 完美閉合子執行緒非同步自執行大腦 🌟
 
-} // ⚡【黃金自癒補丁】：精確閉合包裹整個 if (isMainThread) 或是 app 主閘門的關鍵大括號！
-
 // ───【2026 全域端口大總門】：監聽 Render 埠口並通電 ───
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
