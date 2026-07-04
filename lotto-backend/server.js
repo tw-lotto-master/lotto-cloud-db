@@ -503,32 +503,38 @@ if (isMainThread) {
     return;
   }
 
-  if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-    if (typeof safetyTimeout !== 'undefined') {
-      clearTimeout(safetyTimeout);
-      console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
-    }
-    leaderBoard.length = 0;
-    leaderBoard.push(...msg.leaderBoard);
-    console.log(`=======================================================`);
-    console.log(`🎉 [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`);
-    console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
-    console.log(`=======================================================`);
-    
-    // 🚀【終極自癒拆彈】：徹底抹除舊殘留 maxTotalVal，完全對齊天花板共享常數 absoluteMaxTotal，100% 絕不崩潰！
-    res.write(JSON.stringify({ 
-      isProgress: false, 
-      isCompleted: true, 
-      percent: 100, 
-      currentMatch: leaderBoard.length,
-      scanned: absoluteMaxTotal,
-      maxTotal: absoluteMaxTotal,
-      totalGen: msg.totalGen || absoluteMaxTotal,
-      fullStats: msg.stats
-    }) + "\n");
-    return;
-  }
-
+ if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+   if (typeof safetyTimeout !== 'undefined') {
+     clearTimeout(safetyTimeout);
+     console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+   }
+   leaderBoard.length = 0;
+   leaderBoard.push(...msg.leaderBoard);
+   console.log(`=======================================================`);
+   console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
+   console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+   console.log(`=======================================================`);
+   
+   // 🎯 【點對點注入：自癒編譯器】強制在主執行緒結束前，把號碼倒出為文字
+   compileLeaderboardToOutput();
+   
+   let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (動態計分淘汰賽+大組互斥融合體)' : '一般篩選 (分片賽區滾動PK排行版)';
+   
+   // 🚀 【滿血大結局封包】全量發射前端 Fetch 讀取流苦苦等待的 success 與 outputText！
+   res.write(JSON.stringify({ 
+     success: true, 
+     isProgress: false, 
+     isCompleted: true, 
+     percent: 100, 
+     currentMatch: leaderBoard.length,
+     scanned: absoluteMaxTotal,
+     maxTotal: absoluteMaxTotal,
+     totalGen: msg.totalGen || absoluteMaxTotal,
+     fullStats: msg.stats,
+     outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+   }) + "\n");
+   return;
+ }
  });
 
  // 輔助晶片：將計分板數據滾動倒出到原本的交付容器中，維持與前台的對齊
