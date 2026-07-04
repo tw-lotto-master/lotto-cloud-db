@@ -335,6 +335,16 @@ if (isMainThread) {
 
     if (isNoConditions) {
         console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
+
+      if (!isVipPass) {
+    res.write(JSON.stringify({ 
+      success: false, 
+      status: 402, 
+      message: "權限鎖定：分析模式需要先完成帳戶登入，請先完成登入！" 
+    }) + "\n");
+    return res.end();
+  }
+      
         if (dbUser) {
             res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
         }
@@ -503,6 +513,9 @@ if (isMainThread) {
     return;
   }
 
+// =========================================================================
+// ====== 【後台 Page 10 點對點修正：大竣工通訊艙 (100% 絕不重複發射)】 ======
+// =========================================================================
  if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
    if (typeof safetyTimeout !== 'undefined') {
      clearTimeout(safetyTimeout);
@@ -511,16 +524,22 @@ if (isMainThread) {
    leaderBoard.length = 0;
    leaderBoard.push(...msg.leaderBoard);
    console.log(`=======================================================`);
-   console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
+   console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！ 🎉`);
    console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
    console.log(`=======================================================`);
    
-   // 🎯 【點對點注入：自癒編譯器】強制在主執行緒結束前，把號碼倒出為文字
+   // 🎯【自癒編譯器】強制在主執行緒結束前，把號碼倒出為文字
    compileLeaderboardToOutput();
    
+   // 🎯【黑洞 2 點對點鋼鐵鎖】如果根本沒有登入（未持有憑證），結局直接丟 success: false 物理阻斷！
+   if (!isVipPass) {
+     res.write(JSON.stringify({ success: false, message: "身分令牌已過期或未登入，請重新登入" }) + "\n");
+     return res.end();
+   }
+   
+   // ─── 只有 100% 通過上面認證的鑽石 VIP 用戶，才放行發射唯一一筆大結局 ───
    let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (動態計分淘汰賽+大組互斥融合體)' : '一般篩選 (分片賽區滾動PK排行版)';
    
-   // 🚀 【滿血大結局封包】全量發射前端 Fetch 讀取流苦苦等待的 success 與 outputText！
    res.write(JSON.stringify({ 
      success: true, 
      isProgress: false, 
