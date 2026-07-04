@@ -533,26 +533,24 @@ if (isMainThread) {
    
    // 🎯【黑洞 2 點對點鋼鐵鎖】如果根本沒有登入（未持有憑證），結局直接丟 success: false 物理阻斷！
    if (!isVipPass) {
-     res.write(JSON.stringify({ success: false, message: "身分令牌已過期或未登入，請重新登入" }) + "\n");
-     return res.end();
-   }
-   
-   // ─── 只有 100% 通過上面認證的鑽石 VIP 用戶，才放行發射唯一一筆大結局 ───
-   let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (動態計分淘汰賽+大組互斥融合體)' : '一般篩選 (分片賽區滾動PK排行版)';
-   
-   res.write(JSON.stringify({ 
-     success: true, 
-     isProgress: false, 
-     isCompleted: true, 
-     percent: 100, 
-     currentMatch: leaderBoard.length,
-     scanned: absoluteMaxTotal,
-     maxTotal: absoluteMaxTotal,
-     totalGen: msg.totalGen || absoluteMaxTotal,
-     fullStats: msg.stats,
-     outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
-   }) + "\n");
-   return;
+   res.write(JSON.stringify({ success: false, message: "身分令牌已過期或未登入，請重新登入" }) + "\n");
+   return res.end();
+ }
+
+ // 這是您原本就在 Page 10 底部的發射代碼，完全保留不准動：
+ res.write(JSON.stringify({ 
+   success: true, 
+   isProgress: false, 
+   isCompleted: true, 
+   percent: 100, 
+   currentMatch: leaderBoard.length,
+   scanned: absoluteMaxTotal,
+   maxTotal: absoluteMaxTotal,
+   totalGen: msg.totalGen || absoluteMaxTotal,
+   fullStats: msg.stats,
+   outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數： ...`
+ }) + "\n");
+ return;
  }
  });
 
@@ -575,14 +573,22 @@ if (isMainThread) {
         res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100)) }) + "\n");
     }, 10000);
 
- if (typeof global.compileOutput === 'function') global.compileOutput();
+  if (typeof global.compileOutput === 'function') global.compileOutput();
  let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (動態計分淘汰賽+大組互斥融合體)' : '一般篩選 (分片賽區滾動PK排行版)';
+
+ // ======= 點對點防禦：沒登入者外層結局強制阻斷 🔒 =======
+ if (!isVipPass) {
+   res.write(JSON.stringify({ success: false, message: "身分令牌已過期或未登入，請重新登入" }) + "\n");
+   return res.end();
+ }
+
+ // 這是您原本就在 Page 11 中段的發射代碼，完全保留不准動：
  res.write(JSON.stringify({ 
- success: true, 
- outputText: `【VIP融合大腦分選竣工】中繼站本分片隨機拋射總數：${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + 
- finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+   success: true, 
+   outputText: `【VIP融合大腦分選竣工】中繼站本分片隨機拋射總數：${liveScannedCount} 組 ...`
  }) + "\n");
  res.end();
+
 
   } catch (globalErr) {
     console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
