@@ -534,37 +534,38 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
     return;
   }
 
- if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-   if (typeof safetyTimeout !== 'undefined') {
-     clearTimeout(safetyTimeout);
-     console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
-   }
-   leaderBoard.length = 0;
-   leaderBoard.push(...msg.leaderBoard);
-   console.log(`=======================================================`);
-   console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
-   console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
-   console.log(`=======================================================`);
-   
-   // 🎯 【點對點注入：自癒編譯器】強制在主執行緒結束前，把號碼倒出為文字
-   compileLeaderboardToOutput();
-   
-   let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (動態計分淘汰賽+大組互斥融合體)' : '一般篩選 (分片賽區滾動PK排行版)';
-   
-   // 🚀 【滿血大結局封包】全量發射前端 Fetch 讀取流苦苦等待的 success 與 outputText！
-   res.write(JSON.stringify({ 
-     success: true, 
-     isProgress: false, 
-     isCompleted: true, 
-     percent: 100, 
-     currentMatch: leaderBoard.length,
-     scanned: absoluteMaxTotal,
-     maxTotal: absoluteMaxTotal,
-     totalGen: msg.totalGen || absoluteMaxTotal,
-     fullStats: msg.stats,
-     outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
-   }) + "\n");
-   return;
+if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+     if (typeof safetyTimeout !== 'undefined') {
+         clearTimeout(safetyTimeout);
+         console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+     }
+     leaderBoard.length = 0;
+     leaderBoard.push(...msg.leaderBoard);
+     console.log(`=======================================================`);
+     console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
+     console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+     console.log(`=======================================================`);
+     
+     // 👑 【續命自癒核心咬合點】：大結局交卷前，搶先將標記強行轉為 true！
+     // 這會讓第 653 行的 heartbeatTimer 在下一微秒內自動關閉，完美封殺所有打架崩潰！
+     isFinished = true; 
+     
+     // 強制在主執行緒結束前，把號碼倒出為文字
+     compileLeaderboardToOutput();
+     
+     // 👑 全量大打包，一發擊穿 Render 免費牆發射！
+     return res.json({
+         success: true,
+         isProgress: false,
+         isCompleted: true,
+         percent: 100,
+         currentMatch: leaderBoard.length,
+         scanned: absoluteMaxTotal,
+         maxTotal: absoluteMaxTotal,
+         totalGen: msg.totalGen || absoluteMaxTotal,
+         fullStats: msg.stats,
+         outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
+     });
  }
  });
 
@@ -649,15 +650,29 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
  });
 
 
-    const heartbeatTimer = setInterval(() => {
-        if (isFinished) return clearInterval(heartbeatTimer);
-        res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100)) }) + "\n");
-    }, 10000);
+     // =========================================================================
+ // 👑【2026 終極續命防線】每 10 秒發送一次心跳包，強行重置免費 Render 的 50 秒斷線大閘門！
+ // =========================================================================
+ const heartbeatTimer = setInterval(() => {
+     // 🎯 安全閥 1：如果 Worker 已經竣工了（isFinished 變為 true），立刻清除自己，絕對不與 res.json 發生衝突！
+     if (isFinished) {
+         return clearInterval(heartbeatTimer);
+     }
+     
+     try {
+         // 🎯 安全閥 2：發射心跳氣泡包給 Render 續命。即使前端收不到進度（被免費牆攔截），這行代碼也能強行欺騙 Render「連線還活著」！
+         res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 50 }) + "\n");
+     } catch (e) {
+         // 萬一發生突發異常（例如使用者主動關閉網頁），優雅釋放記憶體
+         clearInterval(heartbeatTimer);
+     }
+ }, 10000);
+
 
  
   } catch (globalErr) {
     console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
-    try { res.write(JSON.stringify({ success: false, message: `後台突發故障` }) + "\n"); res.end(); } catch (e) {}
+    try { res.json({ success: false, message: `後台突發故障: ${globalErr.message}` }); } catch (e) {}
   }
 });
 } // 🌟 完美閉合主執行緒的完全體結構
