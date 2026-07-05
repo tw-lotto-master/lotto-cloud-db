@@ -556,15 +556,7 @@ if (isMainThread) {
         res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: Math.min(99, Math.floor((finalOutputCombs.length / pickLimit) * 100)) }) + "\n");
     }, 10000);
 
- if (typeof global.compileOutput === 'function') global.compileOutput();
- let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (動態計分淘汰賽+大組互斥融合體)' : '一般篩選 (分片賽區滾動PK排行版)';
- res.write(JSON.stringify({ 
- success: true, 
- outputText: `【VIP融合大腦分選竣工】中繼站本分片隨機拋射總數：${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + 
- finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
- }) + "\n");
- res.end();
-
+ 
   } catch (globalErr) {
     console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
     try { res.write(JSON.stringify({ success: false, message: `後台突發故障` }) + "\n"); res.end(); } catch (e) {}
