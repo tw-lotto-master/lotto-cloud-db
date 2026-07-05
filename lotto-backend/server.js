@@ -378,9 +378,40 @@ if (isMainThread) {
             const historyKey = formattedArray.join(',');
             if (globalUniqueSet.has(combKey)) continue; 
             if (historyCacheSet.has(historyKey)) continue; 
-            if (cfg.vipMode === 'smart') {
-                currentComb.forEach(b => currentBigGroupUsedBallsSet.add(b));
+// =========================================================================
+// 👑【免死金牌直通區專用】聰明包牌模式：歷史交付明牌點對點去重打散晶片
+// =========================================================================
+if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
+    let hasTooMuchOverlap = false;
+    
+    // 拿當前這組 currentComb 去跟已經決定要交付的每一組明牌比對
+    for (const existingStr of finalOutputCombs) {
+        // 從既有的字串中（例如 "第 [01] 組 ... : 01, 02, 03..."）把純號碼解析出來
+        const match = existingStr.match(/:\s*([\d, \s]+)/);
+        if (!match) continue;
+        
+        const existingNums = match[1].split(',').map(n => parseInt(n.trim(), 10));
+        
+        // 計算重複了幾顆球
+        let overlap = 0;
+        for (const ball of currentComb) {
+            if (existingNums.includes(ball)) {
+                overlap++;
             }
+        }
+        
+        // 物理擊殺線：直通區不計算分數，所以只要跟已選號碼重複 3 顆球以上，直接判定長太像，原地擊殺剔除！
+        if (overlap >= 3) {
+            hasTooMuchOverlap = true;
+            break;
+        }
+    }
+    
+    // 踩雷則直接 continue 跳過這組號碼，重新拋射下一組，直到號碼完全彈開！
+    if (hasTooMuchOverlap) continue;
+}
+// =========================================================================
+
             globalUniqueSet.add(combKey);
             const nextIndex = finalOutputCombs.length + 1;
             const indexStr = String(nextIndex).padStart(2, '0');
@@ -1151,120 +1182,136 @@ function diversifyBoard(candidates) {
 // ====== 【2026 重構完全體：區塊二 / 300分制精細化台彩大數據加減分晶片】 ======
 // =========================================================================
 function processAndLocalPK(combination) {
-  // 🔬 16 道防線死守：只要一關沒過，原地物理銷毀，不佔任何 Byte 記憶體
-  if (!isGeneSurvive(combination)) return; 
-  
-  let healthScore = 100; // 基礎起跳分 100 分
-  
-  // ⚡【智慧旁路優化】若前端完全沒勾選任何統計評分，分數直賦 0 分，跳過繁重運算秒速交卷
-  if (!hasAnyScoring) {
-    healthScore = 0;
-  } else {
-    // 1. 號碼總和精細化常態分佈評分 (權重：±50分)
-    if (cfg.scoreTotalSum) {
-      const sumVal = combination.reduce((x, y) => x + y, 0);
-      if (isLotto) { 
-        if (sumVal >= 115 && sumVal <= 185) healthScore += 50;      // 70% 黃金熱區
-        else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20; // 20% 次熱邊緣
-        else if ((sumVal >= 75 && sumVal <= 90) || (sumVal >= 210 && sumVal <= 225)) healthScore += 0;   // 5% 極限邊緣
-        else healthScore -= 50;                                     // 極端地雷冷門區
-      } else { 
-        if (sumVal >= 73 && sumVal <= 127) healthScore += 50;       // 70% 黃金熱區
-        else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;  // 20% 次熱邊緣
-        else if ((sumVal >= 45 && sumVal <= 55) || (sumVal >= 145 && sumVal <= 155)) healthScore += 0;   // 5% 極限邊緣
-        else healthScore -= 50;                                     // 極端地雷冷門區
-      }
-    }
+ // 16 道防線死守：只要一關沒過，原地物理銷毀，不佔任何 Byte 記憶體 🔬
+ if (!isGeneSurvive(combination)) return; 
+ 
+ let healthScore = 100; // 基礎起跳分 100 分
+ 
+ // 🎯【全新活化補丁 1】：直接物理移除原本的 !hasAnyScoring 旁路大閘門！
+ // 讓所有生還組數不論前端勾選與否，100% 強行進入下方大數據加減分！
+ 
+ // 1. 號碼總和精細化常態分佈評分 (權重：±50分)
+ if (cfg.scoreTotalSum) {
+ const sumVal = combination.reduce((x, y) => x + y, 0);
+ if (isLotto) { 
+ if (sumVal >= 115 && sumVal <= 185) healthScore += 50; // 70% 黃金熱區
+ else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20; // 20% 次熱邊緣
+ else if ((sumVal >= 75 && sumVal <= 90) || (sumVal >= 210 && sumVal <= 225)) healthScore += 0; // 5% 極限邊緣
+ else healthScore -= 50; // 極端地雷冷門區
+ } else { 
+ if (sumVal >= 73 && sumVal <= 127) healthScore += 50; // 70% 黃金熱區
+ else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20; // 20% 次熱邊緣
+ else if ((sumVal >= 45 && sumVal <= 55) || (sumVal >= 145 && sumVal <= 155)) healthScore += 0; // 5% 極限邊緣
+ else healthScore -= 50; // 極端地雷冷門區
+ }
+ }
+ // 2. 奇偶數黃金比例評分 (權重：±50分)
+ if (cfg.scoreOddEven) {
+ let oddsCount = 0;
+ combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
+ if (isLotto) {
+ if (oddsCount === 3) healthScore += 30; // 3:3 (38.6%)
+ else if (oddsCount === 2 || oddsCount === 4) healthScore += 50; // 2:4 或 4:2 (52.0% 隱形霸主)
+ else if (oddsCount === 1 || oddsCount === 5) healthScore += 10; // 1:5 或 5:1 (13.0%)
+ else healthScore -= 50; // 全奇全偶 (1.5%)
+ } else {
+ if (oddsCount === 2 || oddsCount === 3) healthScore += 50; // 2:3 或 3:2 (65.0%)
+ else if (oddsCount === 1 || oddsCount === 4) healthScore += 10; // 1:4 或 4:1 (30.4%)
+ else healthScore -= 50; // 全奇全偶 (4.6%)
+ }
+ }
+ // 3. 大小數黃金比例評分 (權重：±50分)
+ if (cfg.scoreBigSmall) {
+ const midPoint = isLotto ? 25 : 20;
+ let bigCount = 0;
+ combination.forEach(num => { if (num >= midPoint) bigCount++; });
+ if (isLotto) {
+ if (bigCount === 2 || bigCount === 4) healthScore += 50; // 2:4 或 4:2 (52.0% 隱形霸主)
+ else if (bigCount === 3) healthScore += 30; // 3:3 (33.5%)
+ else if (bigCount === 1 || bigCount === 5) healthScore += 10; // 1:5 或 5:1 (13.0%)
+ else healthScore -= 50; // 全大全小 (1.5%)
+ } else {
+ if (bigCount === 2 || bigCount === 3) healthScore += 50; // 2:3 或 3:2 (65.0%)
+ else if (bigCount === 1 || bigCount === 4) healthScore += 10; // 1:4 或 4:1 (30.4%)
+ else healthScore -= 50; // 全大全小 (4.6%)
+ }
+ }
+ // 4. 連號常態特徵評分 (權重：±50分)
+ if (cfg.scoreConsecutive) {
+ let currentSeq = 1;
+ let maxSeq = 1;
+ let totalPairs = 0; 
+ for (let m = 1; m < combination.length; m++) {
+ if (combination[m] === combination[m - 1] + 1) {
+ currentSeq++;
+ totalPairs++;
+ if (currentSeq > maxSeq) maxSeq = currentSeq;
+ } else {
+ currentSeq = 1;
+ }
+ }
+ if (maxSeq === 2 && totalPairs === 1) healthScore += 50; // 剛好一組 2 連號 (53.4%)
+ else if (maxSeq === 1) healthScore += 30; // 完全沒有連號 (31.2%)
+ else if (maxSeq === 3 || totalPairs >= 2) healthScore += 10; // 3連號或雙連號 (14.2%)
+ else if (maxSeq >= 4) healthScore -= 50; // 4連號以上地雷 (-50分)
+ }
+ // 5. 除三餘數 012 路完備度評分 (權重：±50分)
+ if (cfg.score012Route) {
+ let r0 = 0, r1 = 0, r2 = 0;
+ combination.forEach(num => {
+ const rem = num % 3;
+ if (rem === 0) r0++;
+ else if (rem === 1) r1++;
+ else r2++;
+ });
+ if (isLotto) {
+ if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50; // 2:2:2 完美均衡 (35.3%)
+ else if ((r0===3&&r1===2&&r2===1)||(r0===3&&r1===1&&r2===2)||(r0===2&&r1===3&&r2===1)||(r0===1&&r1===2&&r2===3)||(r0===1&&r1===3&&r2===2)||(r0===2&&r1===1&&r2===3)) healthScore += 30; // 3:2:1 任意排列 (44.1%)
+ else if (r0 === 4 || r1 === 4 || r2 === 4) healthScore += 10; // 4:1:1 偏科常態 (15.6%)
+ else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50; // 任一路斷路
+ } else {
+ if ((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) healthScore += 50; // 539 常態均衡 2:2:1
+ else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
+ }
+ }
 
-    // 2. 奇偶數黃金比例評分 (權重：±50分)
-    if (cfg.scoreOddEven) {
-      let oddsCount = 0;
-      combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
-      if (isLotto) {
-        if (oddsCount === 3) healthScore += 30;                     // 3:3 (38.6%)
-        else if (oddsCount === 2 || oddsCount === 4) healthScore += 50; // 2:4 或 4:2 (52.0% 隱形霸主)
-        else if (oddsCount === 1 || oddsCount === 5) healthScore += 10; // 1:5 或 5:1 (13.0%)
-        else healthScore -= 50;                                     // 全奇全偶 (1.5%)
-      } else {
-        if (oddsCount === 2 || oddsCount === 3) healthScore += 50;  // 2:3 或 3:2 (65.0%)
-        else if (oddsCount === 1 || oddsCount === 4) healthScore += 10; // 1:4 或 4:1 (30.4%)
-        else healthScore -= 50;                                     // 全奇全偶 (4.6%)
-      }
-    }
+ // =========================================================================
+ // 🎯【全新活化補丁 2】：智慧包牌模式（Smart Mode）組數間相似號動態互斥扣分晶片
+ // =========================================================================
+ if (cfg.vipMode === 'smart' && localLeaderBoard.length > 0) {
+ for (const existing of localLeaderBoard) {
+ let overlap = 0;
+ for (const ball of combination) {
+ if (existing.comb.includes(ball)) {
+ overlap++;
+ }
+ }
+ // 互斥懲罰機制：如果與本地緩衝池（localLeaderBoard）已存在的黃金明牌重複 4 碼以上，重扣 60 分
+ if (overlap >= 4) {
+ healthScore -= 60;
+ } else if (overlap === 3) {
+ healthScore -= 30; // 重複 3 碼，扣 30 分
+ }
+ }
+ }
+ // =========================================================================
 
-    // 3. 大小數黃金比例評分 (權重：±50分)
-    if (cfg.scoreBigSmall) {
-      const midPoint = isLotto ? 25 : 20;
-      let bigCount = 0;
-      combination.forEach(num => { if (num >= midPoint) bigCount++; });
-      if (isLotto) {
-        if (bigCount === 2 || bigCount === 4) healthScore += 50;     // 2:4 或 4:2 (52.0% 隱形霸主)
-        else if (bigCount === 3) healthScore += 30;                  // 3:3 (33.5%)
-        else if (bigCount === 1 || bigCount === 5) healthScore += 10; // 1:5 或 5:1 (13.0%)
-        else healthScore -= 50;                                     // 全大全小 (1.5%)
-      } else {
-        if (bigCount === 2 || bigCount === 3) healthScore += 50;     // 2:3 或 3:2 (65.0%)
-        else if (bigCount === 1 || bigCount === 4) healthScore += 10; // 1:4 或 4:1 (30.4%)
-        else healthScore -= 50;                                     // 全大全小 (4.6%)
-      }
-    }
-
-    // 4. 連號常態特徵評分 (權重：±50分)
-    if (cfg.scoreConsecutive) {
-      let currentSeq = 1;
-      let maxSeq = 1;
-      let totalPairs = 0; 
-      for (let m = 1; m < combination.length; m++) {
-        if (combination[m] === combination[m - 1] + 1) {
-          currentSeq++;
-          totalPairs++;
-          if (currentSeq > maxSeq) maxSeq = currentSeq;
-        } else {
-          currentSeq = 1;
-        }
-      }
-      if (maxSeq === 2 && totalPairs === 1) healthScore += 50;      // 剛好一組 2 連號 (53.4%)
-      else if (maxSeq === 1) healthScore += 30;                     // 完全沒有連號 (31.2%)
-      else if (maxSeq === 3 || totalPairs >= 2) healthScore += 10;  // 3連號或雙連號 (14.2%)
-      else if (maxSeq >= 4) healthScore -= 50;                      // 4連號以上地雷 (-50分)
-    }
-
-    // 5. 除三餘數 012 路完備度評分 (權重：±50分)
-    if (cfg.score012Route) {
-      let r0 = 0, r1 = 0, r2 = 0;
-      combination.forEach(num => {
-        const rem = num % 3;
-        if (rem === 0) r0++;
-        else if (rem === 1) r1++;
-        else r2++;
-      });
-      if (isLotto) {
-        if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;    // 2:2:2 完美均衡 (35.3%)
-        else if ((r0===3&&r1===2&&r2===1)||(r0===3&&r1===1&&r2===2)||(r0===2&&r1===3&&r2===1)||(r0===1&&r1===2&&r2===3)||(r0===1&&r1===3&&r2===2)||(r0===2&&r1===1&&r2===3)) healthScore += 30; // 3:2:1 任意排列 (44.1%)
-        else if (r0 === 4 || r1 === 4 || r2 === 4) healthScore += 10; // 4:1:1 偏科常態 (15.6%)
-        else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50; // 任一路斷路
-      } else {
-        if ((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) healthScore += 50; // 539 常態均衡 2:2:1
-        else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
-      }
-    }
-  }
-
-  // 原地殘酷 PK 淘汰賽
-  const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
-  if (localLeaderBoard.length < candidateLimit) {
-    localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-    if (localLeaderBoard.length === candidateLimit) {
-      localLeaderBoard.sort((a, b) => b.score - a.score);
-      minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
-    }
-  } else if (healthScore > minScoreInLocalBoard) {
-    localLeaderBoard.pop(); 
-    localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-    localLeaderBoard.sort((a, b) => b.score - a.score); 
-    minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
-  }
+ // 原地殘酷 PK 淘汰賽
+ const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
+ if (localLeaderBoard.length < candidateLimit) {
+ localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+ if (localLeaderBoard.length === candidateLimit) {
+ localLeaderBoard.sort((a, b) => b.score - a.score);
+ minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
+ }
+ } else if (healthScore > minScoreInLocalBoard) {
+ localLeaderBoard.pop();
+ localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+ localLeaderBoard.sort((a, b) => b.score - a.score);
+ minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
+ }
 }
+
 // =========================================================================
 // ====== 【2026 重構完全體：區塊三 / DFS動態伸縮生成核心與通訊艙】 ======
 // =========================================================================
