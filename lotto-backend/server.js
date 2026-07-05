@@ -902,7 +902,7 @@ id: 3,
  // ⚙️ 【大數據防線：關卡 10 ── 連莊號封殺】
 const f10_on = (cfg.f10_on === true || cfg.f10_on === 'true');
 if (f10_on && lastPeriod.length > 0) {
-  const targetMax = Number(cfg.f4_max) || 2; // 這裡依據您的設定檔，若前端是 f10_max 請改為 cfg.f10_max
+  const targetMax = Number(cfg.f10_max) || 2; // 這裡依據您的設定檔，若前端是 f10_max 請改為 cfg.f10_max
   
   filters.push({
     id: 10,
