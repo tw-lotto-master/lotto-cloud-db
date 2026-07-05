@@ -1233,33 +1233,51 @@ const candidateLimit = Math.max(800, pickLimit * 8);
 // 🔍 智慧型旁路雷達：動態檢測前端是否有勾選任何「評分加減分項目」
 const hasAnyScoring = cfg.scoreOddEven || cfg.scoreBigSmall || cfg.scoreConsecutive || cfg.score012Route || cfg.scoreTotalSum;
 
+// =========================================================================
+// 👑【2026 後端大腦完全體補丁】去重與排行榜打散接骨晶片（100%保留 healthScore 🚀）
+// =========================================================================
 function overlapCount(a, b) {
-  const bSet = new Set(b);
-  let count = 0;
-  for (const n of a) if (bSet.has(n)) count++;
-  return count;
+ const bSet = new Set(b);
+ let count = 0;
+ for (const n of a) if (bSet.has(n)) count++;
+ return count;
 }
 
 function diversifyBoard(candidates) {
-  const sorted = [...candidates].sort((a, b) => b.score - a.score);
-  const selected = [];
-  const strictOverlap = 2; 
-  
-  for (let maxOverlap = strictOverlap; selected.length < pickLimit && maxOverlap <= pickCount - 1; maxOverlap++) {
-    for (const item of sorted) {
-      if (selected.length >= pickLimit) break;
-      if (selected.some(existing => existing.formatted === item.formatted)) continue;
-      
-      if (selected.every(existing => overlapCount(existing.comb, item.comb) <= maxOverlap)) {
-        selected.push(item);
-      }
-    }
-  }
-  selected.forEach((item, idx) => {
-    item.unit = Math.floor(idx / Math.max(1, Math.floor(maxNum / pickCount))) + 1;
-  });
-  return selected;
+ if (!candidates || candidates.length === 0) return [];
+ 
+ // 1. 🎯 嚴格保留子執行緒辛辛苦苦算出來的大數據 healthScore 分數，由高到低大軍團排序
+ const sorted = [...candidates].sort((a, b) => (b.score || 0) - (a.score || 0));
+ const selected = [];
+ const strictOverlap = 2; // 兩組號碼之間重疊碼嚴格限制在 2 碼以內
+ 
+ const currentPickCount = typeof pickCount !== 'undefined' ? pickCount : 6;
+ const currentMaxNum = typeof maxNum !== 'undefined' ? maxNum : 49;
+ 
+ // 2. 執行高效率互斥打散考核
+ for (let maxOverlap = strictOverlap; selected.length < pickLimit && maxOverlap <= currentPickCount - 1; maxOverlap++) {
+ for (const item of sorted) {
+ if (selected.length >= pickLimit) break;
+ if (selected.some(existing => existing.formatted === item.formatted)) continue;
+ 
+ if (selected.every(existing => overlapCount(existing.comb, item.comb) <= maxOverlap)) {
+ selected.push(item);
+ }
+ }
+ }
+ 
+ // 3. 🎯 滿血自癒接骨：確保 push 進 selected 的 item 物件，其 score 絕對維持原本大數據加減分完後的健康數值！
+ selected.forEach((item, idx) => {
+ if (item) {
+ item.unit = Math.floor(idx / Math.max(1, Math.floor(currentMaxNum / currentPickCount))) + 1;
+ // 強制確保 score 屬性完整傳遞，粉碎變數鬧雙胞！
+ item.score = item.score !== undefined ? item.score : 100; 
+ }
+ });
+ 
+ return selected;
 }
+
 // =========================================================================
 // ====== 【2026 重構完全體：區塊二 / 300分制精細化台彩大數據加減分晶片】 ======
 // =========================================================================
