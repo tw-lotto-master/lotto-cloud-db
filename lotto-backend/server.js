@@ -575,54 +575,72 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
  // =========================================================================
  // 👑【竣工艙終極加速補丁】智慧包牌模式：最終百名黃金榜秒速互斥打散晶片 (語法安全修正版)
  // =========================================================================
- if (cfg.vipMode === 'smart' && leaderBoard && leaderBoard.length > 0) {
-    // 1. 確保大數據原始分數由高到低完美排序
-    leaderBoard.sort((a, b) => b.score - a.score);
-    
-    // 2. 🎯 正確建立安全生還名單：第一名（最高分神號物件）無條件直接晉級入選！
-    const finalizedSmartBoard = [ leaderBoard[0] ]; // 修正中括號，回復正確的一維物件陣列
-    
-    // 3. 拿剩下的號碼（從索引 1 開始），去跟前面已經確認安全的高分學長對比
-    for (let i = 1; i < leaderBoard.length; i++) {
-        const currentItem = leaderBoard[i];
-        if (!currentItem || !currentItem.comb) continue; // 穩健防禦，防止空資料
+ if (cfg && cfg.vipMode === 'smart' && leaderBoard && leaderBoard.length > 0) {
+    try {
+        // 1. 確保大數據原始分數由高到低完美排序
+        leaderBoard.sort((a, b) => {
+            if (!a || !b) return 0;
+            return (b.score || 0) - (a.score || 0);
+        });
         
-        let hasTooMuchOverlap = false;
+        // 2. 正確建立安全生還名單：第一名無條件晉級
+        const finalizedSmartBoard = [];
+        if (leaderBoard[0]) finalizedSmartBoard.push(leaderBoard[0]);
         
-        for (const safeItem of finalizedSmartBoard) {
-            if (!safeItem || !safeItem.comb) continue; // 穩健防禦
+        // 3. 拿剩下的號碼，去跟前面已經確認安全的高分學長對比
+        for (let i = 1; i < leaderBoard.length; i++) {
+            const currentItem = leaderBoard[i];
+            if (!currentItem || !currentItem.comb) continue; 
             
-            let overlap = 0;
-            for (const ball of currentItem.comb) {
-                if (safeItem.comb.includes(ball)) {
-                    overlap++;
+            let hasTooMuchOverlap = false;
+            
+            for (const safeItem of finalizedSmartBoard) {
+                if (!safeItem || !safeItem.comb) continue;
+                
+                let overlap = 0;
+                for (const ball of currentItem.comb) {
+                    if (safeItem.comb.includes(ball)) {
+                        overlap++;
+                    }
+                }
+                // 終極物理打散線：只要跟前面更高分的號碼重疊 3 碼以上，重扣 150 分
+                if (overlap >= 3) {
+                    currentItem.score = (currentItem.score || 0) - 150;
+                    hasTooMuchOverlap = true;
+                    break;
                 }
             }
-            // 終極物理打散線：只要跟前面更高分的號碼重疊 3 碼以上，重扣 150 分，直接踹下去！
-            if (overlap >= 3) {
-                currentItem.score -= 150;
-                hasTooMuchOverlap = true;
-                break;
+            if (!hasTooMuchOverlap) {
+                finalizedSmartBoard.push(currentItem);
             }
         }
-        // 如果沒有跟任何人重疊太多，它就是合格的獨立大組，順利加入保護名單
-        if (!hasTooMuchOverlap) {
-            finalizedSmartBoard.push(currentItem);
-        }
+        
+        // 4. 重新大洗牌！把被重扣 150 分的鄰近扎堆連號通通擠去排行榜最末端
+        leaderBoard.sort((a, b) => {
+            if (!a || !b) return 0;
+            return (b.score || 0) - (a.score || 0);
+        });
+    } catch (err) {
+        console.error("[打散補丁異常自癒] ", err.message);
     }
-    
-    // 4. 重新大洗牌！把被重扣 150 分的鄰近扎堆連號通通擠去排行榜最末端物理蒸發！
-    leaderBoard.sort((a, b) => b.score - a.score);
  }
  // =========================================================================
 
- // 最後才老老實實倒出給手機畫面看
- leaderBoard.forEach((item, index) => {
-    if (!item) return;
-    const indexStr = String(index + 1).padStart(2, '0');
-    finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${item.unit || 1} 大組) [評分: ${item.score}分] : ${item.formatted}\n`);
- });
+ // 🎯 滿血自癒防護：老老實實倒出給手機畫面看，徹底封殺 item.unit 引起的未定義崩潰！
+ if (Array.isArray(leaderBoard)) {
+    leaderBoard.forEach((item, index) => {
+        if (!item) return;
+        const indexStr = String(index + 1).padStart(2, '0');
+        // 自動動態計算大組編號，若 item.unit 不存在，則用安全性常規替代，絕對不噴錯！
+        const displayUnit = item.unit || Math.floor(index / 10) + 1;
+        const displayScore = item.score !== undefined ? item.score : 0;
+        const displayFormatted = item.formatted || "";
+        
+        finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${displayScore}分] : ${displayFormatted}\n`);
+    });
  }
+ }
+
 
 
  
