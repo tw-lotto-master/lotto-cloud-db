@@ -569,29 +569,34 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
  });
 
  // 輔助晶片：將計分板數據滾動倒出到原本的交付容器中，維持與前台的對齊
- // 輔助晶片：將計分板數據滾動倒出到原本的交付容器中，維持與前台的對齊
  function compileLeaderboardToOutput() {
  finalOutputCombs.length = 0; // 清空舊數集
 
  // =========================================================================
- // 👑【竣工艙終極加速補丁】智慧包牌模式：最終百名黃金榜秒速互斥打散晶片
+ // 👑【竣工艙終極加速補丁】智慧包牌模式：最終百名黃金榜秒速互斥打散晶片 (語法安全修正版)
  // =========================================================================
- if (cfg.vipMode === 'smart' && leaderBoard.length > 0) {
+ if (cfg.vipMode === 'smart' && leaderBoard && leaderBoard.length > 0) {
     // 1. 確保大數據原始分數由高到低完美排序
     leaderBoard.sort((a, b) => b.score - a.score);
     
-    // 2. 建立一個乾淨的生還名單，讓全台第一名（最高分神號）無條件直接晉級入選
-    const finalizedSmartBoard = [leaderBoard[0]];
+    // 2. 🎯 正確建立安全生還名單：第一名（最高分神號物件）無條件直接晉級入選！
+    const finalizedSmartBoard = [ leaderBoard[0] ]; // 修正中括號，回復正確的一維物件陣列
     
-    // 3. 拿剩下的號碼，去跟前面已經確認安全的高分學長對比
+    // 3. 拿剩下的號碼（從索引 1 開始），去跟前面已經確認安全的高分學長對比
     for (let i = 1; i < leaderBoard.length; i++) {
         const currentItem = leaderBoard[i];
+        if (!currentItem || !currentItem.comb) continue; // 穩健防禦，防止空資料
+        
         let hasTooMuchOverlap = false;
         
         for (const safeItem of finalizedSmartBoard) {
+            if (!safeItem || !safeItem.comb) continue; // 穩健防禦
+            
             let overlap = 0;
             for (const ball of currentItem.comb) {
-                if (safeItem.comb.includes(ball)) overlap++;
+                if (safeItem.comb.includes(ball)) {
+                    overlap++;
+                }
             }
             // 終極物理打散線：只要跟前面更高分的號碼重疊 3 碼以上，重扣 150 分，直接踹下去！
             if (overlap >= 3) {
@@ -613,10 +618,12 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
 
  // 最後才老老實實倒出給手機畫面看
  leaderBoard.forEach((item, index) => {
- const indexStr = String(index + 1).padStart(2, '0');
- finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${item.unit} 大組) [評分: ${item.score}分] : ${item.formatted}\n`);
+    if (!item) return;
+    const indexStr = String(index + 1).padStart(2, '0');
+    finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${item.unit || 1} 大組) [評分: ${item.score}分] : ${item.formatted}\n`);
  });
  }
+
 
  
  // 動態將此編譯函式掛載到全域，以便底下的超時或時間截止處理器能正確收網
