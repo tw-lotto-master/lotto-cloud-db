@@ -617,16 +617,17 @@ function compileLeaderboardToOutput() {
     }
     
     // =========================================================================
-    // 🧠【大腦高階重構】：在互斥審查前，強制引入全隨機混沌打散晶片！
-    // 徹底打碎子執行緒送過來時「開頭死死黏在一起（01, 02, 05）」的排隊佇列！ 🔥
+    // 🧠【重大修正一：物理大裁剪】：直接將子執行緒送來的 1200 組龐大同分大軍一刀切！
+    // 只留下前 150 組精銳進行極致打散，徹底粉碎後面 1100 組相似號擠爆前端的通訊黑洞！ 👑
     // =========================================================================
-    for (let i = leaderBoard.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [leaderBoard[i], leaderBoard[j]] = [leaderBoard[j], leaderBoard[i]];
-    }
-    
-    // 先讓這群被徹底打散順序的號碼，進行原始分數的大常態排序
     leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
+    let hardwareCleanBoard = leaderBoard.slice(0, 150);
+    
+    // 進場前強制實施全隨機洗牌，徹底打碎開頭（01, 02）黏在一起的佇列順序
+    for (let i = hardwareCleanBoard.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [hardwareCleanBoard[i], hardwareCleanBoard[j]] = [hardwareCleanBoard[j], hardwareCleanBoard[i]];
+    }
     
     let currentAllowedOverlap = 1; 
     let currentMaxUnits = (cfg.lottoType === "49_6") ? 8 : 7; 
@@ -638,8 +639,8 @@ function compileLeaderboardToOutput() {
       let currentUnitTracker = 1;
       let usedNumbersInCurrentUnit = new Set();
       
-      for (let i = 0; i < leaderBoard.length; i++) {
-        let item = leaderBoard[i];
+      for (let i = 0; i < hardwareCleanBoard.length; i++) {
+        let item = hardwareCleanBoard[i];
         if (!item || !item.comb) continue;
         
         const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
@@ -648,24 +649,33 @@ function compileLeaderboardToOutput() {
         pureCombs.forEach(ball => { if (usedNumbersInCurrentUnit.has(ball)) overlapCount++; });
         
         let prevOverlapCount = 0;
-        if (i > 0 && leaderBoard[i-1] && leaderBoard[i-1].comb) {
-          pureCombs.forEach(ball => { if (leaderBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
+        let isHeadVanceDuplicated = false;
+        
+        if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
+          pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
+          
+          // 🛠️【重大修正二：開頭邊界物理防線】：嚴格檢查前兩碼！
+          // 如果當前這組跟上一組的「前兩顆彩球」完全一模一樣，判定為數字扎堆穿幫，強制標記！
+          if (item.comb[0] === hardwareCleanBoard[i-1].comb[0] && item.comb[1] === hardwareCleanBoard[i-1].comb[1]) {
+            isHeadVanceDuplicated = true;
+          }
         }
         
-        // 🔥【殘酷打散大閘門】：只要踩到重複 1 碼互斥紅線，立刻實施「重扣 120 分」的終極階梯處罰！
-        if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap) {
+        // 🔥【2026 物理隔離大閘門】：只要踩到重複 1 碼紅線，或是開頭 2 碼死黏在一起，立刻實施毀滅性暴扣處罰！
+        if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap || isHeadVanceDuplicated) {
           const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
-          // 🛠️ 權重拉滿：重複越多扣越凶（直接扣 120、240、360 分），強行在生還庫中逼出大量正數與梯隊落差！
-          item.score = Math.max(-400, (item.score || 0) - (120 * maxOverlapFound)); 
+          const headPenalty = isHeadVanceDuplicated ? 300 : 0; // 開頭黏在一起直接重罰 300 分
+          
+          item.score = Math.max(-400, (item.score || 0) - (120 * maxOverlapFound) - headPenalty); 
           item.unit = currentUnitTracker; 
         } else {
-          // 👑 完美生還者特權：號碼完全不重複，屬於尊貴的當前理論大組核心！
+          // 👑 完美理論大組生還者特權
           pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
           item.unit = currentUnitTracker;
-          item.score = (item.score || 0) + 50; // 🔥 激勵機制：只要符合理論大組不重複，額外狂加 50 分獎勵！
+          item.score = (item.score || 0) + 150; // 🔥 激勵提權：符合理論大組不重複，大幅反彈加 150 分！
         }
         
-        // 理論大組滿舵自動更換排班
+        // 理論大組滿舵自動切換
         if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) || i % 12 === 0) {
           currentUnitTracker++;
           if (currentUnitTracker > currentMaxUnits) currentUnitTracker = 1;
@@ -673,19 +683,14 @@ function compileLeaderboardToOutput() {
         }
       }
       
-      // =========================================================================
-      // 🧠【大腦高階重構】：二次排序升級為「大組特權排序」！
-      // 分數高的（即完全不重複、拿到獎勵分的號碼）優先被排在最前面，被扣分的無情踹到隊伍最後面！
-      // =========================================================================
-      leaderBoard.sort((a, b) => {
-        // 如果分數不同，分數高的絕對領先
+      // 依據全新特權與隔離分數，進行二次大軍團完全洗牌排序
+      hardwareCleanBoard.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        // 如果不幸同分，再次引入純隨機碼抽籤打散，雙重保險，徹底封殺數字扎堆！
-        return Math.random() - 0.5;
+        return Math.random() - 0.5; // 同分末端物理互斥
       });
       
-      let sampleScoreCount = leaderBoard.filter(x => x.score === leaderBoard[0].score).length;
-      if (sampleScoreCount < 15) {
+      let sampleScoreCount = hardwareCleanBoard.filter(x => x.score === hardwareCleanBoard[0].score).length;
+      if (sampleScoreCount < 10) {
         processedSuccessfully = true; 
       } else {
         currentAllowedOverlap++; 
@@ -693,19 +698,23 @@ function compileLeaderboardToOutput() {
       }
     }
     
-    // 2. 正式交卷輸出
-    leaderBoard.forEach((item, index) => {
-      if (!item) return;
+    // 2. 將裁剪打散後的精確種子吐給前端手機畫面
+    const finalPickSize = Math.min(hardwareCleanBoard.length, Math.max(1, Number(cfg.count) || 100));
+    for (let index = 0; index < finalPickSize; index++) {
+      const item = hardwareCleanBoard[index];
+      if (!item) continue;
       const indexStr = String(index + 1).padStart(2, '0');
       const displayUnit = item.unit || (Math.floor(index / 12) + 1);
       finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${item.score !== undefined ? item.score : 0}分] : ${item.formatted || ""}\n`);
-    });
+    }
+    
+    // 釋放記憶體
+    hardwareCleanBoard = null;
   } catch (err) {
-    console.error("[理論大組晶片異常] ", err.message);
+    console.error("[理論大組終極物理隔離晶片異常] ", err.message);
   }
   global.compileOutput = compileLeaderboardToOutput;
 }
-
 global.compileOutput = compileLeaderboardToOutput;
 
  });
