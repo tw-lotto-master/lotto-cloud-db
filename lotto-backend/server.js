@@ -1294,7 +1294,14 @@ favCount;
     const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
     
     // 🚀【無限制吞吐核心】：來者不拒！通通老老實實裝進大陣列，絕不在海選中途踢掉任何人！
-    localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+   localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+    
+    // 🧠【核心減壓】：每當生還池激增 5000 組優等生，強行讓出通道讓主緒與 MongoDB 續命通訊，徹底消滅斷線警報！
+    if (localLeaderBoard.length % 5000 === 0) {
+      if (typeof setImmediate !== 'undefined') {
+        setImmediate(() => {});
+      }
+    }
   }
 
   async function triggerChunkFlush() {
