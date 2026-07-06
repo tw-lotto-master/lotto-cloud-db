@@ -1189,50 +1189,45 @@ if (f13_on) {
 // =========================================================================
 // 【2026 後端大腦生存審查總閘門 ── 100% 變數咬合、括號完全體】
 // =========================================================================
- const killStats = new Uint32Array(16);
- let totalGeneratedTestCount = 0;
- function isGeneSurvive(comb) {
- totalGeneratedTestCount++;
- for (let i = 0; i < filters.length; i++) {
- if (filters[i].exec(comb)) { if (filters[i].id >= 0 && filters[i].id < 16) 
-killStats[filters[i].id]++; return false; }
- }
- if (f15_on) {
- const splitCount = pickCount - 1; let conflict = false;
- const checkDfs = (start, curr) => {
- if (conflict) return; if (curr.length === splitCount) { if 
-(historyEvapSet.has(curr.join(','))) conflict = true; return; }
- for (let i = start; i < comb.length; i++) checkDfs(i + 1, [...curr, comb[i]]);
- };
- checkDfs(0, []); if (conflict) { if (killStats && killStats[15] !== undefined) 
-killStats[15]++; return false; }
- }
- return true;
- }
- let scannedCount = 0;
- const getDynamicMaxCombs = () => {
- const n = basePool.length; const favCount = vip_fav_on && typeof favBalls !== 
-'undefined' ? favBalls.length : 0;
- const n_final = n - favCount; const k_final = (lottoType === "49_6" ? 6 : 5) - 
-favCount;
- if (n_final < k_final || k_final < 0) return 0;
- let num = 1, den = 1; for (let i = 0; i < k_final; i++) { num *= (n_final - i); den
-*= (i + 1); }
- return Math.floor(num / den);
- };
- const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 
-575757);
-  // =========================================================================
-  // 【2026 子執行緒內核：全量生還者 100 萬組無限制全留大數據評分與竣工大PK晶片】 👑 🔬
-  // =========================================================================
+  const killStats = new Uint32Array(16);
+  let totalGeneratedTestCount = 0;
+  function isGeneSurvive(comb) {
+    totalGeneratedTestCount++;
+    for (let i = 0; i < filters.length; i++) {
+      if (filters[i].exec(comb)) { if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; return false; }
+    }
+    if (f15_on) {
+      const splitCount = pickCount - 1; let conflict = false;
+      const checkDfs = (start, curr) => {
+        if (conflict) return; if (curr.length === splitCount) { if (historyEvapSet.has(curr.join(','))) conflict = true; return; }
+        for (let i = start; i < comb.length; i++) checkDfs(i + 1, [...curr, comb[i]]);
+      };
+      checkDfs(0, []); if (conflict) { if (killStats && killStats !== undefined) killStats++; return false; }
+    }
+    return true;
+  }
+
+  let scannedCount = 0;
+  const getDynamicMaxCombs = () => {
+    const n = basePool.length; const favCount = vip_fav_on && typeof favBalls !== 'undefined' ? favBalls.length : 0;
+    const n_final = n - favCount; const k_final = (lottoType === "49_6" ? 6 : 5) - favCount;
+    if (n_final < k_final || k_final < 0) return 0;
+    let num = 1, den = 1; for (let i = 0; i < k_final; i++) { num *= (n_final - i); den *= (i + 1); }
+    return Math.floor(num / den);
+  };
+  const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 575757);
   let localTotalGen = 0; 
-  let localLeaderBoard = []; // 物理起爆：徹底拔除 candidateLimit 與 minScore 限制池！
-  const pickLimit = Math.min(100, Math.max(1, Number(cfg.count) || 100));
+  let localLeaderBoard = [];
+  let minScoreInLocalBoard = -99999;
+  
+  // 🛠️【嚴格執行指令】：將子執行緒緩衝池嚴格裁剪對齊！
+  // 為了讓主緒稍後有足夠的不重複號碼進行理論大組、喜愛號特權洗牌，我們將生還天梯精確鎖定在 200 組名額！
+  const candidateLimit = 200; 
 
   function processAndLocalPK(combination) {
     if (!isGeneSurvive(combination)) return; // 16道條件沒過的原地物理銷毀
     
-    // 🟢 條件完美通關者！不論後面有 10 萬組還是 100 萬組，100% 強制全部執行特徵加減分！
+    // 🟢 條件完美通關者！立刻執行特徵加減分！
     let healthScore = 100; 
     
     if (cfg.scoreTotalSum) {
@@ -1293,14 +1288,22 @@ favCount;
 
     const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
     
-    // 🚀【無限制吞吐核心】：來者不拒！通通老老實實裝進大陣列，絕不在海選中途踢掉任何人！
-   localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-    
-    // 🧠【核心減壓】：每當生還池激增 5000 組優等生，強行讓出通道讓主緒與 MongoDB 續命通訊，徹底消滅斷線警報！
-    if (localLeaderBoard.length % 5000 === 0) {
-      if (typeof setImmediate !== 'undefined') {
-        setImmediate(() => {});
+    // =========================================================================
+    // 🛠️【嚴格執行指令：原地即時 PK 汰換閘門】 ─── 贏的留下，輸的當場就地銷毀釋放！
+    // =========================================================================
+    if (localLeaderBoard.length < candidateLimit) {
+      localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+      if (localLeaderBoard.length === candidateLimit) {
+        localLeaderBoard.sort((a, b) => b.score - a.score); minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
       }
+    } 
+    // 🚀【全量高分隨機更換】：只要新進來的生存號碼分數大於「或是同分且觸發 45% 的亂數分流」，
+    // 立即將排在最末端、開頭黏在一起的低分死組合剔除，原地銷毀！記憶體開銷永遠鎖死在極低水位！
+    else if (healthScore > minScoreInLocalBoard || (healthScore === minScoreInLocalBoard && Math.random() < 0.45)) {
+      localLeaderBoard.pop(); // 物理拋棄最弱守門人，由 V8 引擎秒速回收內存！
+      localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+      localLeaderBoard.sort((a, b) => b.score - a.score); 
+      minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
     }
   }
 
@@ -1316,35 +1319,22 @@ favCount;
     const favSet = new Set(favBalls); const remainingPool = basePool.filter(ball => !favSet.has(ball)); remainingPool.sort((a, b) => a - b);
     const pLen = remainingPool.length; const requiredSlots = pickCount - favBalls.length; 
     let currentSelection = new Array(requiredSlots);
-    
     async function dfs(level, startIndex) {
       if (scannedCount >= maxCombinations) return;
       if (level === requiredSlots) {
-        scannedCount++; 
-        localTotalGen++;
+        scannedCount++; localTotalGen++;
         let combination = [...favBalls, ...currentSelection].sort((a, b) => a - b);
-        
-        // 🟢 通過 16 條件生還的，100% 老老實實送入 PK 艙，一個不漏全留！
         processAndLocalPK(combination);
-        
-        await triggerChunkFlush(); 
-        return;
+        await triggerChunkFlush(); return;
       }
       for (let i = startIndex; i < pLen; i++) { currentSelection[level] = remainingPool[i]; await dfs(level + 1, i + 1); }
     }
     await dfs(0, 0);
     
-    // =========================================================================
-    // 👑【竣工大收網大淘汰賽】：全量 1398 萬海選大結局！此時池子裡裝滿了所有生存者（可能幾萬組）
-    // 一次性從最高分排到最低分，比不過別人的在這一刻「原地扔掉銷毀」，只抓最高分前 1200 組高質量種子交卷！
-    // =========================================================================
     localLeaderBoard.sort((a, b) => b.score - a.score);
-    const finalCandidates = localLeaderBoard.slice(0, 1200); 
     
     parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, total: scannedCount, stats: Array.from(killStats), totalGen: localTotalGen });
-    parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: finalCandidates }); 
-    
-    localLeaderBoard = null; // 釋放記憶體
+    parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: localLeaderBoard }); 
   })();
 }
 
