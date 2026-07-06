@@ -492,7 +492,7 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
 // =========================================================================
 // 【主執行緒核心：進度減肥發射艙與理論大組動態降維演化控制完全體】 🟢 🎯
 // =========================================================================
-const leaderBoard = []; 
+const leaderBoard = []; // 格式: { score: X, comb: [...], formatted: '...', unit: Y }
 worker.on('message', (msg) => {
   if (isFinished) return;
   const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
@@ -518,7 +518,7 @@ worker.on('message', (msg) => {
       }
     }
     
-    // 🚀【降維優化】：只丟 4 個純數字欄位給前端，進度秒速同步絕不卡死！
+    // 🚀【後端輕量發射核心】：只丟 4 個純數字欄位，進度秒速同步絕不卡死！
     try {
       if (!res.writableEnded) {
         res.write(JSON.stringify({ 
@@ -612,7 +612,8 @@ function compileLeaderboardToOutput() {
     if (!isSmartMode) {
       leaderBoard.forEach((item, index) => {
         const indexStr = String(index + 1).padStart(2, '0');
-        finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: ${item.score || 0}分] : ${item.formatted || ""}\n`);
+        const displayUnit = item.unit || Math.floor(index / 10) + 1;
+        finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${item.score || 0}分] : ${item.formatted || ""}\n`);
       });
       return;
     }
@@ -679,10 +680,9 @@ function compileLeaderboardToOutput() {
   } catch (err) {
     console.error("[理論大組晶片異常] ", err.message);
   }
-  // 動態將此編譯函式掛載到全域，以便底下的超時處理器能同步正確收網
   global.compileOutput = compileLeaderboardToOutput;
 }
-
+global.compileOutput = compileLeaderboardToOutput;
 // =========================================================================
 // 【2026 終極續命防線】每 10 秒發送一次輕量心跳包，強行重置免費 Render 的 50 秒斷線大閘門！ 👑
 // =========================================================================
@@ -695,7 +695,6 @@ global.heartbeatTimer = setInterval(() => {
     return;
   }
   try {
-    // 發射最極簡的輕量續命氣泡包，絕對不與大结局數據撞車
     res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 50 }) + "\n");
   } catch (e) {
     if (global.heartbeatTimer) {
@@ -712,8 +711,8 @@ global.heartbeatTimer = setInterval(() => {
       res.end();
     } catch (e) {}
   }
- }); // 🎯 這裡完美閉合 worker.on('message', (msg) => {
-} // 完美閉合主執行緒的 `if (isMainThread) {` 完全體結構 🌟
+});
+} // 完美閉合主執行緒的完全體結構 🌟
 
 
 if (!isMainThread) {
