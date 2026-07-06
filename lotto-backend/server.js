@@ -489,227 +489,284 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
         workers.push(worker);
 
-        // ======= 【核心串流交互觀測接收艙】 ─── 🟢 🎯 =======
-   // ======= 【核心串流交互觀測接收艙】 ─── ======= 🟢 🎯
- // 【2026融合大腦改造：計分板淘汰賽晶片】
+ // ======= 【2026 核心串流交互觀測接收艙：輕量減肥與動態狀態發射版】 ─── ======= 🟢 🎯
+ // ======= 【2026 核心串流交互觀測接收艙：輕量減肥與動態狀態發射版】 ─── ======= 🟢 🎯
  const leaderBoard = []; // 格式: { score: X, comb: [...], formatted: '...', unit: Y }
-
  worker.on('message', (msg) => {
-    if (isFinished) return;
-
-    // 🚀【究極作用域補丁】：強行在所有 if 艙門的最頂端天花板宣告共享最大上限，徹底封殺 518 行變數未定義崩潰！
-    const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
-
-  if (msg.type === 'TOTAL_SCAN_PROGRESS') {
-    liveScannedCount = msg.scanned;
-    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
-    if (currentProgressPercent < 5) currentProgressPercent = 5;
-    console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
-
-    // 🔬【16道防線全景算力擊殺快照】：一碼不漏，完整接收並列印 1 ~ 16 關卡獨立計數
-    if (msg.stats && msg.scanned % 500000 === 0) {
-      const s = msg.stats;
-      console.log(`\n======================= 📊 [16防線動態擊殺全景觀測] =======================`);
-      console.log(` 📌 [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
-      console.log(` 📌 [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
-      console.log(` 📌 [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
-      console.log(` 📌 [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
-      console.log(` 📌 [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數): ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
-      console.log(` 📌 [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
-      console.log(`=================================================================================\n`);
-    }
-
-    res.write(JSON.stringify({ 
-      isProgress: true, 
-      percent: currentProgressPercent, 
-      currentMatch: leaderBoard.length,
-      scanned: msg.scanned,
-      maxTotal: absoluteMaxTotal,
-      totalGen: msg.totalGen || 0,
-      fullStats: msg.stats 
-    }) + "\n");
-    return;
-  }
-
-  if (msg.type === 'CHUNK_SYNC_BOARD') {
-    leaderBoard.length = 0;
-    leaderBoard.push(...msg.leaderBoard);
-    return;
-  }
-
-if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-  // 1. 安全解除 5 分鐘極限熔斷計時器
-  if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
-    clearTimeout(safetyTimeout);
-    console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
-  }
-
-  // 2. 物理洗牌並接軌排行榜快照
-  leaderBoard.length = 0;
-  if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
-    leaderBoard.push(...msg.leaderBoard);
-  }
-  
-  console.log(`=======================================================`);
-  console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
-  console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
-  console.log(`=======================================================`);
-  
-  // 3. 【滿血續命自癒核心咬合點】：搶先鎖定主控標記，並強制清除 10 秒心跳包定時器！ 🔥
-  isFinished = true; 
-  if (global.heartbeatTimer) {
-    clearInterval(global.heartbeatTimer);
-    global.heartbeatTimer = null;
-    console.log(`[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。`);
-  }
-
-  // 4. 觸發黃金百名榜秒速互斥打散晶片
-  compileLeaderboardToOutput();
-  
-  // 5. 【終極核心重構】：放棄 res.json()，改用安全串流 res.write() 倒出最終結果並以 res.end() 收網 🔬
-  try {
-    if (!res.writableEnded) {
-      res.write(JSON.stringify({
-        success: true,
-        isProgress: false,
-        isCompleted: true,
-        percent: 100,
-        currentMatch: leaderBoard.length,
-        scanned: absoluteMaxTotal,
-        maxTotal: absoluteMaxTotal,
-        totalGen: msg.totalGen || absoluteMaxTotal,
-        fullStats: msg.stats || [],
-        outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
-      }) + "\n");
-      
-      res.end();
-      console.log(`[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。🌟`);
-    }
-  } catch (streamErr) {
-    console.error("[竣工發射突發攔截] 串流寫入失敗（可能用戶於網頁端提早斷開連線）：", streamErr.message);
-  } finally {
-    global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
-  }
-  
-  return;
-}
-
- });
-
- // 輔助晶片：將計分板數據滾動倒出到原本的交付容器中，維持與前台的對齊
- function compileLeaderboardToOutput() {
- finalOutputCombs.length = 0; // 清空舊數集
-
- // =========================================================================
- // 👑【竣工艙終極加速補丁】智慧包牌模式：最終百名黃金榜秒速互斥打散晶片 (語法安全修正版)
- // =========================================================================
- if (cfg && cfg.vipMode === 'smart' && leaderBoard && leaderBoard.length > 0) {
-    try {
-        // 1. 確保大數據原始分數由高到低完美排序
-        leaderBoard.sort((a, b) => {
-            if (!a || !b) return 0;
-            return (b.score || 0) - (a.score || 0);
-        });
-        
-        // 2. 正確建立安全生還名單：第一名無條件晉級
-        const finalizedSmartBoard = [];
-        if (leaderBoard[0]) finalizedSmartBoard.push(leaderBoard[0]);
-        
-        // 3. 拿剩下的號碼，去跟前面已經確認安全的高分學長對比
-        for (let i = 1; i < leaderBoard.length; i++) {
-            const currentItem = leaderBoard[i];
-            if (!currentItem || !currentItem.comb) continue; 
-            
-            let hasTooMuchOverlap = false;
-            
-            for (const safeItem of finalizedSmartBoard) {
-                if (!safeItem || !safeItem.comb) continue;
-                
-                let overlap = 0;
-                for (const ball of currentItem.comb) {
-                    if (safeItem.comb.includes(ball)) {
-                        overlap++;
-                    }
-                }
-                // 終極物理打散線：只要跟前面更高分的號碼重疊 3 碼以上，重扣 150 分
-                if (overlap >= 3) {
-                    currentItem.score = (currentItem.score || 0) - 150;
-                    hasTooMuchOverlap = true;
-                    break;
-                }
-            }
-            if (!hasTooMuchOverlap) {
-                finalizedSmartBoard.push(currentItem);
-            }
-        }
-        
-        // 4. 重新大洗牌！把被重扣 150 分的鄰近扎堆連號通通擠去排行榜最末端
-        leaderBoard.sort((a, b) => {
-            if (!a || !b) return 0;
-            return (b.score || 0) - (a.score || 0);
-        });
-    } catch (err) {
-        console.error("[打散補丁異常自癒] ", err.message);
-    }
- }
- // =========================================================================
-
- // 🎯 滿血自癒防護：老老實實倒出給手機畫面看，徹底封殺 item.unit 引起的未定義崩潰！
- if (Array.isArray(leaderBoard)) {
-    leaderBoard.forEach((item, index) => {
-        if (!item) return;
-        const indexStr = String(index + 1).padStart(2, '0');
-        // 自動動態計算大組編號，若 item.unit 不存在，則用安全性常規替代，絕對不噴錯！
-        const displayUnit = item.unit || Math.floor(index / 10) + 1;
-        const displayScore = item.score !== undefined ? item.score : 0;
-        const displayFormatted = item.formatted || "";
-        
-        finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${displayScore}分] : ${displayFormatted}\n`);
-    });
- }
- }
-
-
-
+ if (isFinished) return;
  
- // 動態將此編譯函式掛載到全域，以便底下的超時或時間截止處理器能正確收網
+ const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
+ 
+ if (msg.type === 'TOTAL_SCAN_PROGRESS') {
+ liveScannedCount = msg.scanned;
+ let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
+ if (currentProgressPercent < 5) currentProgressPercent = 5;
+ 
+ // 🖨️ 【後台日誌完整保留】：16道防線動態擊殺日誌，原汁原味在 Render 後台黑視窗內列印，不佔網路頻寬！
+ if (msg.stats && msg.scanned % 500000 === 0) {
+ const s = msg.stats;
+ console.log(`\n======================= [16防線動態擊殺全景觀測] 📊 =======================`);
+ console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): 📌 ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
+ console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): 📌 ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
+ console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): 📌 ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
+ console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): 📌 ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
+ console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數) 📌 : ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
+ console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
+ console.log(`=================================================================================\n`);
+ }
+ 
+ // 🚀【核心優化一：進度發射包全面減肥】：物理拔除 fullStats 巨型陣列！只丟 4 個純數字欄位，進度秒速同步不卡當！
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: currentProgressPercent, 
+ currentMatch: leaderBoard.length,
+ scanned: msg.scanned,
+ maxTotal: absoluteMaxTotal,
+ totalGen: msg.totalGen || 0
+ }) + "\n");
+ return;
+ }
+ 
+ if (msg.type === 'CHUNK_SYNC_BOARD') {
+ leaderBoard.length = 0;
+ leaderBoard.push(...msg.leaderBoard);
+ return;
+ }
+ 
+ // =========================================================================
+ // 👑【核心優化一變革點】：16條件海選大竣工，強制進入並「向前端同步發送評分與打散階段指令」！
+ // =========================================================================
+ if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+ if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
+ clearTimeout(safetyTimeout);
+ console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+ }
+ 
+ leaderBoard.length = 0;
+ if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
+ leaderBoard.push(...msg.leaderBoard);
+ }
+ 
+ console.log(`=======================================================`);
+ console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
+ console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+ console.log(`=======================================================`);
+ 
+ // 🔒 主動中斷續命心跳定時器，封殺 HTTP_HEADERS_SENT 撞車盲區
+ isFinished = true; 
+ if (global.heartbeatTimer) {
+ clearInterval(global.heartbeatTimer);
+ global.heartbeatTimer = null;
+ console.log(`[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。`);
+ }
+ 
+ // 📢 🎯【嚴格執行指令】：在後台默默計算前，先向手機前端發射「正在進入300分特徵健康評分」的中途訊號！
+ try {
+ if (!res.writableEnded) {
+ res.write(JSON.stringify({
+ isProgress: true,
+ percent: 99,
+ stage: "SCORING", // 🚀 觸發前端 data.stage === "SCORING" 渲染
+ scanned: absoluteMaxTotal,
+ maxTotal: absoluteMaxTotal,
+ totalGen: msg.totalGen || absoluteMaxTotal
+ }) + "\n");
+ }
+ } catch (e) { console.log("[階段發射防禦] ", e.message); }
+ 
+ // 🧬 執行高階理論大組、喜愛號特權、從重複 1 碼開始扣分的黃金演化控制晶片
+ compileLeaderboardToOutput();
+ 
+ // 📢 🎯【嚴格執行指令】：評分結束，向手機前端發射「正在執行高階兩兩互斥演化控制」的中途訊號！
+ try {
+ if (!res.writableEnded) {
+ res.write(JSON.stringify({
+ isProgress: true,
+ percent: 99,
+ stage: "MUTUAL_EXCLUSION", // 🚀 觸發前端 data.stage === "MUTUAL_EXCLUSION" 渲染
+ scanned: absoluteMaxTotal,
+ maxTotal: absoluteMaxTotal,
+ totalGen: msg.totalGen || absoluteMaxTotal
+ }) + "\n");
+ }
+ } catch (e) { console.log("[階段發射防禦] ", e.message); }
+ 
+ // 🌟 最終大结局數據發射艙（放棄舊 res.json，統一改用串流安全關閉通道）
+ try {
+ if (!res.writableEnded) {
+ res.write(JSON.stringify({
+ success: true,
+ isProgress: false,
+ isCompleted: true,
+ percent: 100,
+ currentMatch: leaderBoard.length,
+ scanned: absoluteMaxTotal,
+ maxTotal: absoluteMaxTotal,
+ totalGen: msg.totalGen || absoluteMaxTotal,
+ fullStats: msg.stats || [], // 輕量化安全空陣列保護
+ outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
+ }) + "\n");
+ 
+ res.end(); // 完美交卷，關閉連線
+ console.log(`[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。🌟`);
+ }
+ } catch (streamErr) {
+ console.error("[竣工發射突發攔截] 串流寫入失敗：", streamErr.message);
+ } finally {
+ global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
+ }
+ return;
+ }
+ });
+ 
+ // =========================================================================
+ // 👑【核心優化二與三】：2026 理論大組動態演化控制與分數階梯落差晶片
+ // =========================================================================
+ function compileLeaderboardToOutput() {
+ finalOutputCombs.length = 0; // 清空舊交卷容器
+ if (!leaderBoard || leaderBoard.length === 0) return;
+ 
+ try {
+ const isSmartMode = (cfg && cfg.vipMode === 'smart');
+ const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
+ const favNums = isFavEnabled ? cfg.vip_fav_set : [];
+ 
+ // 1. 先將海選存活的所有號碼，依照子執行緒算出來的原始特徵健康總分由高到低做大軍團常態排序
+ leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
+ 
+ if (!isSmartMode) {
+ leaderBoard.forEach((item, index) => {
+ const indexStr = String(index + 1).padStart(2, '0');
+ const displayUnit = item.unit || Math.floor(index / 10) + 1;
+ finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${item.score || 0}分] : ${item.formatted || ""}\n`);
+ });
+ return;
+ }
+ 
+ // =========================================================================
+ // 💡 核心自癒矩陣：理論大組動態降維放寬與喜愛號特權排除核心
+ // =========================================================================
+ let currentAllowedOverlap = 1; // 🛠️【嚴格執行指令】：從重複 1 碼開始判定互斥並執行降維扣分！
+ let currentMaxUnits = (cfg.lottoType === "49_6") ? 8 : 7; // 理論大組極限：大樂透分 8 組，539分 7 組
+ 
+ let processedSuccessfully = false;
+ let loopSanityCheck = 0;
+ 
+ // 啟動動態調節熔斷器：如果限制卡得太死導致大組同分打結，自動放寬限制降維，直到拉開分數階梯差！
+ while (!processedSuccessfully && loopSanityCheck < 5) {
+ loopSanityCheck++;
+ let currentUnitTracker = 1;
+ let usedNumbersInCurrentUnit = new Set();
+ 
+ for (let i = 0; i < leaderBoard.length; i++) {
+ let item = leaderBoard[i];
+ if (!item || !item.comb) continue;
+ 
+ // 🛠️【嚴格執行指令】：只有勾選喜愛號時，喜愛號才允許在每一組無限制重複（從比對池中物理剔除），其餘球強制打散！
+ const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
+ 
+ // A. 計算這組號碼與「當前理論大組內已使用過的彩球池」重複了幾碼
+ let overlapCount = 0;
+ pureCombs.forEach(ball => {
+ if (usedNumbersInCurrentUnit.has(ball)) overlapCount++;
+ });
+ 
+ // B. 計算與「緊鄰的隔壁組學長」重複了幾碼
+ let prevOverlapCount = 0;
+ if (i > 0 && leaderBoard[i-1] && leaderBoard[i-1].comb) {
+ pureCombs.forEach(ball => {
+ if (leaderBoard[i-1].comb.includes(ball)) prevOverlapCount++;
+ });
+ }
+ 
+ // 🔥 雙重打散大閘門：只要踩到重複 1 碼的互斥紅線，立刻實施動態精密扣分，拉開分數階梯差，徹底粉碎全盤同分僵局！
+ if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap) {
+ const penaltyMultiplier = Math.max(1, overlapCount);
+ item.score = Math.max(-300, (item.score || 0) - (60 * penaltyMultiplier)); // 階梯式精細化減分
+ item.unit = currentUnitTracker; 
+ } else {
+ // 完美大組生還者！將常規彩球鎖定注入當前大組的記憶池中
+ pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
+ item.unit = currentUnitTracker;
+ }
+ 
+ // 🎰 理論大組滿舵自動切換邏輯：大樂透與539號碼池接近填滿，或每累積 12 組，自動切換至下一大組，重組洗牌池
+ if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) || i % 12 === 0) {
+ currentUnitTracker++;
+ if (currentUnitTracker > currentMaxUnits) {
+ currentUnitTracker = 1; // 循環回到第 1 大組重啟一輪
+ }
+ usedNumbersInCurrentUnit.clear(); // 清空當前大組的號碼佔用池
+ }
+ }
+ 
+ // 重新依照被互斥打散扣分後的最新結果，進行「二次大軍團重新洗牌排序」
+ leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
+ 
+ // 檢查是否出現全盤同分打結（前30組內如果分數完全一樣，代表限制過度嚴格，需要放寬）
+ let sampleScoreCount = leaderBoard.filter(x => x.score === leaderBoard[0].score).length;
+ if (sampleScoreCount < 25) {
+ processedSuccessfully = true; // 分數落差階梯建立成功，解除調節，完美通車！
+ } else {
+ // 🛠️【嚴格執行指令】：理論大組填不滿或太嚴苛時，自動放寬限制（重複上限+1，且最大組數進行降維調控）
+ currentAllowedOverlap++; 
+ if (currentMaxUnits > 4) currentMaxUnits--; // 大組數從 8->7->6 智慧縮減放寬
+ }
+ }
+ 
+ // 2. 老老實實倒出給手機畫面看（一碼不漏，精確顯示降維扣分後的動態分數與正確大組）
+ leaderBoard.forEach((item, index) => {
+ if (!item) return;
+ const indexStr = String(index + 1).padStart(2, '0');
+ const displayUnit = item.unit || (Math.floor(index / 12) + 1);
+ const displayScore = item.score !== undefined ? item.score : 0;
+ const displayFormatted = item.formatted || "";
+ 
+ finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${displayScore}分] : ${displayFormatted}\n`);
+ });
+ 
+ } catch (err) {
+ console.error("[理論大組演化晶片異常自癒] ", err.message);
+ leaderBoard.forEach((item, index) => {
+ const indexStr = String(index + 1).padStart(2, '0');
+ finalOutputCombs.push(`第 [${indexStr}] 組 [評分: 0分] : ${item.formatted || ""}\n`);
+ });
+ }
+ 
+ global.compileOutput = compileLeaderboardToOutput;
+ }
+ 
  global.compileOutput = compileLeaderboardToOutput;
  });
-
-
+ 
  // =========================================================================
- // 【2026 終極續命防線】每 10 秒發送一次心跳包，強行重置免費 Render 的 50 秒斷線大閘門！ 👑
+ // 【2026 終極續命防線】每 10 秒發送一次輕量心跳包，強行重置免費 Render 的 50 秒斷線大閘門！ 👑
  // =========================================================================
  global.heartbeatTimer = setInterval(() => {
-  // 安全閥 1：如果 Worker 已經竣工了（isFinished 變為 true），立刻清除自己！ 🎯
-  if (isFinished) {
-    if (global.heartbeatTimer) {
-      clearInterval(global.heartbeatTimer);
-      global.heartbeatTimer = null;
-    }
-    return;
-  }
-  try {
-    // 安全閥 2：發射心跳氣泡包給 Render 續命。
-    res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 50 }) + "\n");
-  } catch (e) {
-    // 萬一發生突發異常（例如使用者主動關閉網頁），優雅釋放記憶體
-    if (global.heartbeatTimer) {
-      clearInterval(global.heartbeatTimer);
-      global.heartbeatTimer = null;
-    }
-  }
+ if (isFinished) {
+ if (global.heartbeatTimer) {
+ clearInterval(global.heartbeatTimer);
+ global.heartbeatTimer = null;
+ }
+ return;
+ }
+ try {
+ // 發射最極簡的輕量續命氣泡包，絕對不與大结局數據撞車
+ res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 50 }) + "\n");
+ } catch (e) {
+ if (global.heartbeatTimer) {
+ clearInterval(global.heartbeatTimer);
+ global.heartbeatTimer = null;
+ }
+ }
  }, 10000);
-
-
-
- 
-  } catch (globalErr) {
-    console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
-    try { res.json({ success: false, message: `後台突發故障: ${globalErr.message}` }); } catch (e) {}
-  }
+ } catch (globalErr) {
+ console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
+ try { res.json({ success: false, message: `後台突發故障: ${globalErr.message}` }); } catch (e) {}
+ }
 });
-} // 🌟 完美閉合主執行緒的完全體結構
+} // 完美閉合主執行緒的完全體結構 🌟
+
 
 if (!isMainThread) {
     const { cfg, passedHistoryDB } = workerData;
