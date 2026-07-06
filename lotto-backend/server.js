@@ -1223,20 +1223,16 @@ favCount;
  const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 
 575757);
   // =========================================================================
-  // 👑【2026 子執行緒內核：生存庫 100% 全量評分與同分混沌汰換晶片】 👑 🔬
+  // 【2026 子執行緒內核：全量生還者 100 萬組無限制全留大數據評分與竣工大PK晶片】 👑 🔬
   // =========================================================================
   let localTotalGen = 0; 
-  let localLeaderBoard = [];
-  let minScoreInLocalBoard = -99999;
+  let localLeaderBoard = []; // 物理起爆：徹底拔除 candidateLimit 與 minScore 限制池！
   const pickLimit = Math.min(100, Math.max(1, Number(cfg.count) || 100));
-  
-  // 👑 擴大子執行緒生還者快照緩衝池，給予所有通過 16 條件的種子最充裕的生還空間
-  const candidateLimit = 3000; 
 
   function processAndLocalPK(combination) {
-    if (!isGeneSurvive(combination)) return; // ❌ 16道條件沒過的原地銷毀，100%不佔頻寬
+    if (!isGeneSurvive(combination)) return; // 16道條件沒過的原地物理銷毀
     
-    // 🟢 16道條件完美通關者！100% 強制進入下方進行特徵加減分！
+    // 🟢 條件完美通關者！不論後面有 10 萬組還是 100 萬組，100% 強制全部執行特徵加減分！
     let healthScore = 100; 
     
     if (cfg.scoreTotalSum) {
@@ -1297,24 +1293,8 @@ favCount;
 
     const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
     
-    // =========================================================================
-    // 🧠【生還庫滾動式動態 PK 大換血機制】：保證所有生存下來的號碼全部參與交替取代！
-    // =========================================================================
-    if (localLeaderBoard.length < candidateLimit) {
-      localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-      if (localLeaderBoard.length === candidateLimit) {
-        localLeaderBoard.sort((a, b) => b.score - a.score); 
-        minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
-      }
-    } 
-    // 🚀【同分與高分大洗牌取代】：只要新進來的生還組合分數大於「或是等於」池子裡的最低分，
-    // 且觸發 40% 的隨機汰換特權分流，立刻把池子裡開頭死黏在 01, 02 區段的死號碼踢出、強行把位置留給後面長得不一樣的新生還者！
-    else if (healthScore > minScoreInLocalBoard || (healthScore === minScoreInLocalBoard && Math.random() < 0.4)) {
-      localLeaderBoard.pop(); 
-      localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-      localLeaderBoard.sort((a, b) => b.score - a.score); 
-      minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
-    }
+    // 🚀【無限制吞吐核心】：來者不拒！通通老老實實裝進大陣列，絕不在海選中途踢掉任何人！
+    localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
   }
 
   async function triggerChunkFlush() {
@@ -1337,7 +1317,7 @@ favCount;
         localTotalGen++;
         let combination = [...favBalls, ...currentSelection].sort((a, b) => a - b);
         
-        // 🟢 通過 16 條件生存下來的，100% 老老實實送入 PK 艙評分！
+        // 🟢 通過 16 條件生還的，100% 老老實實送入 PK 艙，一個不漏全留！
         processAndLocalPK(combination);
         
         await triggerChunkFlush(); 
@@ -1347,11 +1327,17 @@ favCount;
     }
     await dfs(0, 0);
     
-    // 竣工大收網：此時交出的資料，開頭數字在子執行緒源頭就已經被徹底洗散開來！
+    // =========================================================================
+    // 👑【竣工大收網大淘汰賽】：全量 1398 萬海選大結局！此時池子裡裝滿了所有生存者（可能幾萬組）
+    // 一次性從最高分排到最低分，比不過別人的在這一刻「原地扔掉銷毀」，只抓最高分前 1200 組高質量種子交卷！
+    // =========================================================================
     localLeaderBoard.sort((a, b) => b.score - a.score);
+    const finalCandidates = localLeaderBoard.slice(0, 1200); 
     
     parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, total: scannedCount, stats: Array.from(killStats), totalGen: localTotalGen });
-    parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: localLeaderBoard }); 
+    parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: finalCandidates }); 
+    
+    localLeaderBoard = null; // 釋放記憶體
   })();
 }
 
@@ -1362,4 +1348,3 @@ app.listen(PORT, () => {
   console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
   console.log("=======================================================");
 });
-
