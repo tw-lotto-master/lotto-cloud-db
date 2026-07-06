@@ -497,13 +497,21 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
  
  const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
  
- if (msg.type === 'TOTAL_SCAN_PROGRESS') {
+  if (msg.type === 'TOTAL_SCAN_PROGRESS') {
  liveScannedCount = msg.scanned;
  let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
  if (currentProgressPercent < 5) currentProgressPercent = 5;
  
- // 🖨️ 【後台日誌完整保留】：16道防線動態擊殺日誌，原汁原味在 Render 後台黑視窗內列印，不佔網路頻寬！
- if (msg.stats && msg.scanned % 500000 === 0) {
+ // =================================================================================
+ // 📊 100% 歸位：只要到達 50 萬組節點，後台「物理黑視窗日誌」與「前端輕量發射包」強行雙向通電！
+ // =================================================================================
+ if (msg.scanned % 500000 === 0 || msg.scanned === absoluteMaxTotal) {
+ 
+ // 🖨️ 1. 後台黑視窗老實列印進度文字（徹底找回消失的這行日誌！ 🚀）
+ console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
+ 
+ // 🖨️ 2. 後台黑視窗老實列印 16 道防線動態擊殺全景觀測
+ if (msg.stats) {
  const s = msg.stats;
  console.log(`\n======================= [16防線動態擊殺全景觀測] 📊 =======================`);
  console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): 📌 ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
@@ -513,19 +521,28 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
  console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數) 📌 : ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
  console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
  console.log(`=================================================================================\n`);
+   }
  }
  
- // 🚀【核心優化一：進度發射包全面減肥】：物理拔除 fullStats 巨型陣列！只丟 4 個純數字欄位，進度秒速同步不卡當！
- res.write(JSON.stringify({ 
- isProgress: true, 
- percent: currentProgressPercent, 
- currentMatch: leaderBoard.length,
- scanned: msg.scanned,
- maxTotal: absoluteMaxTotal,
- totalGen: msg.totalGen || 0
- }) + "\n");
- return;
+ // 🚀 3. 【羽量級發射核心】：不管是哪一次進度微任務，絕對不被 return 阻斷，老老實實把數字寫入串流推給手機前端！
+ try {
+   if (!res.writableEnded) {
+     res.write(JSON.stringify({ 
+       isProgress: true, 
+       percent: currentProgressPercent, 
+       currentMatch: leaderBoard.length,
+       scanned: msg.scanned,
+       maxTotal: absoluteMaxTotal,
+       totalGen: msg.totalGen || 0
+     }) + "\n");
+   }
+ } catch (streamErr) {
+   console.log("[進度實時推送攔截] 寫入失敗：", streamErr.message);
  }
+ 
+ return; // 完美閉合通訊艙門
+ }
+
  
  if (msg.type === 'CHUNK_SYNC_BOARD') {
  leaderBoard.length = 0;
