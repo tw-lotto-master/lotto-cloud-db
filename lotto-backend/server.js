@@ -669,11 +669,15 @@ function compileLeaderboardToOutput() {
           item.score = Math.max(-400, (item.score || 0) - (120 * maxOverlapFound) - headPenalty); 
           item.unit = currentUnitTracker; 
         } else {
-          // 👑 完美理論大組生還者特權
+          // 👑 完美理論大組生還者特權（物理打破 100 分天花板限制！）
           pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
           item.unit = currentUnitTracker;
-          item.score = (item.score || 0) + 150; // 🔥 激勵提權：符合理論大組不重複，大幅反彈加 150 分！
+          
+          // 🛠️ 終極特權加碼：只要號碼完美不重複，原地直接「強行指派 250 分起跳」！
+          // 徹底蓋掉子執行緒裡面死板的 100 分上限，讓不重複的大組優等生瞬間爆發噴向 250~300 分！ 🚀
+          item.score = Math.max(250, (item.score || 0) + 150); 
         }
+
         
         // 理論大組滿舵自動切換
         if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) || i % 12 === 0) {
