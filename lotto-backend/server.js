@@ -609,6 +609,31 @@ function compileLeaderboardToOutput() {
     
     if (!isSmartMode) {
       leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
+         // =========================================================================
+    // 📊 【2026 後台黑視窗：大數據天梯評分實時觀測儀】 ─── 專為評分優化打造 🔬
+    // =========================================================================
+    try {
+      const totalCards = leaderBoard.length;
+      const positiveScores = leaderBoard.filter(x => (x.score || 0) > 0).length;
+      const zeroScores = leaderBoard.filter(x => (x.score || 0) === 0).length;
+      const negativeScores = leaderBoard.filter(x => (x.score || 0) < 0).length;
+      const highestScore = totalCards > 0 ? (leaderBoard[0].score || 0) : 0;
+      const lowestScore = totalCards > 0 ? (leaderBoard[totalCards - 1].score || 0) : 0;
+
+      console.log(`\n======================= [雲端大腦：全榜評分分佈實時監測] 📈 =======================`);
+      console.log(` [全局解鎖快照] 當前生還庫總數: ${totalCards} 組`);
+      console.log(` [天梯極值分佈] 最高極限分: 📌 ${highestScore} 分 | 最低深淵分: 📌 ${lowestScore} 分`);
+      console.log(` [特徵落差階梯] 高分正數組: 🟢 ${positiveScores} 組 | 完美及格分(0分): ⚪ ${zeroScores} 組 | 互斥負數組: 🔴 ${negativeScores} 組`);
+      console.log(`---------------------------------------------------------------------------------`);
+      console.log(` [最精銳前10組天梯追蹤]:`);
+      for (let k = 0; m = Math.min(10, totalCards), k < m; k++) {
+        console.log(`   * 名次[${String(k+1).padStart(2,'0')}] -> 最終得分: [ ${String(leaderBoard[k].score).padStart(4, ' ')} 分 ] | 歸屬: 第 ${leaderBoard[k].unit || 1} 大組 | 號碼: ${leaderBoard[k].formatted}`);
+      }
+      console.log(`=================================================================================\n`);
+    } catch (monitorErr) {
+      console.log("[觀測儀氣泡阻斷異常自癒] ", monitorErr.message);
+    }
+
       leaderBoard.forEach((item, index) => {
         const indexStr = String(index + 1).padStart(2, '0');
         finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: ${item.score || 0}分] : ${item.formatted || ""}\n`);
