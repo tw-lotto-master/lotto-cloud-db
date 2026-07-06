@@ -1294,15 +1294,15 @@ if (f13_on) {
     if (localLeaderBoard.length < candidateLimit) {
       localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
       if (localLeaderBoard.length === candidateLimit) {
-        localLeaderBoard.sort((a, b) => b.score - a.score); minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
+        localLeaderBoard.sort((a, b) => b.score - a.score); 
+        minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
       }
     } 
-    // 🚀【全量高分隨機更換】：只要新進來的生存號碼分數大於「或是同分且觸發 45% 的亂數分流」，
-    // 立即將排在最末端、開頭黏在一起的低分死組合剔除，原地銷毀！記憶體開銷永遠鎖死在極低水位！
+    // 🚀【全量高分隨機取代】：贏的留下，輸的當場原地銷毀！100% 對齊 localLeaderBoard 變數名稱！
     else if (healthScore > minScoreInLocalBoard || (healthScore === minScoreInLocalBoard && Math.random() < 0.45)) {
-      localLeaderBoard.pop(); // 物理拋棄最弱守門人，由 V8 引擎秒速回收內存！
+      localLeaderBoard.pop(); // 扔掉池子裡原本最前面的死板低分號碼
       localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-      localLeaderBoard.sort((a, b) => b.score - a.score); 
+      localLeaderBoard.sort((a, b) => b.score - a.score); // 重新大天梯排序
       minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
     }
   }
