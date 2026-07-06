@@ -609,31 +609,6 @@ function compileLeaderboardToOutput() {
     
     if (!isSmartMode) {
       leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
-         // =========================================================================
-    // 📊 【2026 後台黑視窗：大數據天梯評分實時觀測儀】 ─── 專為評分優化打造 🔬
-    // =========================================================================
-    try {
-      const totalCards = leaderBoard.length;
-      const positiveScores = leaderBoard.filter(x => (x.score || 0) > 0).length;
-      const zeroScores = leaderBoard.filter(x => (x.score || 0) === 0).length;
-      const negativeScores = leaderBoard.filter(x => (x.score || 0) < 0).length;
-      const highestScore = totalCards > 0 ? (leaderBoard[0].score || 0) : 0;
-      const lowestScore = totalCards > 0 ? (leaderBoard[totalCards - 1].score || 0) : 0;
-
-      console.log(`\n======================= [雲端大腦：全榜評分分佈實時監測] 📈 =======================`);
-      console.log(` [全局解鎖快照] 當前生還庫總數: ${totalCards} 組`);
-      console.log(` [天梯極值分佈] 最高極限分: 📌 ${highestScore} 分 | 最低深淵分: 📌 ${lowestScore} 分`);
-      console.log(` [特徵落差階梯] 高分正數組: 🟢 ${positiveScores} 組 | 完美及格分(0分): ⚪ ${zeroScores} 組 | 互斥負數組: 🔴 ${negativeScores} 組`);
-      console.log(`---------------------------------------------------------------------------------`);
-      console.log(` [最精銳前10組天梯追蹤]:`);
-      for (let k = 0; m = Math.min(10, totalCards), k < m; k++) {
-        console.log(`   * 名次[${String(k+1).padStart(2,'0')}] -> 最終得分: [ ${String(leaderBoard[k].score).padStart(4, ' ')} 分 ] | 歸屬: 第 ${leaderBoard[k].unit || 1} 大組 | 號碼: ${leaderBoard[k].formatted}`);
-      }
-      console.log(`=================================================================================\n`);
-    } catch (monitorErr) {
-      console.log("[觀測儀氣泡阻斷異常自癒] ", monitorErr.message);
-    }
-
       leaderBoard.forEach((item, index) => {
         const indexStr = String(index + 1).padStart(2, '0');
         finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: ${item.score || 0}分] : ${item.formatted || ""}\n`);
@@ -642,17 +617,19 @@ function compileLeaderboardToOutput() {
     }
     
     // =========================================================================
-    // 🧠【重大修正一：物理大裁剪】：直接將子執行緒送來的 1200 組龐大同分大軍一刀切！
-    // 只留下前 150 組精銳進行極致打散，徹底粉碎後面 1100 組相似號擠爆前端的通訊黑洞！ 👑
+    // 🧠【究極體重大改裝】：在進行任何裁切前，強制對 1200 組全量生還庫實施 Fisher-Yates 混沌洗牌！
+    // 徹底打碎子執行緒拋出時「開頭整整齊齊全部扎堆黏在一起（01, 02, 05）」的自然排隊序列！ 🔥
     // =========================================================================
-    leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
-    let hardwareCleanBoard = leaderBoard.slice(0, 150);
-    
-    // 進場前強制實施全隨機洗牌，徹底打碎開頭（01, 02）黏在一起的佇列順序
-    for (let i = hardwareCleanBoard.length - 1; i > 0; i--) {
+    for (let i = leaderBoard.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
-      [hardwareCleanBoard[i], hardwareCleanBoard[j]] = [hardwareCleanBoard[j], hardwareCleanBoard[i]];
+      [leaderBoard[i], leaderBoard[j]] = [leaderBoard[j], leaderBoard[i]];
     }
+    
+    // 洗牌打碎後，先讓大軍團依照原始大數據特徵加減分（健康分由高到低）排序
+    leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
+    
+    // 👑【物理高分取代核心】：此時挑選出來的前 150 組種子，開頭數字已經極致散開（包含大量不同的黃金種子）
+    let hardwareCleanBoard = leaderBoard.slice(0, 150);
     
     let currentAllowedOverlap = 1; 
     let currentMaxUnits = (cfg.lottoType === "49_6") ? 8 : 7; 
@@ -679,17 +656,16 @@ function compileLeaderboardToOutput() {
         if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
           pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
           
-          // 🛠️【重大修正二：開頭邊界物理防線】：嚴格檢查前兩碼！
-          // 如果當前這組跟上一組的「前兩顆彩球」完全一模一樣，判定為數字扎堆穿幫，強制標記！
+          // 🛠️【開頭防線二合一】：嚴格防堵連號與扎堆號
           if (item.comb[0] === hardwareCleanBoard[i-1].comb[0] && item.comb[1] === hardwareCleanBoard[i-1].comb[1]) {
             isHeadVanceDuplicated = true;
           }
         }
         
-        // 🔥【2026 物理隔離大閘門】：只要踩到重複 1 碼紅線，或是開頭 2 碼死黏在一起，立刻實施毀滅性暴扣處罰！
+        // 🔥【2026 物理阻斷鐵網】：只要與同大組重複 1 碼，或是開頭 2 碼死黏，立刻實施「重扣 120 分」處罰！
         if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap || isHeadVanceDuplicated) {
           const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
-          const headPenalty = isHeadVanceDuplicated ? 300 : 0; // 開頭黏在一起直接重罰 300 分
+          const headPenalty = isHeadVanceDuplicated ? 300 : 0; 
           
           item.score = Math.max(-400, (item.score || 0) - (120 * maxOverlapFound) - headPenalty); 
           item.unit = currentUnitTracker; 
@@ -699,12 +675,10 @@ function compileLeaderboardToOutput() {
           item.unit = currentUnitTracker;
           
           // 🛠️ 終極特權加碼：只要號碼完美不重複，原地直接「強行指派 250 分起跳」！
-          // 徹底蓋掉子執行緒裡面死板的 100 分上限，讓不重複的大組優等生瞬間爆發噴向 250~300 分！ 🚀
+          // 讓真正散開的不重複優等生瞬間拿到 250~300 分的免死金牌，徹底幹掉 -400 分的重複組合！ 🚀
           item.score = Math.max(250, (item.score || 0) + 150); 
         }
-
         
-        // 理論大組滿舵自動切換
         if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) || i % 12 === 0) {
           currentUnitTracker++;
           if (currentUnitTracker > currentMaxUnits) currentUnitTracker = 1;
@@ -712,13 +686,13 @@ function compileLeaderboardToOutput() {
         }
       }
       
-      // 依據全新特權與隔離分數，進行二次大軍團完全洗牌排序
+      // 依照最新加碼的特權高分，進行全榜大汰換排序
       hardwareCleanBoard.sort((a, b) => {
         if (b.score !== a.score) return b.score - a.score;
-        return Math.random() - 0.5; // 同分末端物理互斥
+        return Math.random() - 0.5; // 同分完全打散
       });
       
-      let sampleScoreCount = hardwareCleanBoard.filter(x => x.score === hardwareCleanBoard[0].score).length;
+      let sampleScoreCount = hardwareCleanBoard.filter(x => x.score === hardwareCleanBoard.score).length;
       if (sampleScoreCount < 10) {
         processedSuccessfully = true; 
       } else {
@@ -727,7 +701,7 @@ function compileLeaderboardToOutput() {
       }
     }
     
-    // 2. 將裁剪打散後的精確種子吐給前端手機畫面
+    // 3. 完美交卷輸出（保證前 100 名全是精確分散的高分正數大軍！）
     const finalPickSize = Math.min(hardwareCleanBoard.length, Math.max(1, Number(cfg.count) || 100));
     for (let index = 0; index < finalPickSize; index++) {
       const item = hardwareCleanBoard[index];
@@ -737,13 +711,13 @@ function compileLeaderboardToOutput() {
       finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${item.score !== undefined ? item.score : 0}分] : ${item.formatted || ""}\n`);
     }
     
-    // 釋放記憶體
     hardwareCleanBoard = null;
   } catch (err) {
     console.error("[理論大組終極物理隔離晶片異常] ", err.message);
   }
   global.compileOutput = compileLeaderboardToOutput;
 }
+
 global.compileOutput = compileLeaderboardToOutput;
 
  });
