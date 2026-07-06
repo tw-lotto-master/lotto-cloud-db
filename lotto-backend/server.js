@@ -505,7 +505,7 @@ worker.on('message', (msg) => {
       console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
       if (msg.stats && Array.isArray(msg.stats)) {
         const s = msg.stats;
-        console.log(`\n======================= [16防線動態擊殺全景觀測] 📊 =======================`);
+        console.log(`\n======================= [16防線動態擊殺全景觀測] =======================`);
         console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
         console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
         console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
@@ -515,228 +515,198 @@ worker.on('message', (msg) => {
         console.log(`=================================================================================\n`);
       }
     }
- 
- try {
- if (!res.writableEnded) {
- res.write(JSON.stringify({ 
- isProgress: true, 
- percent: currentProgressPercent, 
- currentMatch: leaderBoard.length,
- scanned: msg.scanned,
- maxTotal: absoluteMaxTotal,
- totalGen: msg.totalGen || 0
- }) + "\n");
- }
- } catch (e) {}
- return;
- }
- 
- if (msg.type === 'CHUNK_SYNC_BOARD') {
- return;
- }
- 
- if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
- if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
- clearTimeout(safetyTimeout);
- console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
- }
- 
- leaderBoard.length = 0;
- if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
- leaderBoard.push(...msg.leaderBoard);
- }
- 
- console.log(`=======================================================`);
- console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
- console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
- console.log(`=======================================================`);
- 
- isFinished = true; 
- if (global.heartbeatTimer) {
- clearInterval(global.heartbeatTimer);
- global.heartbeatTimer = null;
- console.log(`[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。`);
- }
- 
- try {
- if (!res.writableEnded) {
- res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "SCORING", 
-scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || 
-absoluteMaxTotal }) + "\n");
- }
- } catch (e) {}
- 
- compileLeaderboardToOutput();
- 
- try {
- if (!res.writableEnded) {
- res.write(JSON.stringify({ isProgress: true, percent: 99, stage: 
-"MUTUAL_EXCLUSION", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: 
-msg.totalGen || absoluteMaxTotal }) + "\n");
- }
- } catch (e) {}
- 
- try {
- if (!res.writableEnded) {
- res.write(JSON.stringify({
- success: true,
- isProgress: false,
- isCompleted: true,
- percent: 100,
- currentMatch: leaderBoard.length,
- scanned: absoluteMaxTotal,
- maxTotal: absoluteMaxTotal,
- totalGen: msg.totalGen || absoluteMaxTotal,
- fullStats: [], 
- outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：
-\n${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：
-\n-------------------------\n` + finalOutputCombs.join('') + 
-`-------------------------\n`
- }) + "\n");
- res.end(); 
- console.log(`[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。 `); 🌟
- }
- } catch (streamErr) {
- console.error("[竣工發射突發攔截] 串流寫入失敗：", streamErr.message);
- } finally {
- global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
- }
- return;
- }
+    
+    try {
+      if (!res.writableEnded) {
+        res.write(JSON.stringify({ 
+          isProgress: true, 
+          percent: currentProgressPercent, 
+          currentMatch: leaderBoard.length,
+          scanned: msg.scanned,
+          maxTotal: absoluteMaxTotal,
+          totalGen: msg.totalGen || 0
+        }) + "\n");
+      }
+    } catch (e) {}
+    return;
+  }
+  
+  if (msg.type === 'CHUNK_SYNC_BOARD') {
+    return;
+  }
+  
+  if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+    if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
+      clearTimeout(safetyTimeout);
+    }
+    
+    leaderBoard.length = 0;
+    if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
+      leaderBoard.push(...msg.leaderBoard);
+    }
+    
+    console.log(`=======================================================`);
+    console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
+    console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+    console.log(`=======================================================`);
+    
+    isFinished = true; 
+    if (global.heartbeatTimer) {
+      clearInterval(global.heartbeatTimer);
+      global.heartbeatTimer = null;
+    }
+    
+    try {
+      if (!res.writableEnded) {
+        res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "SCORING", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
+      }
+    } catch (e) {}
+    
+    compileLeaderboardToOutput();
+    
+    try {
+      if (!res.writableEnded) {
+        res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "MUTUAL_EXCLUSION", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
+      }
+    } catch (e) {}
+    
+    try {
+      if (!res.writableEnded) {
+        res.write(JSON.stringify({
+          success: true,
+          isProgress: false,
+          isCompleted: true,
+          percent: 100,
+          currentMatch: Math.min(leaderBoard.length, pickLimit),
+          scanned: absoluteMaxTotal,
+          maxTotal: absoluteMaxTotal,
+          totalGen: msg.totalGen || absoluteMaxTotal,
+          fullStats: [], 
+          outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
+        }) + "\n");
+        res.end(); 
+        console.log("[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。");
+      }
+    } catch (streamErr) {
+      console.error("[竣工發射突發攔截] 串流寫入失敗：", streamErr.message);
+    } finally {
+      global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
+    }
+    return;
+  }
 });
+
 function compileLeaderboardToOutput() {
- finalOutputCombs.length = 0; 
- if (!leaderBoard || leaderBoard.length === 0) return;
- 
- try {
- const isSmartMode = (cfg && cfg.vipMode === 'smart');
- const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && 
-cfg.vip_fav_set.length > 0);
- const favNums = isFavEnabled ? cfg.vip_fav_set : [];
- 
- if (!isSmartMode) {
- leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
- leaderBoard.forEach((item, index) => {
- const indexStr = String(index + 1).padStart(2, '0');
- finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: ${item.score || 
-0}分] : ${item.formatted || ""}\n`);
- });
- return;
- }
- 
- // =========================================================================
- // 【究極體重大改裝】：在進行 any 裁切前，強制對 1200 組全量生還庫實施 🧠
-Fisher-Yates 混沌洗牌！
- // 徹底打碎子執行緒拋出時「開頭整整齊齊全部扎堆黏在一起（01, 02, 05）」的自然排隊序
-列！ 🔥
- // =========================================================================
- for (let i = leaderBoard.length - 1; i > 0; i--) {
- const j = Math.floor(Math.random() * (i + 1));
- [leaderBoard[i], leaderBoard[j]] = [leaderBoard[j], leaderBoard[i]];
- }
- 
- // 洗牌打碎後，先讓大軍團依照原始大數據特徵加減分（健康分由高到低）排序
- leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
- 
- // 【物理高分取代核心】：此時挑選出來的前 150 組種子，開頭數字已經極致散開（包含 👑
-大量不同的黃金種子）
- let hardwareCleanBoard = leaderBoard.slice(0, 150);
- 
- let currentAllowedOverlap = 1; 
- let currentMaxUnits = (cfg.lottoType === "49_6") ? 8 : 7; 
- let processedSuccessfully = false;
- let loopSanityCheck = 0;
- 
- while (!processedSuccessfully && loopSanityCheck < 5) {
- loopSanityCheck++;
- let currentUnitTracker = 1;
- let usedNumbersInCurrentUnit = new Set();
- 
- for (let i = 0; i < hardwareCleanBoard.length; i++) {
- let item = hardwareCleanBoard[i];
- if (!item || !item.comb) continue;
- 
- const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
- 
- let overlapCount = 0;
- pureCombs.forEach(ball => { if (usedNumbersInCurrentUnit.has(ball)) 
-overlapCount++; });
- 
- let prevOverlapCount = 0;
- let isHeadVanceDuplicated = false;
- if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
- pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) 
-prevOverlapCount++; });
- 
- // 【開頭防線二合一】：嚴格防堵連號與扎堆號 🛠
- if (item.comb[0] === hardwareCleanBoard[i-1].comb[0] && item.comb[1] === 
-hardwareCleanBoard[i-1].comb[1]) {
- isHeadVanceDuplicated = true;
- }
- }
- 
- // 【2026 物理阻斷鐵網】：精度重複 1 碼紅線，或是開頭 2 碼死黏，立刻實施 🔥
-「重扣 120 分」處罰！
- if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= 
-currentAllowedOverlap || isHeadVanceDuplicated) {
- const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
- const headPenalty = isHeadVanceDuplicated ? 300 : 0; 
- 
- item.score = Math.max(-400, (item.score || 0) - (120 * maxOverlapFound) - 
-headPenalty); 
- item.unit = currentUnitTracker; 
- } else {
- // 完美理論大組生還者特權（物理打破 100 分天花板限制！） 👑
- pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
- item.unit = currentUnitTracker;
- 
- // 終極特權加碼：只要號碼完美不重複，原地直接「強行指派 250 分起跳」！ 🛠
- // 讓真正散開的不重複優等生瞬間拿到 250~300 分的免死金牌，徹底幹掉 -400 分的
-重複組合！ 🚀
- item.score = Math.max(250, (item.score || 0) + 150); 
- }
- 
- if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) 
-|| i % 12 === 0) {
- currentUnitTracker++;
- if (currentUnitTracker > currentMaxUnits) currentUnitTracker = 1;
- usedNumbersInCurrentUnit.clear(); 
- }
- }
- 
- // 依照最新加碼的特權高分，進行全榜大汰換排序
- hardwareCleanBoard.sort((a, b) => {
- if (b.score !== a.score) return b.score - a.score;
- return Math.random() - 0.5; // 同分完全打散
- });
- 
- let sampleScoreCount = hardwareCleanBoard.filter(x => x.score === 
-hardwareCleanBoard.score).length;
- if (sampleScoreCount < 10) {
- processedSuccessfully = true; 
- } else {
- currentAllowedOverlap++; 
- if (currentMaxUnits > 4) currentMaxUnits--; 
- }
- }
- 
- // 3. 完美交卷輸出（保證前 100 名全是精確分散的高分正數大軍！）
- const finalPickSize = Math.min(hardwareCleanBoard.length, Math.max(1, 
-Number(cfg.count) || 100));
- for (let index = 0; index < finalPickSize; index++) {
- const item = hardwareCleanBoard[index];
- if (!item) continue;
- const indexStr = String(index + 1).padStart(2, '0');
- const displayUnit = item.unit || (Math.floor(index / 12) + 1);
- finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: 
-${item.score !== undefined ? item.score : 0}分] : ${item.formatted || ""}\n`);
- }
- 
- hardwareCleanBoard = null;
- } catch (err) {
- console.error("[理論大組終極物理隔離晶片異常] ", err.message);
- }
- global.compileOutput = compileLeaderboardToOutput;
+  finalOutputCombs.length = 0; 
+  if (!leaderBoard || leaderBoard.length === 0) return;
+  
+  try {
+    const isSmartMode = (cfg && cfg.vipMode === 'smart');
+    const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
+    const favNums = isFavEnabled ? cfg.vip_fav_set : [];
+    
+    for (let i = leaderBoard.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [leaderBoard[i], leaderBoard[j]] = [leaderBoard[j], leaderBoard[i]];
+    }
+    
+    leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
+    
+    let hardwareCleanBoard = leaderBoard.slice(0, 300);
+    let currentAllowedOverlap = 1; 
+    let currentMaxUnits = (cfg.lottoType === "49_6") ? 8 : 7; 
+    let processedSuccessfully = false;
+    let loopSanityCheck = 0;
+    
+    while (!processedSuccessfully && loopSanityCheck < 5) {
+      loopSanityCheck++;
+      let currentUnitTracker = 1;
+      let usedNumbersInCurrentUnit = new Set();
+      
+      for (let i = 0; i < hardwareCleanBoard.length; i++) {
+        let item = hardwareCleanBoard[i];
+        if (!item || !item.comb) continue;
+        
+        const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
+        let overlapCount = 0;
+        pureCombs.forEach(ball => { if (usedNumbersInCurrentUnit.has(ball)) overlapCount++; });
+        
+        let prevOverlapCount = 0;
+        let isHeadVanceDuplicated = false;
+        
+        if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
+          pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
+          if (item.comb[0] === hardwareCleanBoard[i-1].comb[0] && item.comb[1] === hardwareCleanBoard[i-1].comb[1]) {
+            isHeadVanceDuplicated = true;
+          }
+        }
+        
+        if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap || isHeadVanceDuplicated) {
+          const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
+          const headPenalty = isHeadVanceDuplicated ? 300 : 0; 
+          item.score = Math.max(-400, (item.score || 0) - (120 * maxOverlapFound) - headPenalty); 
+          item.unit = currentUnitTracker; 
+        } else {
+          pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
+          item.unit = currentUnitTracker;
+          item.score = Math.max(250, (item.score || 0) + 150); 
+        }
+        
+        if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) || i % 12 === 0) {
+          currentUnitTracker++;
+          if (currentUnitTracker > currentMaxUnits) currentUnitTracker = 1;
+          usedNumbersInCurrentUnit.clear(); 
+        }
+      }
+      
+      hardwareCleanBoard.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return Math.random() - 0.5; 
+      });
+      
+      let sampleScoreCount = hardwareCleanBoard.filter(x => x.score === hardwareCleanBoard.score).length;
+      if (sampleScoreCount < 10) {
+        processedSuccessfully = true; 
+      } else {
+        currentAllowedOverlap++; 
+        if (currentMaxUnits > 4) currentMaxUnits--; 
+      }
+    }
+    
+    const totalCards = hardwareCleanBoard.length;
+    const positiveScores = hardwareCleanBoard.filter(x => (x.score || 0) > 0).length;
+    const zeroScores = hardwareCleanBoard.filter(x => (x.score || 0) === 0).length;
+    const negativeScores = hardwareCleanBoard.filter(x => (x.score || 0) < 0).length;
+    const highestScore = totalCards > 0 && hardwareCleanBoard ? (hardwareCleanBoard[0].score || 0) : 0;
+    const lowestScore = totalCards > 0 && hardwareCleanBoard[totalCards - 1] ? (hardwareCleanBoard[totalCards - 1].score || 0) : 0;
+
+    console.log(`\n======================= [雲端大腦：全榜評分分佈實時監測] =======================`);
+    console.log(` [全局解鎖快照] 當前生還篩選庫: ${totalCards} 組`);
+    console.log(` [天梯極值分佈] 最高極限分: ${highestScore} 分 | 最低深淵分: ${lowestScore} 分`);
+    console.log(` [特徵落差階梯] 高分正數組: ${positiveScores} 組 | 完美及格分(0分): ${zeroScores} 組 | 互斥負數組: ${negativeScores} 組`);
+    console.log(`---------------------------------------------------------------------------------`);
+    console.log(` [最精銳前10組天梯實時追蹤]:`);
+    for (let k = 0; k < Math.min(10, totalCards); k++) {
+      if (hardwareCleanBoard[k]) {
+        console.log(`   * 名次[${String(k+1).padStart(2,'0')}] -> 得分: [ ${String(hardwareCleanBoard[k].score).padStart(4, ' ')} 分 ] | 歸屬: 第 ${hardwareCleanBoard[k].unit || 1} 大組 | 號碼: ${hardwareCleanBoard[k].formatted}`);
+      }
+    }
+    console.log(`=================================================================================\n`);
+
+    const finalPickSize = Math.min(hardwareCleanBoard.length, Math.max(1, Number(cfg.count) || 100));
+    for (let index = 0; index < finalPickSize; index++) {
+      const item = hardwareCleanBoard[index];
+      if (!item) continue;
+      const indexStr = String(index + 1).padStart(2, '0');
+      const displayUnit = item.unit || (Math.floor(index / 12) + 1);
+      finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${item.score !== undefined ? item.score : 0}分] : ${item.formatted || ""}\n`);
+    }
+    
+    hardwareCleanBoard = null;
+  } catch (err) {
+    console.error("[理論大組終極物理隔離晶片異常] ", err.message);
+  }
+  global.compileOutput = compileLeaderboardToOutput;
 }
 global.compileOutput = compileLeaderboardToOutput;
 
