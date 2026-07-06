@@ -535,38 +535,61 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
   }
 
 if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-     if (typeof safetyTimeout !== 'undefined') {
-         clearTimeout(safetyTimeout);
-         console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
-     }
-     leaderBoard.length = 0;
-     leaderBoard.push(...msg.leaderBoard);
-     console.log(`=======================================================`);
-     console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
-     console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
-     console.log(`=======================================================`);
-     
-     // 👑 【續命自癒核心咬合點】：大結局交卷前，搶先將標記強行轉為 true！
-     // 這會讓第 653 行的 heartbeatTimer 在下一微秒內自動關閉，完美封殺所有打架崩潰！
-     isFinished = true; 
-     
-     // 強制在主執行緒結束前，把號碼倒出為文字
-     compileLeaderboardToOutput();
-     
-     // 👑 全量大打包，一發擊穿 Render 免費牆發射！
-     return res.json({
-         success: true,
-         isProgress: false,
-         isCompleted: true,
-         percent: 100,
-         currentMatch: leaderBoard.length,
-         scanned: absoluteMaxTotal,
-         maxTotal: absoluteMaxTotal,
-         totalGen: msg.totalGen || absoluteMaxTotal,
-         fullStats: msg.stats,
-         outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
-     });
- }
+  // 1. 安全解除 5 分鐘極限熔斷計時器
+  if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
+    clearTimeout(safetyTimeout);
+    console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+  }
+
+  // 2. 物理洗牌並接軌排行榜快照
+  leaderBoard.length = 0;
+  if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
+    leaderBoard.push(...msg.leaderBoard);
+  }
+  
+  console.log(`=======================================================`);
+  console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
+  console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+  console.log(`=======================================================`);
+  
+  // 3. 【滿血續命自癒核心咬合點】：搶先鎖定主控標記，並強制清除 10 秒心跳包定時器！ 🔥
+  isFinished = true; 
+  if (typeof heartbeatTimer !== 'undefined' && heartbeatTimer !== null) {
+    clearInterval(heartbeatTimer);
+    console.log(`[自癒通訊鎖] 主緒已成功截斷背景續命心跳包，預備進行最終串流合龍。`);
+  }
+
+  // 4. 觸發黃金百名榜秒速互斥打散晶片
+  compileLeaderboardToOutput();
+  
+  // 5. 【終極核心重構】：放棄 res.json()，改用安全串流 res.write() 倒出最終結果並以 res.end() 收網 🔬
+  try {
+    if (!res.writableEnded) {
+      res.write(JSON.stringify({
+        success: true,
+        isProgress: false,
+        isCompleted: true,
+        percent: 100,
+        currentMatch: leaderBoard.length,
+        scanned: absoluteMaxTotal,
+        maxTotal: absoluteMaxTotal,
+        totalGen: msg.totalGen || absoluteMaxTotal,
+        fullStats: msg.stats || Array.from(killStats),
+        outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
+      }) + "\n");
+      
+      res.end();
+      console.log(`[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。🌟`);
+    }
+  } catch (streamErr) {
+    console.error("[竣工發射突發攔截] 串流寫入失敗（可能用戶於網頁端提早斷開連線）：", streamErr.message);
+  } finally {
+    global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
+  }
+  
+  return;
+}
+
  });
 
  // 輔助晶片：將計分板數據滾動倒出到原本的交付容器中，維持與前台的對齊
