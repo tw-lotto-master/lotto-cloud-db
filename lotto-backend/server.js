@@ -493,232 +493,264 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
  // ======= 【2026 核心串流交互觀測接收艙：輕量減肥與動態狀態發射版】 ─── ======= 🟢 🎯
 const leaderBoard = [];
 worker.on('message', (msg) => {
-  if (isFinished) return;
-  const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
-  
-  if (msg.type === 'TOTAL_SCAN_PROGRESS') {
-    liveScannedCount = msg.scanned;
-    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
-    if (currentProgressPercent < 5) currentProgressPercent = 5;
-    
-    if (msg.scanned % 500000 === 0 || msg.scanned === absoluteMaxTotal) {
-      console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
-      if (msg.stats) {
-        const s = msg.stats;
-        console.log(`\n======================= [16防線動態擊殺全景觀測] 📊 =======================`);
-        console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): 📌 ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
-        console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): 📌 ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
-        console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): 📌 ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
-        console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): 📌 ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
-        console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數) : 📌 ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
-        console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
-        console.log(`=================================================================================\n`);
-      }
-    }
-    
-    try {
-      if (!res.writableEnded) {
-        res.write(JSON.stringify({ 
-          isProgress: true, 
-          percent: currentProgressPercent, 
-          currentMatch: leaderBoard.length,
-          scanned: msg.scanned,
-          maxTotal: absoluteMaxTotal,
-          totalGen: msg.totalGen || 0
-        }) + "\n");
-      }
-    } catch (e) {}
-    return;
-  }
-  
-  if (msg.type === 'CHUNK_SYNC_BOARD') {
-    return;
-  }
-  
-  if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-    if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
-      clearTimeout(safetyTimeout);
-      console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
-    }
-    
-    leaderBoard.length = 0;
-    if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
-      leaderBoard.push(...msg.leaderBoard);
-    }
-    
-    console.log(`=======================================================`);
-    console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
-    console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
-    console.log(`=======================================================`);
-    
-    isFinished = true; 
-    if (global.heartbeatTimer) {
-      clearInterval(global.heartbeatTimer);
-      global.heartbeatTimer = null;
-      console.log(`[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。`);
-    }
-    
-    try {
-      if (!res.writableEnded) {
-        res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "SCORING", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
-      }
-    } catch (e) {}
-    
-    compileLeaderboardToOutput();
-    
-    try {
-      if (!res.writableEnded) {
-        res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "MUTUAL_EXCLUSION", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
-      }
-    } catch (e) {}
-    
-    try {
-      if (!res.writableEnded) {
-        res.write(JSON.stringify({
-          success: true,
-          isProgress: false,
-          isCompleted: true,
-          percent: 100,
-          currentMatch: leaderBoard.length,
-          scanned: absoluteMaxTotal,
-          maxTotal: absoluteMaxTotal,
-          totalGen: msg.totalGen || absoluteMaxTotal,
-          fullStats: [], 
-          outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
-        }) + "\n");
-        res.end(); 
-        console.log(`[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。🌟`);
-      }
-    } catch (streamErr) {
-      console.error("[竣工發射突發攔截] 串流寫入失敗：", streamErr.message);
-    } finally {
-      global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
-    }
-    return;
-  }
+ if (isFinished) return;
+ const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 
+575757);
+ 
+ if (msg.type === 'TOTAL_SCAN_PROGRESS') {
+ liveScannedCount = msg.scanned;
+ let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / 
+absoluteMaxTotal) * 100));
+ if (currentProgressPercent < 5) currentProgressPercent = 5;
+ 
+ if (msg.scanned % 500000 === 0 || msg.scanned === absoluteMaxTotal) {
+ console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 
+(${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
+ if (msg.stats) {
+ const s = msg.stats;
+ console.log(`\n======================= [16防線動態擊殺全景觀測] 📊
+=======================`);
+ console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): 
+📌 ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
+ console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): 
+📌 ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
+ console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): 
+📌 ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
+ console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): 
+📌 ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
+ console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數) 
+: ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`); 📌
+ console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
+ 
+console.log(`==========================================================================
+=======\n`);
+ }
+ }
+ 
+ try {
+ if (!res.writableEnded) {
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: currentProgressPercent, 
+ currentMatch: leaderBoard.length,
+ scanned: msg.scanned,
+ maxTotal: absoluteMaxTotal,
+ totalGen: msg.totalGen || 0
+ }) + "\n");
+ }
+ } catch (e) {}
+ return;
+ }
+ 
+ if (msg.type === 'CHUNK_SYNC_BOARD') {
+ return;
+ }
+ 
+ if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+ if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
+ clearTimeout(safetyTimeout);
+ console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+ }
+ 
+ leaderBoard.length = 0;
+ if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
+ leaderBoard.push(...msg.leaderBoard);
+ }
+ 
+ console.log(`=======================================================`);
+ console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
+ console.log(` 最終死守並交付全榜最優解：${leaderBoard.length} 組名牌`);
+ console.log(`=======================================================`);
+ 
+ isFinished = true; 
+ if (global.heartbeatTimer) {
+ clearInterval(global.heartbeatTimer);
+ global.heartbeatTimer = null;
+ console.log(`[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。`);
+ }
+ 
+ try {
+ if (!res.writableEnded) {
+ res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "SCORING", 
+scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || 
+absoluteMaxTotal }) + "\n");
+ }
+ } catch (e) {}
+ 
+ compileLeaderboardToOutput();
+ 
+ try {
+ if (!res.writableEnded) {
+ res.write(JSON.stringify({ isProgress: true, percent: 99, stage: 
+"MUTUAL_EXCLUSION", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: 
+msg.totalGen || absoluteMaxTotal }) + "\n");
+ }
+ } catch (e) {}
+ 
+ try {
+ if (!res.writableEnded) {
+ res.write(JSON.stringify({
+ success: true,
+ isProgress: false,
+ isCompleted: true,
+ percent: 100,
+ currentMatch: leaderBoard.length,
+ scanned: absoluteMaxTotal,
+ maxTotal: absoluteMaxTotal,
+ totalGen: msg.totalGen || absoluteMaxTotal,
+ fullStats: [], 
+ outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：
+\n${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：
+\n-------------------------\n` + finalOutputCombs.join('') + 
+`-------------------------\n`
+ }) + "\n");
+ res.end(); 
+ console.log(`[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。 `); 🌟
+ }
+ } catch (streamErr) {
+ console.error("[竣工發射突發攔截] 串流寫入失敗：", streamErr.message);
+ } finally {
+ global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
+ }
+ return;
+ }
 });
-
 function compileLeaderboardToOutput() {
-  finalOutputCombs.length = 0; 
-  if (!leaderBoard || leaderBoard.length === 0) return;
-  
-  try {
-    const isSmartMode = (cfg && cfg.vipMode === 'smart');
-    const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
-    const favNums = isFavEnabled ? cfg.vip_fav_set : [];
-    
-    if (!isSmartMode) {
-      leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
-      leaderBoard.forEach((item, index) => {
-        const indexStr = String(index + 1).padStart(2, '0');
-        finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: ${item.score || 0}分] : ${item.formatted || ""}\n`);
-      });
-      return;
-    }
-    
-    // =========================================================================
-    // 🧠【究極體重大改裝】：在進行任何裁切前，強制對 1200 組全量生還庫實施 Fisher-Yates 混沌洗牌！
-    // 徹底打碎子執行緒拋出時「開頭整整齊齊全部扎堆黏在一起（01, 02, 05）」的自然排隊序列！ 🔥
-    // =========================================================================
-    for (let i = leaderBoard.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [leaderBoard[i], leaderBoard[j]] = [leaderBoard[j], leaderBoard[i]];
-    }
-    
-    // 洗牌打碎後，先讓大軍團依照原始大數據特徵加減分（健康分由高到低）排序
-    leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
-    
-    // 👑【物理高分取代核心】：此時挑選出來的前 150 組種子，開頭數字已經極致散開（包含大量不同的黃金種子）
-    let hardwareCleanBoard = leaderBoard.slice(0, 150);
-    
-    let currentAllowedOverlap = 1; 
-    let currentMaxUnits = (cfg.lottoType === "49_6") ? 8 : 7; 
-    let processedSuccessfully = false;
-    let loopSanityCheck = 0;
-    
-    while (!processedSuccessfully && loopSanityCheck < 5) {
-      loopSanityCheck++;
-      let currentUnitTracker = 1;
-      let usedNumbersInCurrentUnit = new Set();
-      
-      for (let i = 0; i < hardwareCleanBoard.length; i++) {
-        let item = hardwareCleanBoard[i];
-        if (!item || !item.comb) continue;
-        
-        const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
-        
-        let overlapCount = 0;
-        pureCombs.forEach(ball => { if (usedNumbersInCurrentUnit.has(ball)) overlapCount++; });
-        
-        let prevOverlapCount = 0;
-        let isHeadVanceDuplicated = false;
-        
-        if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
-          pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
-          
-          // 🛠️【開頭防線二合一】：嚴格防堵連號與扎堆號
-          if (item.comb[0] === hardwareCleanBoard[i-1].comb[0] && item.comb[1] === hardwareCleanBoard[i-1].comb[1]) {
-            isHeadVanceDuplicated = true;
-          }
-        }
-        
-        // 🔥【2026 物理阻斷鐵網】：只要與同大組重複 1 碼，或是開頭 2 碼死黏，立刻實施「重扣 120 分」處罰！
-        if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap || isHeadVanceDuplicated) {
-          const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
-          const headPenalty = isHeadVanceDuplicated ? 300 : 0; 
-          
-          item.score = Math.max(-400, (item.score || 0) - (120 * maxOverlapFound) - headPenalty); 
-          item.unit = currentUnitTracker; 
-        } else {
-          // 👑 完美理論大組生還者特權（物理打破 100 分天花板限制！）
-          pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
-          item.unit = currentUnitTracker;
-          
-          // 🛠️ 終極特權加碼：只要號碼完美不重複，原地直接「強行指派 250 分起跳」！
-          // 讓真正散開的不重複優等生瞬間拿到 250~300 分的免死金牌，徹底幹掉 -400 分的重複組合！ 🚀
-          item.score = Math.max(250, (item.score || 0) + 150); 
-        }
-        
-        if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) || i % 12 === 0) {
-          currentUnitTracker++;
-          if (currentUnitTracker > currentMaxUnits) currentUnitTracker = 1;
-          usedNumbersInCurrentUnit.clear(); 
-        }
-      }
-      
-      // 依照最新加碼的特權高分，進行全榜大汰換排序
-      hardwareCleanBoard.sort((a, b) => {
-        if (b.score !== a.score) return b.score - a.score;
-        return Math.random() - 0.5; // 同分完全打散
-      });
-      
-      let sampleScoreCount = hardwareCleanBoard.filter(x => x.score === hardwareCleanBoard.score).length;
-      if (sampleScoreCount < 10) {
-        processedSuccessfully = true; 
-      } else {
-        currentAllowedOverlap++; 
-        if (currentMaxUnits > 4) currentMaxUnits--; 
-      }
-    }
-    
-    // 3. 完美交卷輸出（保證前 100 名全是精確分散的高分正數大軍！）
-    const finalPickSize = Math.min(hardwareCleanBoard.length, Math.max(1, Number(cfg.count) || 100));
-    for (let index = 0; index < finalPickSize; index++) {
-      const item = hardwareCleanBoard[index];
-      if (!item) continue;
-      const indexStr = String(index + 1).padStart(2, '0');
-      const displayUnit = item.unit || (Math.floor(index / 12) + 1);
-      finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${item.score !== undefined ? item.score : 0}分] : ${item.formatted || ""}\n`);
-    }
-    
-    hardwareCleanBoard = null;
-  } catch (err) {
-    console.error("[理論大組終極物理隔離晶片異常] ", err.message);
-  }
-  global.compileOutput = compileLeaderboardToOutput;
+ finalOutputCombs.length = 0; 
+ if (!leaderBoard || leaderBoard.length === 0) return;
+ 
+ try {
+ const isSmartMode = (cfg && cfg.vipMode === 'smart');
+ const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && 
+cfg.vip_fav_set.length > 0);
+ const favNums = isFavEnabled ? cfg.vip_fav_set : [];
+ 
+ if (!isSmartMode) {
+ leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
+ leaderBoard.forEach((item, index) => {
+ const indexStr = String(index + 1).padStart(2, '0');
+ finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: ${item.score || 
+0}分] : ${item.formatted || ""}\n`);
+ });
+ return;
+ }
+ 
+ // =========================================================================
+ // 【究極體重大改裝】：在進行 any 裁切前，強制對 1200 組全量生還庫實施 🧠
+Fisher-Yates 混沌洗牌！
+ // 徹底打碎子執行緒拋出時「開頭整整齊齊全部扎堆黏在一起（01, 02, 05）」的自然排隊序
+列！ 🔥
+ // =========================================================================
+ for (let i = leaderBoard.length - 1; i > 0; i--) {
+ const j = Math.floor(Math.random() * (i + 1));
+ [leaderBoard[i], leaderBoard[j]] = [leaderBoard[j], leaderBoard[i]];
+ }
+ 
+ // 洗牌打碎後，先讓大軍團依照原始大數據特徵加減分（健康分由高到低）排序
+ leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
+ 
+ // 【物理高分取代核心】：此時挑選出來的前 150 組種子，開頭數字已經極致散開（包含 👑
+大量不同的黃金種子）
+ let hardwareCleanBoard = leaderBoard.slice(0, 150);
+ 
+ let currentAllowedOverlap = 1; 
+ let currentMaxUnits = (cfg.lottoType === "49_6") ? 8 : 7; 
+ let processedSuccessfully = false;
+ let loopSanityCheck = 0;
+ 
+ while (!processedSuccessfully && loopSanityCheck < 5) {
+ loopSanityCheck++;
+ let currentUnitTracker = 1;
+ let usedNumbersInCurrentUnit = new Set();
+ 
+ for (let i = 0; i < hardwareCleanBoard.length; i++) {
+ let item = hardwareCleanBoard[i];
+ if (!item || !item.comb) continue;
+ 
+ const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
+ 
+ let overlapCount = 0;
+ pureCombs.forEach(ball => { if (usedNumbersInCurrentUnit.has(ball)) 
+overlapCount++; });
+ 
+ let prevOverlapCount = 0;
+ let isHeadVanceDuplicated = false;
+ if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
+ pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) 
+prevOverlapCount++; });
+ 
+ // 【開頭防線二合一】：嚴格防堵連號與扎堆號 🛠
+ if (item.comb[0] === hardwareCleanBoard[i-1].comb[0] && item.comb[1] === 
+hardwareCleanBoard[i-1].comb[1]) {
+ isHeadVanceDuplicated = true;
+ }
+ }
+ 
+ // 【2026 物理阻斷鐵網】：精度重複 1 碼紅線，或是開頭 2 碼死黏，立刻實施 🔥
+「重扣 120 分」處罰！
+ if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= 
+currentAllowedOverlap || isHeadVanceDuplicated) {
+ const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
+ const headPenalty = isHeadVanceDuplicated ? 300 : 0; 
+ 
+ item.score = Math.max(-400, (item.score || 0) - (120 * maxOverlapFound) - 
+headPenalty); 
+ item.unit = currentUnitTracker; 
+ } else {
+ // 完美理論大組生還者特權（物理打破 100 分天花板限制！） 👑
+ pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
+ item.unit = currentUnitTracker;
+ 
+ // 終極特權加碼：只要號碼完美不重複，原地直接「強行指派 250 分起跳」！ 🛠
+ // 讓真正散開的不重複優等生瞬間拿到 250~300 分的免死金牌，徹底幹掉 -400 分的
+重複組合！ 🚀
+ item.score = Math.max(250, (item.score || 0) + 150); 
+ }
+ 
+ if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) 
+|| i % 12 === 0) {
+ currentUnitTracker++;
+ if (currentUnitTracker > currentMaxUnits) currentUnitTracker = 1;
+ usedNumbersInCurrentUnit.clear(); 
+ }
+ }
+ 
+ // 依照最新加碼的特權高分，進行全榜大汰換排序
+ hardwareCleanBoard.sort((a, b) => {
+ if (b.score !== a.score) return b.score - a.score;
+ return Math.random() - 0.5; // 同分完全打散
+ });
+ 
+ let sampleScoreCount = hardwareCleanBoard.filter(x => x.score === 
+hardwareCleanBoard.score).length;
+ if (sampleScoreCount < 10) {
+ processedSuccessfully = true; 
+ } else {
+ currentAllowedOverlap++; 
+ if (currentMaxUnits > 4) currentMaxUnits--; 
+ }
+ }
+ 
+ // 3. 完美交卷輸出（保證前 100 名全是精確分散的高分正數大軍！）
+ const finalPickSize = Math.min(hardwareCleanBoard.length, Math.max(1, 
+Number(cfg.count) || 100));
+ for (let index = 0; index < finalPickSize; index++) {
+ const item = hardwareCleanBoard[index];
+ if (!item) continue;
+ const indexStr = String(index + 1).padStart(2, '0');
+ const displayUnit = item.unit || (Math.floor(index / 12) + 1);
+ finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: 
+${item.score !== undefined ? item.score : 0}分] : ${item.formatted || ""}\n`);
+ }
+ 
+ hardwareCleanBoard = null;
+ } catch (err) {
+ console.error("[理論大組終極物理隔離晶片異常] ", err.message);
+ }
+ global.compileOutput = compileLeaderboardToOutput;
 }
-
 global.compileOutput = compileLeaderboardToOutput;
+
 
  });
 
@@ -1198,145 +1230,167 @@ if (f13_on) {
 // =========================================================================
 // 【2026 後端大腦生存審查總閘門 ── 100% 變數咬合、括號完全體】
 // =========================================================================
-  const killStats = new Uint32Array(16);
-  let totalGeneratedTestCount = 0;
-  function isGeneSurvive(comb) {
-    totalGeneratedTestCount++;
-    for (let i = 0; i < filters.length; i++) {
-      if (filters[i].exec(comb)) { if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; return false; }
-    }
-    if (f15_on) {
-      const splitCount = pickCount - 1; let conflict = false;
-      const checkDfs = (start, curr) => {
-        if (conflict) return; if (curr.length === splitCount) { if (historyEvapSet.has(curr.join(','))) conflict = true; return; }
-        for (let i = start; i < comb.length; i++) checkDfs(i + 1, [...curr, comb[i]]);
-      };
-      checkDfs(0, []); if (conflict) { if (killStats && killStats[15] !== undefined) killStats[15]++; return false; }
-    }
-    return true;
-  }
-
-  let scannedCount = 0;
-  const getDynamicMaxCombs = () => {
-    const n = basePool.length; const favCount = vip_fav_on && typeof favBalls !== 'undefined' ? favBalls.length : 0;
-    const n_final = n - favCount; const k_final = (lottoType === "49_6" ? 6 : 5) - favCount;
-    if (n_final < k_final || k_final < 0) return 0;
-    let num = 1, den = 1; for (let i = 0; i < k_final; i++) { num *= (n_final - i); den *= (i + 1); }
-    return Math.floor(num / den);
-  };
-  const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 575757);
-  let localTotalGen = 0; let localLeaderBoard = [];
-  let minScoreInLocalBoard = -99999;
-  const pickLimit = Math.min(100, Math.max(1, Number(cfg.count) || 100));
-  const candidateLimit = Math.max(1000, pickLimit * 12); 
-
-  function processAndLocalPK(combination) {
-    if (!isGeneSurvive(combination)) return;
-    let healthScore = 100; 
-    
-    if (cfg.scoreTotalSum) {
-      const sumVal = combination.reduce((x, y) => x + y, 0);
-      if (lottoType === "49_6") { 
-        if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
-        else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20;
-        else healthScore -= 50;
-      } else { 
-        if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
-        else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
-        else healthScore -= 50;
-      }
-    }
-    if (cfg.scoreOddEven) {
-      let oddsCount = 0; combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
-      if (lottoType === "49_6") {
-        if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
-        else if (oddsCount === 3) healthScore += 30;
-        else healthScore -= 50;
-      } else {
-        if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
-        else healthScore -= 50;
-      }
-    }
-    if (cfg.scoreBigSmall) {
-      const midPoint = lottoType === "49_6" ? 25 : 20;
-      let bigCount = 0; combination.forEach(num => { if (num >= midPoint) bigCount++; });
-      if (lottoType === "49_6") {
-        if (bigCount === 2 || bigCount === 4) healthScore += 50;
-        else if (bigCount === 3) healthScore += 30;
-        else healthScore -= 50;
-      } else {
-        if (bigCount === 2 || bigCount === 3) healthScore += 50;
-        else healthScore -= 50;
-      }
-    }
-    if (cfg.scoreConsecutive) {
-      let currentSeq = 1, maxSeq = 1, totalPairs = 0; 
-      for (let m = 1; m < combination.length; m++) {
-        if (combination[m] === combination[m - 1] + 1) { currentSeq++; totalPairs++; if (currentSeq > maxSeq) maxSeq = currentSeq; } 
-        else currentSeq = 1;
-      }
-      if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
-      else if (maxSeq === 1) healthScore += 30;
-      else healthScore -= 50;
-    }
-    if (cfg.score012Route) {
-      let r0 = 0, r1 = 0, r2 = 0; combination.forEach(num => { const rem = num % 3; if (rem === 0) r0++; else if (rem === 1) r1++; else r2++; });
-      if (lottoType === "49_6") {
-        if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
-        else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
-      } else {
-        if ((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) healthScore += 50;
-        else healthScore -= 50;
-      }
-    }
-
-    const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
-    if (localLeaderBoard.length < candidateLimit) {
-      localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-      if (localLeaderBoard.length === candidateLimit) {
-        localLeaderBoard.sort((a, b) => b.score - a.score); minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
-      }
-    } else if (healthScore > minScoreInLocalBoard) {
-      localLeaderBoard.pop(); localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
-      localLeaderBoard.sort((a, b) => (b.score - a.score)); minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
-    }
-  }
-
-  async function triggerChunkFlush() {
-    if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
-      const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
-      parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, percent: currentPercent, stats: Array.from(killStats), totalGen: localTotalGen });
-      await new Promise(res => { if (typeof setImmediate !== 'undefined') setImmediate(res); else setTimeout(res, 1); });
-    }
-  }
-
-  (async function runDeterministicBrain() {
-    const favSet = new Set(favBalls); const remainingPool = basePool.filter(ball => !favSet.has(ball)); remainingPool.sort((a, b) => a - b);
-    const pLen = remainingPool.length; const requiredSlots = pickCount - favBalls.length; 
-    let currentSelection = new Array(requiredSlots);
-    async function dfs(level, startIndex) {
-      if (scannedCount >= maxCombinations) return;
-      if (level === requiredSlots) {
-        scannedCount++; localTotalGen++;
-        let combination = [...favBalls, ...currentSelection].sort((a, b) => a - b);
-        processAndLocalPK(combination);
-        await triggerChunkFlush(); return;
-      }
-      for (let i = startIndex; i < pLen; i++) { currentSelection[level] = remainingPool[i]; await dfs(level + 1, i + 1); }
-    }
-    await dfs(0, 0);
-    
-    localLeaderBoard.sort((a, b) => b.score - a.score);
-    
-    parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, total: scannedCount, stats: Array.from(killStats), totalGen: localTotalGen });
-    parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: localLeaderBoard }); 
-  })();
+ const killStats = new Uint32Array(16);
+ let totalGeneratedTestCount = 0;
+ function isGeneSurvive(comb) {
+ totalGeneratedTestCount++;
+ for (let i = 0; i < filters.length; i++) {
+ if (filters[i].exec(comb)) { if (filters[i].id >= 0 && filters[i].id < 16) 
+killStats[filters[i].id]++; return false; }
+ }
+ if (f15_on) {
+ const splitCount = pickCount - 1; let conflict = false;
+ const checkDfs = (start, curr) => {
+ if (conflict) return; if (curr.length === splitCount) { if 
+(historyEvapSet.has(curr.join(','))) conflict = true; return; }
+ for (let i = start; i < comb.length; i++) checkDfs(i + 1, [...curr, comb[i]]);
+ };
+ checkDfs(0, []); if (conflict) { if (killStats && killStats[15] !== undefined) 
+killStats[15]++; return false; }
+ }
+ return true;
+ }
+ let scannedCount = 0;
+ const getDynamicMaxCombs = () => {
+ const n = basePool.length; const favCount = vip_fav_on && typeof favBalls !== 
+'undefined' ? favBalls.length : 0;
+ const n_final = n - favCount; const k_final = (lottoType === "49_6" ? 6 : 5) - 
+favCount;
+ if (n_final < k_final || k_final < 0) return 0;
+ let num = 1, den = 1; for (let i = 0; i < k_final; i++) { num *= (n_final - i); den
+*= (i + 1); }
+ return Math.floor(num / den);
+ };
+ const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 
+575757);
+ let localTotalGen = 0; let localLeaderBoard = [];
+ let minScoreInLocalBoard = -99999;
+ const pickLimit = Math.min(100, Math.max(1, Number(cfg.count) || 100));
+ const candidateLimit = Math.max(1000, pickLimit * 12); 
+ function processAndLocalPK(combination) {
+ if (!isGeneSurvive(combination)) return;
+ let healthScore = 100; 
+ 
+ if (cfg.scoreTotalSum) {
+ const sumVal = combination.reduce((x, y) => x + y, 0);
+ if (lottoType === "49_6") { 
+ if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
+ else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) 
+healthScore += 20;
+ else healthScore -= 50;
+ } else { 
+ if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
+ else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) 
+healthScore += 20;
+ else healthScore -= 50;
+ }
+ }
+ if (cfg.scoreOddEven) {
+ let oddsCount = 0; combination.forEach(num => { if ((num & 1) === 1) oddsCount++;
+});
+ if (lottoType === "49_6") {
+ if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
+ else if (oddsCount === 3) healthScore += 30;
+ else healthScore -= 50;
+ } else {
+ if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
+ else healthScore -= 50;
+ }
+ }
+ if (cfg.scoreBigSmall) {
+ const midPoint = lottoType === "49_6" ? 25 : 20;
+ let bigCount = 0; combination.forEach(num => { if (num >= midPoint) bigCount++; 
+});
+ if (lottoType === "49_6") {
+ if (bigCount === 2 || bigCount === 4) healthScore += 50;
+ else if (bigCount === 3) healthScore += 30;
+ else healthScore -= 50;
+ } else {
+ if (bigCount === 2 || bigCount === 3) healthScore += 50;
+ else healthScore -= 50;
+ }
+ }
+ if (cfg.scoreConsecutive) {
+ let currentSeq = 1, maxSeq = 1, totalPairs = 0; 
+ for (let m = 1; m < combination.length; m++) {
+ if (combination[m] === combination[m - 1] + 1) { currentSeq++; totalPairs++; if
+(currentSeq > maxSeq) maxSeq = currentSeq; } 
+ else currentSeq = 1;
+ }
+ if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
+ else if (maxSeq === 1) healthScore += 30;
+ else healthScore -= 50;
+ }
+ if (cfg.score012Route) {
+ let r0 = 0, r1 = 0, r2 = 0; combination.forEach(num => { const rem = num % 3; if 
+(rem === 0) r0++; else if (rem === 1) r1++; else r2++; });
+ if (lottoType === "49_6") {
+ if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
+ else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
+ } else {
+ if 
+((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) 
+healthScore += 50;
+ else healthScore -= 50;
+ }
+ }
+ const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
+ if (localLeaderBoard.length < candidateLimit) {
+ localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+ if (localLeaderBoard.length === candidateLimit) {
+ localLeaderBoard.sort((a, b) => b.score - a.score); minScoreInLocalBoard = 
+localLeaderBoard[candidateLimit - 1].score;
+ }
+ } else if (healthScore > minScoreInLocalBoard) {
+ localLeaderBoard.pop(); localLeaderBoard.push({ score: healthScore, comb: 
+combination, formatted });
+ localLeaderBoard.sort((a, b) => (b.score - a.score)); minScoreInLocalBoard = 
+localLeaderBoard[candidateLimit - 1].score;
+ }
+ }
+ async function triggerChunkFlush() {
+ if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
+ const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 
+100), 100);
+ parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, 
+maxTotal: maxCombinations, percent: currentPercent, stats: Array.from(killStats), 
+totalGen: localTotalGen });
+ await new Promise(res => { if (typeof setImmediate !== 'undefined') 
+setImmediate(res); else setTimeout(res, 1); });
+ }
+ }
+ (async function runDeterministicBrain() {
+ const favSet = new Set(favBalls); const remainingPool = basePool.filter(ball => 
+!favSet.has(ball)); remainingPool.sort((a, b) => a - b);
+ const pLen = remainingPool.length; const requiredSlots = pickCount - 
+favBalls.length; 
+ let currentSelection = new Array(requiredSlots);
+ async function dfs(level, startIndex) {
+ if (scannedCount >= maxCombinations) return;
+ if (level === requiredSlots) {
+ scannedCount++; localTotalGen++;
+ let combination = [...favBalls, ...currentSelection].sort((a, b) => a - b);
+ processAndLocalPK(combination);
+ await triggerChunkFlush(); return;
+ }
+ for (let i = startIndex; i < pLen; i++) { currentSelection[level] = 
+remainingPool[i]; await dfs(level + 1, i + 1); }
+ }
+ await dfs(0, 0);
+ 
+ localLeaderBoard.sort((a, b) => b.score - a.score);
+ 
+ parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, 
+maxTotal: maxCombinations, total: scannedCount, stats: Array.from(killStats), totalGen:
+localTotalGen });
+ parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: 
+localLeaderBoard }); 
+ })();
 }
-
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("=======================================================");
-  console.log(" 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！ ");
-  console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
-  console.log("=======================================================");
+ console.log("=======================================================");
+ console.log(" 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！ ");
+ console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
+ console.log("=======================================================");
 });
