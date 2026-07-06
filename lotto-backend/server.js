@@ -679,37 +679,41 @@ function compileLeaderboardToOutput() {
   } catch (err) {
     console.error("[理論大組晶片異常] ", err.message);
   }
+  // 動態將此編譯函式掛載到全域，以便底下的超時處理器能同步正確收網
   global.compileOutput = compileLeaderboardToOutput;
 }
 
- 
- // =========================================================================
- // 【2026 終極續命防線】每 10 秒發送一次輕量心跳包，強行重置免費 Render 的 50 秒斷線大閘門！ 👑
- // =========================================================================
- global.heartbeatTimer = setInterval(() => {
- if (isFinished) {
- if (global.heartbeatTimer) {
- clearInterval(global.heartbeatTimer);
- global.heartbeatTimer = null;
- }
- return;
- }
- try {
- // 發射最極簡的輕量續命氣泡包，絕對不與大结局數據撞車
- res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 50 }) + "\n");
- } catch (e) {
- if (global.heartbeatTimer) {
- clearInterval(global.heartbeatTimer);
- global.heartbeatTimer = null;
- }
- }
- }, 10000);
- } catch (globalErr) {
- console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
- try { res.json({ success: false, message: `後台突發故障: ${globalErr.message}` }); } catch (e) {}
- }
-});
-} // 完美閉合主執行緒的完全體結構 🌟
+// =========================================================================
+// 【2026 終極續命防線】每 10 秒發送一次輕量心跳包，強行重置免費 Render 的 50 秒斷線大閘門！ 👑
+// =========================================================================
+global.heartbeatTimer = setInterval(() => {
+  if (isFinished) {
+    if (global.heartbeatTimer) {
+      clearInterval(global.heartbeatTimer);
+      global.heartbeatTimer = null;
+    }
+    return;
+  }
+  try {
+    // 發射最極簡的輕量續命氣泡包，絕對不與大结局數據撞車
+    res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 50 }) + "\n");
+  } catch (e) {
+    if (global.heartbeatTimer) {
+      clearInterval(global.heartbeatTimer);
+      global.heartbeatTimer = null;
+    }
+  }
+}, 10000);
+
+  } catch (globalErr) {
+    console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
+    try { 
+      res.write(JSON.stringify({ success: false, message: `後台突發故障: ${globalErr.message}` }) + "\n");
+      res.end();
+    } catch (e) {}
+  }
+ }); // 🎯 這裡完美閉合 worker.on('message', (msg) => {
+} // 完美閉合主執行緒的 `if (isMainThread) {` 完全體結構 🌟
 
 
 if (!isMainThread) {
