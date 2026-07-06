@@ -506,12 +506,12 @@ worker.on('message', (msg) => {
       if (msg.stats) {
         const s = msg.stats;
         console.log(`\n======================= [16防線動態擊殺全景觀測] 📊 =======================`);
-        console.log(` [基建防線] 條件01(地雷排除): ${s || 0} 組 | 條件02(首尾熱區): 📌 ${s || 0} 組 | 條件03(落點區塊): ${s || 0} 組`);
-        console.log(` [物理過濾] 條件04(同尾限制): ${s || 0} 組 | 條件05(奇偶比例): 📌 ${s || 0} 組 | 條件06(號碼總和): ${s || 0} 組`);
-        console.log(` [數學規律] 條件07(連續號牆): ${s || 0} 組 | 條件08(等差數列): 📌 ${s || 0} 組 | 條件13(算術AC值): ${s || 0} 組`);
-        console.log(` [大數據庫] 條件09(鄰號夾擊): ${s || 0} 組 | 條件10(上期連莊): 📌 ${s || 0} 組 | 條件14(質數合數): ${s || 0} 組`);
-        console.log(` [終極防護] 條件11(大小分流): ${s || 0} 組 | 條件12(除三餘數) : 📌 ${s || 0} 組 | 條件15(歷史重疊): ${s || 0} 組`);
-        console.log(` [皇家特權] 條件16(必開喜愛): ${s || 0} 組`);
+        console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): 📌 ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
+        console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): 📌 ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
+        console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): 📌 ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
+        console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): 📌 ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
+        console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數) : 📌 ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
+        console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
         console.log(`=================================================================================\n`);
       }
     }
@@ -607,16 +607,26 @@ function compileLeaderboardToOutput() {
     const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
     const favNums = isFavEnabled ? cfg.vip_fav_set : [];
     
-    leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
-    
     if (!isSmartMode) {
+      leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
       leaderBoard.forEach((item, index) => {
         const indexStr = String(index + 1).padStart(2, '0');
-        const displayUnit = item.unit || Math.floor(index / 10) + 1;
-        finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${item.score || 0}分] : ${item.formatted || ""}\n`);
+        finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: ${item.score || 0}分] : ${item.formatted || ""}\n`);
       });
       return;
     }
+    
+    // =========================================================================
+    // 🧠【大腦高階重構】：在互斥審查前，強制引入全隨機混沌打散晶片！
+    // 徹底打碎子執行緒送過來時「開頭死死黏在一起（01, 02, 05）」的排隊佇列！ 🔥
+    // =========================================================================
+    for (let i = leaderBoard.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [leaderBoard[i], leaderBoard[j]] = [leaderBoard[j], leaderBoard[i]];
+    }
+    
+    // 先讓這群被徹底打散順序的號碼，進行原始分數的大常態排序
+    leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
     
     let currentAllowedOverlap = 1; 
     let currentMaxUnits = (cfg.lottoType === "49_6") ? 8 : 7; 
@@ -642,15 +652,20 @@ function compileLeaderboardToOutput() {
           pureCombs.forEach(ball => { if (leaderBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
         }
         
+        // 🔥【殘酷打散大閘門】：只要踩到重複 1 碼互斥紅線，立刻實施「重扣 120 分」的終極階梯處罰！
         if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap) {
           const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
-          item.score = Math.max(-300, (item.score || 0) - (80 * maxOverlapFound)); 
+          // 🛠️ 權重拉滿：重複越多扣越凶（直接扣 120、240、360 分），強行在生還庫中逼出大量正數與梯隊落差！
+          item.score = Math.max(-400, (item.score || 0) - (120 * maxOverlapFound)); 
           item.unit = currentUnitTracker; 
         } else {
+          // 👑 完美生還者特權：號碼完全不重複，屬於尊貴的當前理論大組核心！
           pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
           item.unit = currentUnitTracker;
+          item.score = (item.score || 0) + 50; // 🔥 激勵機制：只要符合理論大組不重複，額外狂加 50 分獎勵！
         }
         
+        // 理論大組滿舵自動更換排班
         if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) || i % 12 === 0) {
           currentUnitTracker++;
           if (currentUnitTracker > currentMaxUnits) currentUnitTracker = 1;
@@ -658,10 +673,19 @@ function compileLeaderboardToOutput() {
         }
       }
       
-      leaderBoard.sort((a, b) => (b.score || 0) - (a.score || 0));
+      // =========================================================================
+      // 🧠【大腦高階重構】：二次排序升級為「大組特權排序」！
+      // 分數高的（即完全不重複、拿到獎勵分的號碼）優先被排在最前面，被扣分的無情踹到隊伍最後面！
+      // =========================================================================
+      leaderBoard.sort((a, b) => {
+        // 如果分數不同，分數高的絕對領先
+        if (b.score !== a.score) return b.score - a.score;
+        // 如果不幸同分，再次引入純隨機碼抽籤打散，雙重保險，徹底封殺數字扎堆！
+        return Math.random() - 0.5;
+      });
       
       let sampleScoreCount = leaderBoard.filter(x => x.score === leaderBoard[0].score).length;
-      if (sampleScoreCount < 20) {
+      if (sampleScoreCount < 15) {
         processedSuccessfully = true; 
       } else {
         currentAllowedOverlap++; 
@@ -669,18 +693,19 @@ function compileLeaderboardToOutput() {
       }
     }
     
+    // 2. 正式交卷輸出
     leaderBoard.forEach((item, index) => {
       if (!item) return;
       const indexStr = String(index + 1).padStart(2, '0');
       const displayUnit = item.unit || (Math.floor(index / 12) + 1);
       finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${item.score !== undefined ? item.score : 0}分] : ${item.formatted || ""}\n`);
     });
-    
   } catch (err) {
-    console.error("[理論大組演化晶片異常自癒] ", err.message);
+    console.error("[理論大組晶片異常] ", err.message);
   }
   global.compileOutput = compileLeaderboardToOutput;
 }
+
 global.compileOutput = compileLeaderboardToOutput;
 
  });
