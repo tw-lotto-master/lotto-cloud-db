@@ -557,9 +557,10 @@ if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
   
   // 3. 【滿血續命自癒核心咬合點】：搶先鎖定主控標記，並強制清除 10 秒心跳包定時器！ 🔥
   isFinished = true; 
-  if (typeof heartbeatTimer !== 'undefined' && heartbeatTimer !== null) {
-    clearInterval(heartbeatTimer);
-    console.log(`[自癒通訊鎖] 主緒已成功截斷背景續命心跳包，預備進行最終串流合龍。`);
+  if (global.heartbeatTimer) {
+    clearInterval(global.heartbeatTimer);
+    global.heartbeatTimer = null;
+    console.log(`[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。`);
   }
 
   // 4. 觸發黃金百名榜秒速互斥打散晶片
@@ -676,23 +677,30 @@ if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
  });
 
 
-     // =========================================================================
- // 👑【2026 終極續命防線】每 10 秒發送一次心跳包，強行重置免費 Render 的 50 秒斷線大閘門！
  // =========================================================================
- const heartbeatTimer = setInterval(() => {
-     // 🎯 安全閥 1：如果 Worker 已經竣工了（isFinished 變為 true），立刻清除自己，絕對不與 res.json 發生衝突！
-     if (isFinished) {
-         return clearInterval(heartbeatTimer);
-     }
-     
-     try {
-         // 🎯 安全閥 2：發射心跳氣泡包給 Render 續命。即使前端收不到進度（被免費牆攔截），這行代碼也能強行欺騙 Render「連線還活著」！
-         res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 50 }) + "\n");
-     } catch (e) {
-         // 萬一發生突發異常（例如使用者主動關閉網頁），優雅釋放記憶體
-         clearInterval(heartbeatTimer);
-     }
+ // 【2026 終極續命防線】每 10 秒發送一次心跳包，強行重置免費 Render 的 50 秒斷線大閘門！ 👑
+ // =========================================================================
+ global.heartbeatTimer = setInterval(() => {
+  // 安全閥 1：如果 Worker 已經竣工了（isFinished 變為 true），立刻清除自己！ 🎯
+  if (isFinished) {
+    if (global.heartbeatTimer) {
+      clearInterval(global.heartbeatTimer);
+      global.heartbeatTimer = null;
+    }
+    return;
+  }
+  try {
+    // 安全閥 2：發射心跳氣泡包給 Render 續命。
+    res.write(JSON.stringify({ isProgress: true, isHeartbeat: true, percent: 50 }) + "\n");
+  } catch (e) {
+    // 萬一發生突發異常（例如使用者主動關閉網頁），優雅釋放記憶體
+    if (global.heartbeatTimer) {
+      clearInterval(global.heartbeatTimer);
+      global.heartbeatTimer = null;
+    }
+  }
  }, 10000);
+
 
 
  
