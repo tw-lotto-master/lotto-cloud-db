@@ -1222,134 +1222,144 @@ favCount;
  };
  const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 
 575757);
- let localTotalGen = 0; let localLeaderBoard = [];
- let minScoreInLocalBoard = -99999;
- const pickLimit = Math.min(100, Math.max(1, Number(cfg.count) || 100));
- const candidateLimit = Math.max(1000, pickLimit * 12); 
- function processAndLocalPK(combination) {
- if (!isGeneSurvive(combination)) return;
- let healthScore = 100; 
- 
- if (cfg.scoreTotalSum) {
- const sumVal = combination.reduce((x, y) => x + y, 0);
- if (lottoType === "49_6") { 
- if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
- else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) 
-healthScore += 20;
- else healthScore -= 50;
- } else { 
- if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
- else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) 
-healthScore += 20;
- else healthScore -= 50;
- }
- }
- if (cfg.scoreOddEven) {
- let oddsCount = 0; combination.forEach(num => { if ((num & 1) === 1) oddsCount++;
-});
- if (lottoType === "49_6") {
- if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
- else if (oddsCount === 3) healthScore += 30;
- else healthScore -= 50;
- } else {
- if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
- else healthScore -= 50;
- }
- }
- if (cfg.scoreBigSmall) {
- const midPoint = lottoType === "49_6" ? 25 : 20;
- let bigCount = 0; combination.forEach(num => { if (num >= midPoint) bigCount++; 
-});
- if (lottoType === "49_6") {
- if (bigCount === 2 || bigCount === 4) healthScore += 50;
- else if (bigCount === 3) healthScore += 30;
- else healthScore -= 50;
- } else {
- if (bigCount === 2 || bigCount === 3) healthScore += 50;
- else healthScore -= 50;
- }
- }
- if (cfg.scoreConsecutive) {
- let currentSeq = 1, maxSeq = 1, totalPairs = 0; 
- for (let m = 1; m < combination.length; m++) {
- if (combination[m] === combination[m - 1] + 1) { currentSeq++; totalPairs++; if
-(currentSeq > maxSeq) maxSeq = currentSeq; } 
- else currentSeq = 1;
- }
- if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
- else if (maxSeq === 1) healthScore += 30;
- else healthScore -= 50;
- }
- if (cfg.score012Route) {
- let r0 = 0, r1 = 0, r2 = 0; combination.forEach(num => { const rem = num % 3; if 
-(rem === 0) r0++; else if (rem === 1) r1++; else r2++; });
- if (lottoType === "49_6") {
- if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
- else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
- } else {
- if 
-((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) 
-healthScore += 50;
- else healthScore -= 50;
- }
- }
- const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
- if (localLeaderBoard.length < candidateLimit) {
- localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
- if (localLeaderBoard.length === candidateLimit) {
- localLeaderBoard.sort((a, b) => b.score - a.score); minScoreInLocalBoard = 
-localLeaderBoard[candidateLimit - 1].score;
- }
- } else if (healthScore > minScoreInLocalBoard) {
- localLeaderBoard.pop(); localLeaderBoard.push({ score: healthScore, comb: 
-combination, formatted });
- localLeaderBoard.sort((a, b) => (b.score - a.score)); minScoreInLocalBoard = 
-localLeaderBoard[candidateLimit - 1].score;
- }
- }
- async function triggerChunkFlush() {
- if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
- const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 
-100), 100);
- parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, 
-maxTotal: maxCombinations, percent: currentPercent, stats: Array.from(killStats), 
-totalGen: localTotalGen });
- await new Promise(res => { if (typeof setImmediate !== 'undefined') 
-setImmediate(res); else setTimeout(res, 1); });
- }
- }
- (async function runDeterministicBrain() {
- const favSet = new Set(favBalls); const remainingPool = basePool.filter(ball => 
-!favSet.has(ball)); remainingPool.sort((a, b) => a - b);
- const pLen = remainingPool.length; const requiredSlots = pickCount - 
-favBalls.length; 
- let currentSelection = new Array(requiredSlots);
- async function dfs(level, startIndex) {
- if (scannedCount >= maxCombinations) return;
- if (level === requiredSlots) {
- scannedCount++; localTotalGen++;
- let combination = [...favBalls, ...currentSelection].sort((a, b) => a - b);
- processAndLocalPK(combination);
- await triggerChunkFlush(); return;
- }
- for (let i = startIndex; i < pLen; i++) { currentSelection[level] = 
-remainingPool[i]; await dfs(level + 1, i + 1); }
- }
- await dfs(0, 0);
- 
- localLeaderBoard.sort((a, b) => b.score - a.score);
- 
- parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, 
-maxTotal: maxCombinations, total: scannedCount, stats: Array.from(killStats), totalGen:
-localTotalGen });
- parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: 
-localLeaderBoard }); 
- })();
+  // =========================================================================
+  // 👑【2026 子執行緒內核：生存庫 100% 全量評分與同分混沌汰換晶片】 👑 🔬
+  // =========================================================================
+  let localTotalGen = 0; 
+  let localLeaderBoard = [];
+  let minScoreInLocalBoard = -99999;
+  const pickLimit = Math.min(100, Math.max(1, Number(cfg.count) || 100));
+  
+  // 👑 擴大子執行緒生還者快照緩衝池，給予所有通過 16 條件的種子最充裕的生還空間
+  const candidateLimit = 3000; 
+
+  function processAndLocalPK(combination) {
+    if (!isGeneSurvive(combination)) return; // ❌ 16道條件沒過的原地銷毀，100%不佔頻寬
+    
+    // 🟢 16道條件完美通關者！100% 強制進入下方進行特徵加減分！
+    let healthScore = 100; 
+    
+    if (cfg.scoreTotalSum) {
+      const sumVal = combination.reduce((x, y) => x + y, 0);
+      if (lottoType === "49_6") { 
+        if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
+        else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20;
+        else healthScore -= 50;
+      } else { 
+        if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
+        else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
+        else healthScore -= 50;
+      }
+    }
+    if (cfg.scoreOddEven) {
+      let oddsCount = 0; combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
+      if (lottoType === "49_6") {
+        if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
+        else if (oddsCount === 3) healthScore += 30;
+        else healthScore -= 50;
+      } else {
+        if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
+        else healthScore -= 50;
+      }
+    }
+    if (cfg.scoreBigSmall) {
+      const midPoint = lottoType === "49_6" ? 25 : 20;
+      let bigCount = 0; combination.forEach(num => { if (num >= midPoint) bigCount++; });
+      if (lottoType === "49_6") {
+        if (bigCount === 2 || bigCount === 4) healthScore += 50;
+        else if (bigCount === 3) healthScore += 30;
+        else healthScore -= 50;
+      } else {
+        if (bigCount === 2 || bigCount === 3) healthScore += 50;
+        else healthScore -= 50;
+      }
+    }
+    if (cfg.scoreConsecutive) {
+      let currentSeq = 1, maxSeq = 1, totalPairs = 0; 
+      for (let m = 1; m < combination.length; m++) {
+        if (combination[m] === combination[m - 1] + 1) { currentSeq++; totalPairs++; if (currentSeq > maxSeq) maxSeq = currentSeq; } 
+        else currentSeq = 1;
+      }
+      if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
+      else if (maxSeq === 1) healthScore += 30;
+      else healthScore -= 50;
+    }
+    if (cfg.score012Route) {
+      let r0 = 0, r1 = 0, r2 = 0; combination.forEach(num => { const rem = num % 3; if (rem === 0) r0++; else if (rem === 1) r1++; else r2++; });
+      if (lottoType === "49_6") {
+        if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
+        else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
+      } else {
+        if ((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) healthScore += 50;
+        else healthScore -= 50;
+      }
+    }
+
+    const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
+    
+    // =========================================================================
+    // 🧠【生還庫滾動式動態 PK 大換血機制】：保證所有生存下來的號碼全部參與交替取代！
+    // =========================================================================
+    if (localLeaderBoard.length < candidateLimit) {
+      localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+      if (localLeaderBoard.length === candidateLimit) {
+        localLeaderBoard.sort((a, b) => b.score - a.score); 
+        minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
+      }
+    } 
+    // 🚀【同分與高分大洗牌取代】：只要新進來的生還組合分數大於「或是等於」池子裡的最低分，
+    // 且觸發 40% 的隨機汰換特權分流，立刻把池子裡開頭死黏在 01, 02 區段的死號碼踢出、強行把位置留給後面長得不一樣的新生還者！
+    else if (healthScore > minScoreInLocalBoard || (healthScore === minScoreInLocalBoard && Math.random() < 0.4)) {
+      localLeaderBoard.pop(); 
+      localLeaderBoard.push({ score: healthScore, comb: combination, formatted });
+      localLeaderBoard.sort((a, b) => b.score - a.score); 
+      minScoreInLocalBoard = localLeaderBoard[candidateLimit - 1].score;
+    }
+  }
+
+  async function triggerChunkFlush() {
+    if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
+      const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
+      parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, percent: currentPercent, stats: Array.from(killStats), totalGen: localTotalGen });
+      await new Promise(res => { if (typeof setImmediate !== 'undefined') setImmediate(res); else setTimeout(res, 1); });
+    }
+  }
+
+  (async function runDeterministicBrain() {
+    const favSet = new Set(favBalls); const remainingPool = basePool.filter(ball => !favSet.has(ball)); remainingPool.sort((a, b) => a - b);
+    const pLen = remainingPool.length; const requiredSlots = pickCount - favBalls.length; 
+    let currentSelection = new Array(requiredSlots);
+    
+    async function dfs(level, startIndex) {
+      if (scannedCount >= maxCombinations) return;
+      if (level === requiredSlots) {
+        scannedCount++; 
+        localTotalGen++;
+        let combination = [...favBalls, ...currentSelection].sort((a, b) => a - b);
+        
+        // 🟢 通過 16 條件生存下來的，100% 老老實實送入 PK 艙評分！
+        processAndLocalPK(combination);
+        
+        await triggerChunkFlush(); 
+        return;
+      }
+      for (let i = startIndex; i < pLen; i++) { currentSelection[level] = remainingPool[i]; await dfs(level + 1, i + 1); }
+    }
+    await dfs(0, 0);
+    
+    // 竣工大收網：此時交出的資料，開頭數字在子執行緒源頭就已經被徹底洗散開來！
+    localLeaderBoard.sort((a, b) => b.score - a.score);
+    
+    parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, total: scannedCount, stats: Array.from(killStats), totalGen: localTotalGen });
+    parentPort.postMessage({ type: 'FINAL_SURVIVE_DELIVERY', leaderBoard: localLeaderBoard }); 
+  })();
 }
+
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
- console.log("=======================================================");
- console.log(" 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！ ");
- console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
- console.log("=======================================================");
+  console.log("=======================================================");
+  console.log(" 2026 LOTTO GA-WHEELING 究極完全體後端大腦通電成功！ ");
+  console.log(` 多線程集流中繼站完美通車，埠口：[ ${PORT} ]`);
+  console.log("=======================================================");
 });
+
