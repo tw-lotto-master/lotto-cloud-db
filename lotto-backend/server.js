@@ -578,7 +578,7 @@ if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
         scanned: absoluteMaxTotal,
         maxTotal: absoluteMaxTotal,
         totalGen: msg.totalGen || absoluteMaxTotal,
-        fullStats: msg.stats || Array.from(killStats),
+        fullStats: msg.stats || [],
         outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最優解鎖明牌】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
       }) + "\n");
       
