@@ -493,39 +493,28 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
  // ======= 【2026 核心串流交互觀測接收艙：輕量減肥與動態狀態發射版】 ─── ======= 🟢 🎯
 const leaderBoard = [];
 worker.on('message', (msg) => {
- if (isFinished) return;
- const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 
-575757);
- 
- if (msg.type === 'TOTAL_SCAN_PROGRESS') {
- liveScannedCount = msg.scanned;
- let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / 
-absoluteMaxTotal) * 100));
- if (currentProgressPercent < 5) currentProgressPercent = 5;
- 
- if (msg.scanned % 500000 === 0 || msg.scanned === absoluteMaxTotal) {
- console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 
-(${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
- if (msg.stats) {
- const s = msg.stats;
- console.log(`\n======================= [16防線動態擊殺全景觀測] 📊
-=======================`);
- console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): 
-📌 ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
- console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): 
-📌 ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
- console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): 
-📌 ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
- console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): 
-📌 ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
- console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數) 
-: ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`); 📌
- console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
- 
-console.log(`==========================================================================
-=======\n`);
- }
- }
+  if (isFinished) return;
+  const absoluteMaxTotal = msg.maxTotal || (cfg.lottoType === "49_6" ? 13983816 : 575757);
+  
+  if (msg.type === 'TOTAL_SCAN_PROGRESS') {
+    liveScannedCount = msg.scanned;
+    let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
+    if (currentProgressPercent < 5) currentProgressPercent = 5;
+    
+    if (msg.scanned % 500000 === 0 || msg.scanned === absoluteMaxTotal) {
+      console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
+      if (msg.stats && Array.isArray(msg.stats)) {
+        const s = msg.stats;
+        console.log(`\n======================= [16防線動態擊殺全景觀測] 📊 =======================`);
+        console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
+        console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
+        console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
+        console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
+        console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數): ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
+        console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
+        console.log(`=================================================================================\n`);
+      }
+    }
  
  try {
  if (!res.writableEnded) {
