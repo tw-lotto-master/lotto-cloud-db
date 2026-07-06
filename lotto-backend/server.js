@@ -1327,7 +1327,11 @@ if (f13_on) {
         processAndLocalPK(combination);
         await triggerChunkFlush(); return;
       }
-      for (let i = startIndex; i < pLen; i++) { currentSelection[level] = remainingPool[i]; await dfs(level + 1, i + 1); }
+      for (let i = leaderBoard.length - 1; i > 0; i--) {
+  const j = Math.floor(Math.random() * (i + 1));
+  [leaderBoard[i], leaderBoard[j]] = [leaderBoard[j], leaderBoard[i]];
+}
+
     }
     await dfs(0, 0);
     
