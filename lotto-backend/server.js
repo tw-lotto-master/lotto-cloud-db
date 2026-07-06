@@ -296,7 +296,10 @@ if (isMainThread) {
       if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
     }
 // ======= 區塊 1 全新替換代碼 =======
-    if (!cfg) return res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n") || res.end();
+    if (!cfg) {
+  res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
+  return res.end();
+}
     const sessionUserId = req.user && req.user.userId;
     const dbUser = await User.findById(sessionUserId);
     if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
