@@ -672,15 +672,41 @@ function compileLeaderboardToOutput() {
  const finalPickSize = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 100));
  let hardwareCleanBoard = leaderBoard.slice(0, finalPickSize);
  
+ // ============================================================================================
+ // 🧠 【2026 剩餘球數動態大組拓樸補丁】：精準解析前端是否有排除地雷號、勾選喜愛號
+ // ============================================================================================
+ const totalBallsAvailable = 49; // 預設滿球數 49 碼
+ const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
+ const isF1Enabled = (cfg && cfg.f1_on === true);
+ const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0; // 地雷號排除數量
+ 
+ // 計算排除地雷號之後的「真實剩餘可用球數」
+ const remainingBallCount = Math.max(1, maxLottoBalls - f1Kills);
+ 
+ // 動態計算喜愛號彈性分母（大樂透 6/5/4，539 5/4/3）
+ const favCount = favNums.length;
+ const ballsPerCombination = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
+ 
+ // 🚀 依照剩餘球數/每組球數，動態算出每大組理論上「最多只能容納幾組」！
+ let maxCombsPerUnit = Math.floor(remainingBallCount / ballsPerCombination);
+ 
+ // 如果前端「沒有勾選排除地雷號」，硬性啟用您的黃金預設邊界（大樂透最多8組，539最多7組）
+ if (!isF1Enabled) {
+     maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7;
+ }
+ if (maxCombsPerUnit < 1) maxCombsPerUnit = 1; // 安全防禦底線
+ 
  let currentAllowedOverlap = 1; 
- let currentMaxUnits = (cfg.lottoType === "49_6") ? 8 : 7; 
  let processedSuccessfully = false;
  let loopSanityCheck = 0;
  
  while (!processedSuccessfully && loopSanityCheck < 5) {
  loopSanityCheck++;
- let currentUnitTracker = 1;
  let usedNumbersInCurrentUnit = new Set();
+ 
+ // 🚀 建立一個實體計數器，只要成功分配完一組，計數器就遞增，達到上限強制切換下一大組
+ let outputCounterForUnit = 0;
+ let currentUnitTracker = 1;
  
  for (let i = 0; i < hardwareCleanBoard.length; i++) {
  let item = hardwareCleanBoard[i];
@@ -696,8 +722,7 @@ function compileLeaderboardToOutput() {
  
  if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
  pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
- 
- if (item.comb === hardwareCleanBoard[i-1].comb && item.comb === hardwareCleanBoard[i-1].comb) {
+ if (item.comb === hardwareCleanBoard[i-1].comb) {
  isHeadVanceDuplicated = true;
  }
  }
@@ -720,27 +745,29 @@ function compileLeaderboardToOutput() {
  item.finalScore = newBaseScore + (item.noise || 0);
  }
  
- if (usedNumbersInCurrentUnit.size >= ((cfg.lottoType === "49_6" ? 6 : 5) * 6) || i % 12 === 0) {
+ // 🎯 【大組別實體隔離切換核心】：每成功處理一筆，實體計數器加 1
+ outputCounterForUnit++;
+ 
+ // 當此大組累積的組數達到了由「地雷號/喜愛號」公式決定的 `maxCombsPerUnit` 上限時，強行切換大組！
+ if (outputCounterForUnit >= maxCombsPerUnit) {
  currentUnitTracker++;
- if (currentUnitTracker > currentMaxUnits) currentUnitTracker = 1;
- usedNumbersInCurrentUnit.clear(); 
+ outputCounterForUnit = 0; // 計數器歸零
+ usedNumbersInCurrentUnit.clear(); // 物理清空大組單元記憶
  }
  }
  
  processedSuccessfully = true;
  }
  
- // 🚀 【大組分群化改裝核心】：先依照大組別 (unit) 由小到大排序；若組別相同，再依照隨機總得分由高到低排序
  hardwareCleanBoard.sort((a, b) => {
  const aUnit = a.unit || 1;
  const bUnit = b.unit || 1;
  if (aUnit !== bUnit) {
- return aUnit - bUnit; // 組別小的（如第 1 大組）排在前面
+ return aUnit - bUnit; 
  }
- return b.finalScore - a.finalScore; // 相同大組內，分數高的排前面
+ return b.finalScore - a.finalScore; 
  });
  
- // 輸出名牌渲染
  for (let index = 0; index < hardwareCleanBoard.length; index++) {
  const item = hardwareCleanBoard[index];
  if (!item) continue;
@@ -754,6 +781,7 @@ function compileLeaderboardToOutput() {
  console.error("[理論大組終極物理隔離晶片異常] ", err.message);
  }
 }
+
 
 global.compileOutput = compileLeaderboardToOutput;
 // ========================================== 【主執行緒修復範圍結束】 ==========================================
