@@ -667,107 +667,110 @@ function compileLeaderboardToOutput() {
  return;
  }
  
+ // 先依照子執行緒算好的隨機權重由高到低做全局初篩
  leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
  
  const finalPickSize = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 100));
  let hardwareCleanBoard = leaderBoard.slice(0, finalPickSize);
  
- // ============================================================================================
- // 🧠 【2026 剩餘球數動態大組拓樸補丁】：精準解析前端是否有排除地雷號、勾選喜愛號
- // ============================================================================================
- const totalBallsAvailable = 49; // 預設滿球數 49 碼
+ // 解析排除地雷與喜愛號設定
  const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
  const isF1Enabled = (cfg && cfg.f1_on === true);
- const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0; // 地雷號排除數量
- 
- // 計算排除地雷號之後的「真實剩餘可用球數」
+ const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0;
  const remainingBallCount = Math.max(1, maxLottoBalls - f1Kills);
- 
- // 動態計算喜愛號彈性分母（大樂透 6/5/4，539 5/4/3）
  const favCount = favNums.length;
  const ballsPerCombination = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
  
- // 🚀 依照剩餘球數/每組球數，動態算出每大組理論上「最多只能容納幾組」！
  let maxCombsPerUnit = Math.floor(remainingBallCount / ballsPerCombination);
- 
- // 如果前端「沒有勾選排除地雷號」，硬性啟用您的黃金預設邊界（大樂透最多8組，539最多7組）
  if (!isF1Enabled) {
      maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7;
  }
- if (maxCombsPerUnit < 1) maxCombsPerUnit = 1; // 安全防禦底線
+ if (maxCombsPerUnit < 1) maxCombsPerUnit = 1;
  
- let currentAllowedOverlap = 1; 
- let processedSuccessfully = false;
- let loopSanityCheck = 0;
- 
- while (!processedSuccessfully && loopSanityCheck < 5) {
- loopSanityCheck++;
+ // ============================================================================================
+ // 🧠 【2026 皇家零容忍物理抽真空機制】：強迫前 N 組在同大組內必須達成 100% 完美不重複！
+ // ============================================================================================
  let usedNumbersInCurrentUnit = new Set();
- 
- // 🚀 建立一個實體計數器，只要成功分配完一組，計數器就遞增，達到上限強制切換下一大組
- let outputCounterForUnit = 0;
  let currentUnitTracker = 1;
+ let outputCounterForUnit = 0;
  
- for (let i = 0; i < hardwareCleanBoard.length; i++) {
- let item = hardwareCleanBoard[i];
+ // 雙指針或標記陣列，用來進行兩輪式精準篩選
+ let unallocatedItems = [...hardwareCleanBoard];
+ let finalizedList = [];
+ 
+ // 【第一輪：絕對零容忍搜救】優先在大軍中撈出「完全不重複任何1碼」的黃金組合
+ for (let currentAllowedOverlap = 0; currentAllowedOverlap <= 6; currentAllowedOverlap++) {
+ if (unallocatedItems.length === 0) break;
+ 
+ let stillLeft = [];
+ for (let i = 0; i < unallocatedItems.length; i++) {
+ let item = unallocatedItems[i];
  if (!item || !item.comb) continue;
  
  const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
  
+ // 計算與當前大組集球袋的重疊數量
  let overlapCount = 0;
  pureCombs.forEach(ball => { if (usedNumbersInCurrentUnit.has(ball)) overlapCount++; });
  
+ // 計算與上一組號碼的相鄰重疊度
  let prevOverlapCount = 0;
  let isHeadVanceDuplicated = false;
- 
- if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
- pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
- if (item.comb === hardwareCleanBoard[i-1].comb) {
- isHeadVanceDuplicated = true;
- }
+ if (finalizedList.length > 0) {
+ const lastFinalized = finalizedList[finalizedList.length - 1];
+ pureCombs.forEach(ball => { if (lastFinalized.comb.includes(ball)) prevOverlapCount++; });
+ if (item.comb === lastFinalized.comb) isHeadVanceDuplicated = true;
  }
  
- if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap || isHeadVanceDuplicated) {
  const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
- const headPenalty = isHeadVanceDuplicated ? 300 : 0; 
- const oldBaseScore = item.score;
- const newBaseScore = Math.max(-400, oldBaseScore - (120 * maxOverlapFound) - headPenalty);
- item.score = newBaseScore;
- item.finalScore = newBaseScore + (item.noise || 0);
- item.unit = currentUnitTracker; 
- } else {
+ 
+ // 如果在當前嚴格的容忍門檻內，或者是最後一輪保底
+ if (maxOverlapFound <= currentAllowedOverlap && !isHeadVanceDuplicated) {
+ // 完美納入當前大組
  pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
  item.unit = currentUnitTracker;
  
+ // 完美不重複者直接給予 500 分最高榮譽，有輕微重疊者依比例扣分
+ if (maxOverlapFound === 0) {
  const oldBaseScore = item.score;
- const newBaseScore = Math.max(250, oldBaseScore + 150); 
+ const newBaseScore = Math.max(250, oldBaseScore + 150);
+ item.score = newBaseScore;
+ item.finalScore = newBaseScore + (item.noise || 0);
+ } else {
+ const oldBaseScore = item.score;
+ const newBaseScore = Math.max(-400, oldBaseScore - (150 * maxOverlapFound));
  item.score = newBaseScore;
  item.finalScore = newBaseScore + (item.noise || 0);
  }
  
- // 🎯 【大組別實體隔離切換核心】：每成功處理一筆，實體計數器加 1
+ finalizedList.push(item);
  outputCounterForUnit++;
  
- // 當此大組累積的組數達到了由「地雷號/喜愛號」公式決定的 `maxCombsPerUnit` 上限時，強行切換大組！
+ // 達到大組最大容量上限（例如大樂透8組），強制清空集球袋，切換下一大組，重置零容忍比對！
  if (outputCounterForUnit >= maxCombsPerUnit) {
  currentUnitTracker++;
- outputCounterForUnit = 0; // 計數器歸零
- usedNumbersInCurrentUnit.clear(); // 物理清空大組單元記憶
+ outputCounterForUnit = 0;
+ usedNumbersInCurrentUnit.clear();
  }
+ } else {
+ stillLeft.push(item); // 沒符合嚴格門檻的，留到下一輪放寬門檻時再處理
+ }
+ }
+ unallocatedItems = stillLeft;
  }
  
- processedSuccessfully = true;
- }
+ // 將最終完成分配與打分的號碼名單移回主板
+ hardwareCleanBoard = finalizedList;
  
+ // 最終排序：先依照大組別 (unit) 由小到大排序；若組別相同，再依照新得分由高到低排列
  hardwareCleanBoard.sort((a, b) => {
  const aUnit = a.unit || 1;
  const bUnit = b.unit || 1;
- if (aUnit !== bUnit) {
- return aUnit - bUnit; 
- }
- return b.finalScore - a.finalScore; 
+ if (aUnit !== bUnit) return aUnit - bUnit;
+ return b.finalScore - a.finalScore;
  });
  
+ // 渲染前端輸出名牌
  for (let index = 0; index < hardwareCleanBoard.length; index++) {
  const item = hardwareCleanBoard[index];
  if (!item) continue;
@@ -777,10 +780,13 @@ function compileLeaderboardToOutput() {
  }
  
  hardwareCleanBoard = null;
+ unallocatedItems = null;
+ finalizedList = null;
  } catch (err) {
  console.error("[理論大組終極物理隔離晶片異常] ", err.message);
  }
 }
+
 
 
 global.compileOutput = compileLeaderboardToOutput;
