@@ -944,9 +944,31 @@ if (!isMainThread) {
     });
   }
   
-  const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
-  const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : []);
-  const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
+// ========================================== 【子執行緒地雷號跨緒通訊破壁補丁開始】 ==========================================
+const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
+let rawMineArr = [];
+
+if (f1_on && cfg.f1_set) {
+  try {
+    if (Array.isArray(cfg.f1_set)) {
+      rawMineArr = cfg.f1_set;
+    } else if (typeof cfg.f1_set === 'object' && typeof cfg.f1_set.size === 'number') {
+      // 🚀 如果主緒不小心傳了實體 Set 物件過來，強行將其轉回標準陣列
+      rawMineArr = Array.from(cfg.f1_set);
+    } else if (typeof cfg.f1_set === 'string') {
+      // 🚀 如果傳過來的是帶有特定符號或空格的字串，進行全面格式化清洗
+      rawMineArr = cfg.f1_set.split(/[\s,._+|-]+/).filter(Boolean);
+    }
+  } catch (e) {
+    rawMineArr = [];
+  }
+}
+
+// 將清洗乾淨的號碼，精確轉換成純數字型態的實體 Set 袋子，100% 自癒
+const f1_set = new Set(rawMineArr.map(Number).filter(n => !isNaN(n) && n >= 1 && n <= 49));
+const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
+// ========================================== 【子執行緒地雷號跨緒通訊破壁補丁結束】 ==========================================
+
   const favBalls = vip_fav_on && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
   let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
   
