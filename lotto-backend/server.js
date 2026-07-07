@@ -262,8 +262,58 @@ async function listSavedTickets(req, res) {
 }
 app.get('/api/tickets/list', listSavedTickets);
 app.post('/api/tickets/list', listSavedTickets);
+
+// ========================================== 【新增：全域記憶體與動態負載觀測 API 路由開始】 ==========================================
+// 🚀 2026 皇家運維補丁：供前端 Dashboard 或操盤手實時監測硬體 RAM 吞吐與並發用量，純文字無防爆配置
+app.get('/api/admin/hardware-radar', (req, res) => {
+  try {
+    // 1. 獲取 Node.js 進程當下的實體記憶體佔用 (RSS = Resident Set Size)
+    const memoryUsage = process.memoryUsage();
+    const rssMB = Math.round(memoryUsage.rss / 1024 / 1024);
+    const heapUsedMB = Math.round(memoryUsage.heapUsed / 1024 / 1024);
+    const heapTotalMB = Math.round(memoryUsage.heapTotal / 1024 / 1024);
+    
+    // 2. 自動偵測作業系統層級的全域記憶體狀態
+    const os = require('os');
+    const osFreeMemGB = (os.freemem() / 1024 / 1024 / 1024).toFixed(2);
+    const osTotalMemGB = (os.totalmem() / 1024 / 1024 / 1024).toFixed(2);
+    
+    // 3. 捕捉主執行緒全域維護的活動中連線數
+    // 💡 這裡精確對齊並讀取您主執行緒第 9 頁與第 13 頁定義的 `global.activeRequestsCount` 變數
+    const currentActiveUsers = global.activeRequestsCount || 0;
+    
+    // 4. 計算平均每位用戶瞬時消耗的 RAM
+    // 基礎常駐估算為 100MB，超過的部分除以當前用戶數，即為每人的巔峰動態消耗
+    let estimatedRamPerUserMB = 0;
+    if (currentActiveUsers > 0) {
+      estimatedRamPerUserMB = Math.max(45, Math.round((rssMB - 100) / currentActiveUsers));
+    }
+
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      hardwareReport: {
+        serverTotalRssMemory: rssMB + " MB", // 伺服器目前總共吃掉的 RAM
+        v8HeapUsed: heapUsedMB + " MB",       // 實際物件與演算法正在使用的記憶體
+        v8HeapTotal: heapTotalMB + " MB",     // 系統分配給 V8 的總記憶體緩衝
+        osSystemFree: osFreeMemGB + " GB",    // 雲端主機（Render 容器）剩下的剩餘空間
+        osSystemTotal: osTotalMemGB + " GB"   // 雲端主機總規格
+      },
+      trafficReport: {
+        activeRunningThreads: currentActiveUsers, // 當前正在全速海選的多執行緒用戶數
+        estimatedPeakCostPerUser: (currentActiveUsers > 0 ? estimatedRamPerUserMB + " MB" : "0 MB"), // 每人瞬時巔峰開銷
+        safeRemainingConcurrentSlots: Math.max(0, Math.floor(((512 - rssMB) / 55))) // 預估在 512MB 免費方案下「還能再容納幾個人同時點擊」
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: "硬體觀測雷達突發異常: " + err.message });
+  }
+});
+// ========================================== 【全域記憶體與動態負載觀測 API 路由結束】 ==========================================
+
 if (isMainThread) {
-  // 聰明包牌骨牌生牌演算法
+ // 聰明包牌骨牌生牌演算法
+
   function generateSmartWheelingMatrix(cfg) {
     const is39 = cfg.lottoType === '39_5';
     const size = is39 ? 5 : 6;
