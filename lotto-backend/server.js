@@ -668,39 +668,55 @@ worker.on('message', (msg) => {
  } catch (e) {}
  
  try {
- if (!res.writableEnded) {
- // 🌍 2026 皇家竣工艙：動態捕獲前端傳過來的語系參數（防呆機制：預設為 zh 繁中）
- const finalUiLang = (cfg && cfg.lang) || "zh"; 
+// ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復開始】 ==========================================
+        if (!res.writableEnded) {
+        // 🚀 萬能相容去噪：強行轉小寫並裁切前兩碼，徹底打通前端傳送大小寫不一致的暗號斷路！
+        let rawUiLang = (cfg && cfg.lang) ? String(cfg.lang).trim().toLowerCase().substring(0, 2) : "zh";
+        if (rawUiLang !== "en" && rawUiLang !== "ja" && rawUiLang !== "ko") {
+          rawUiLang = "zh";
+        }
 
- // 🏆 竣工終點站：4 國語言專業大數據名詞映射矩陣（純文字無防爆配置）
- let headerTitle = "";
- let poolTotalText = "";
- let deliveryTitle = "";
- 
- if (finalUiLang === "zh") {
-   headerTitle = "【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：";
-   poolTotalText = "【監控報告】本次生存池實際參與評分總組數為：";
-   deliveryTitle = "【當前交付全局隨機最優解鎖明牌（有效瓦解死鎖，100%保證分散多樣性！）】：";
- } else if (finalUiLang === "en") {
-   headerTitle = "[VIP Fusion Brain Sorting Completed] Real-Time Scanned Passes at Relay Station: ";
-   poolTotalText = "[Monitor Report] Total Sets Evaluated in Current Survival Pool: ";
-   deliveryTitle = "[Currently Delivered Globally Randomized Optimal Tickets (Lock-In Broken, 100% Variance Guaranteed!)]: ";
- } else if (finalUiLang === "ja") {
-   headerTitle = "【VIP融合AI大脳選別完了】中継拠点のリアルタイム通過総数：";
-   poolTotalText = "【監視レポート】今回の生存プールで実際に評価対象となった総組合せ数：";
-   deliveryTitle = "【現在交付されたグローバルランダム最適解（デッドロック解消、100%の分散多様性を保証！）】：";
- } else if (finalUiLang === "ko") {
-   headerTitle = "【VIP 융합 AI 브레인 선별 완료】중계소 이번 해선 실시간 통과 총수: ";
-   poolTotalText = "【모니터링 보고】이번 생존 풀 실제 평가 참여 총 조합 수: ";
-   deliveryTitle = "【현재 교부된 글로벌 무작위 최적 해제 명판 (데드락 완벽 해제, 100% 분산 다형성 보장!)]: ";
- }
+        let headerTitle = "";
+        let poolTotalText = "";
+        let deliveryTitle = "";
+        let modeFooterTitle = "";
+        let txtUnitQuantifier = "組"; // 🚀 補上單位量詞變數，徹底物理火化殘留中文
 
- // 🧬 組裝滿血多語系大結局文字區塊（精準注入您要求的「本次生存池實際參與評分總組數」）
- const finalFormattedOutputText = 
-   headerTitle + "\n" + liveScannedCount + " 組 \n" + 
-   poolTotalText + global.monitorEvaluatedCount + " 組 \n \n" + 
-   deliveryTitle + "\n-------------------------\n" + 
-   finalOutputCombs.join('') + "-------------------------\n";
+        if (rawUiLang === "zh") {
+          headerTitle = "【VIP純隨機大竣工】中繼站本次海選實時通過總數：";
+          poolTotalText = "【監控報告】本次生存池實際參與評分總組數為：";
+          deliveryTitle = "【當前交付解鎖明牌（已完美大組控重，且100%過濾歷史頭獎紀錄！）】：";
+          modeFooterTitle = "【輸出模式】聰明包牌（大組內彩球完全互斥+歷史）";
+          txtUnitQuantifier = "組";
+        } else if (rawUiLang === "en") {
+          headerTitle = "[VIP Pure Randomization Completed] Real-Time Scanned Passes at Relay Station: ";
+          poolTotalText = "[Monitor Report] Total Sets Evaluated in Current Survival Pool: ";
+          deliveryTitle = "[Currently Delivered Unlocked Tickets (Perfect Unit Control & 100% Filtered Jackpot History!)]: ";
+          modeFooterTitle = "[Output Mode] Smart Wheeling (Full Exclusion Within Units + History Check)";
+          txtUnitQuantifier = "Sets";
+        } else if (rawUiLang === "ja") {
+          headerTitle = "【VIP純ランダム大竣工】中継拠点のリアルタイム通過総数：";
+          poolTotalText = "【監視レポート】今回の生存プールで実際に評価対象となった総組合せ数：";
+          deliveryTitle = "【現在交付されたロック解除名札（見事な大グループ重畳制御、過去の1等当選記録を100%フィルター！）】：";
+          modeFooterTitle = "【出力モード】スマート連番（大グループ内彩球完全相互排他＋過去データ）";
+          txtUnitQuantifier = "組";
+        } else if (rawUiLang === "ko") {
+          headerTitle = "【VIP 순수 무작위 대준공】중계소 이번 해선 실시간 통과 총수: ";
+          poolTotalText = "【모니터링 보고】이번 생존 풀 실제 평가 참여 총 조합 수: ";
+          deliveryTitle = "【현재 교부된 잠금 해제 명판 (완벽한 대조합 가중치 제어 및 역대 1등 당첨 기록 100% 필터링 완료!)]: ";
+          modeFooterTitle = "【출력 모드】스마트 조합 (대조합 내 번호 완전 상호 배제 + 역대 기록)";
+          txtUnitQuantifier = "개 조합";
+        }
+
+        // 🧬 究極拼接閉環：利用 txtUnitQuantifier 動態替換原本死結的中文「組」字，並在最末端補上輸出模式說明！
+        const finalFormattedOutputText = 
+          headerTitle + "\n" + liveScannedCount + " " + txtUnitQuantifier + " \n" + 
+          poolTotalText + global.monitorEvaluatedCount + " " + txtUnitQuantifier + " \n \n" + 
+          deliveryTitle + "\n-------------------------\n" + 
+          finalOutputCombs.join('') + "-------------------------\n" +
+          modeFooterTitle;
+// ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
+
 
  res.write(JSON.stringify({
  success: true,
@@ -737,19 +753,54 @@ function compileLeaderboardToOutput() {
  const isSmartMode = (cfg && cfg.vipMode === 'smart');
  const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
  const favNums = isFavEnabled ? cfg.vip_fav_set : [];
- 
+ // ========================================== 【非聰明模式名牌量詞多語系自適應修復開始】 ==========================================
  if (!isSmartMode) {
- leaderBoard.sort((a, b) => {
- const aFinal = (a.score || 0) + (a.noise || Math.random() * 0.99);
- const bFinal = (b.score || 0) + (b.noise || Math.random() * 0.99);
- return bFinal - aFinal;
- });
- leaderBoard.forEach((item, index) => {
- const indexStr = String(index + 1).padStart(2, '0');
- finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
- });
- return;
+   leaderBoard.sort((a, b) => {
+     const aFinal = (a.score || 0) + (a.noise || Math.random() * 0.99);
+     const bFinal = (b.score || 0) + (b.noise || Math.random() * 0.99);
+     return bFinal - aFinal;
+   });
+
+   // 🌍 實時動態解碼：精確捕獲當前前端下拉選單的語系短代碼
+   let rawUiLang = (cfg && cfg.lang) ? String(cfg.lang).trim().toLowerCase().substring(0, 2) : "zh";
+   if (rawUiLang !== "en" && rawUiLang !== "ja" && rawUiLang !== "ko") {
+     rawUiLang = "zh";
+   }
+
+   let txtGroupPrefix = "第";
+   let txtGroupSuffix = "組";
+   let txtUnitLabel = " (第 1 大組)";
+   let txtScoreLabel = " [評分: ";
+   let txtScoreSuffix = "分] : ";
+
+   if (rawUiLang === "en") {
+     txtGroupPrefix = "Set"; txtGroupSuffix = "";
+     txtUnitLabel = " (Unit 1)";
+     txtScoreLabel = " [Score: "; txtScoreSuffix = " pts] : ";
+   } else if (rawUiLang === "ja") {
+     txtGroupPrefix = "第"; txtGroupSuffix = "組";
+     txtUnitLabel = " (第 1 大組)";
+     txtScoreLabel = " [評価点: "; txtScoreSuffix = "点] : ";
+   } else if (rawUiLang === "ko") {
+     txtGroupPrefix = "제"; txtGroupSuffix = "조합";
+     txtUnitLabel = " (제 1 대조합)";
+     txtScoreLabel = " [평가 점수: "; txtScoreSuffix = "점] : ";
+   }
+
+   leaderBoard.forEach((item, index) => {
+     const indexStr = String(index + 1).padStart(2, '0');
+     // 🚀 動態重組字串架構，100% 物理清除寫死中文，無縫契合各國量詞語法！
+     finalOutputCombs.push(
+       txtGroupPrefix + " [" + indexStr + "] " + txtGroupSuffix + 
+       txtUnitLabel + 
+       txtScoreLabel + (item.score || 0) + txtScoreSuffix + 
+       (item.formatted || "") + "\n"
+     );
+   });
+   return;
  }
+// ========================================== 【非聰明模式名牌量詞多語系自適應修復結束】 ==========================================
+
  
  // 先依照子執行緒算好的隨機權重由高到低做全局初篩
  leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
