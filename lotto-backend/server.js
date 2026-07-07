@@ -489,10 +489,11 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
         workers.push(worker);
 
- // ========================================== 【區塊 1：主執行緒全新替換範圍開始】 ==========================================
-// 📈 2026 全域後台即時統計監控觀測艙（精確統計所有評分參與組數與 250 分以上分佈）
-global.monitorEvaluatedCount = 0; // 後台監控：當前這輪實際參與評分的總組數
-global.monitorScoreDistribution = {}; // 後台監控：250分以上統計各分值有幾組
+
+// ========================================== 【區塊 1：主執行緒純文字修復範圍開始】 ==========================================
+// 2026 全域後台即時統計監控觀測艙（精確統計所有評分參與組數與 250 分以上分佈）
+global.monitorEvaluatedCount = 0; 
+global.monitorScoreDistribution = {}; 
 
 const leaderBoard = [];
 worker.on('message', (msg) => {
@@ -508,12 +509,12 @@ worker.on('message', (msg) => {
  console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
  if (msg.stats) {
  const s = msg.stats;
- console.log(`\n======================= [16防線動態擊殺全景觀測] 📊 =======================`);
- console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): 📌 ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
- console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): 📌 ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
- console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): 📌 ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
- console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): 📌 ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
- console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數) : ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`); 📌
+ console.log(`\n======================= [16防線動態擊殺全景觀測] =======================`);
+ console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
+ console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
+ console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
+ console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
+ console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數) : ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
  console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
  console.log(`=================================================================================\n`);
  }
@@ -528,7 +529,6 @@ worker.on('message', (msg) => {
  scanned: msg.scanned,
  maxTotal: absoluteMaxTotal,
  totalGen: msg.totalGen || 0,
- // ⚡ 將最新的後台監控統計數據實時推送給前端
  evaluatedCount: global.monitorEvaluatedCount,
  scoreStats250: global.monitorScoreDistribution
  }) + "\n");
@@ -552,7 +552,6 @@ worker.on('message', (msg) => {
  leaderBoard.push(...msg.leaderBoard);
  }
  
- // 更新與捕捉子執行緒最終傳來的全量評分統計快照
  if (msg.finalEvaluatedCount) global.monitorEvaluatedCount = msg.finalEvaluatedCount;
  if (msg.finalScoreDistribution) global.monitorScoreDistribution = msg.finalScoreDistribution;
  
@@ -595,13 +594,12 @@ worker.on('message', (msg) => {
  maxTotal: absoluteMaxTotal,
  totalGen: msg.totalGen || absoluteMaxTotal,
  fullStats: [], 
- // 🚀 輸出時同步附帶後台監控數據給前端呈現
  evaluatedCount: global.monitorEvaluatedCount,
  scoreStats250: global.monitorScoreDistribution,
  outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局隨機最優解鎖明牌（有效瓦解死鎖，100%保證分散多樣性！）】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
  }) + "\n");
  res.end(); 
- console.log(`[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。 `); 🌟
+ console.log(`[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。 `);
  }
  } catch (streamErr) {
  console.error("[竣工發射突發攔截] 串流寫入失敗：", streamErr.message);
@@ -622,7 +620,6 @@ function compileLeaderboardToOutput() {
  const favNums = isFavEnabled ? cfg.vip_fav_set : [];
  
  if (!isSmartMode) {
- // 🌟 即使不是聰明模式，相同評分的組合也注入「混沌隨機微擾動」，徹底消滅排序死鎖，保證真實性！
  leaderBoard.sort((a, b) => {
  const aFinal = (a.score || 0) + (a.noise || Math.random() * 0.99);
  const bFinal = (b.score || 0) + (b.noise || Math.random() * 0.99);
@@ -635,13 +632,8 @@ function compileLeaderboardToOutput() {
  return;
  }
  
- // ============================================================================================
- // 【究極體防扎堆大改裝】：不再使用可能導致重複或隨機性不足的 Fisher-Yates 混沌洗牌
- // 直接利用我們在子執行緒中為每組號碼精準嵌入的隨機擾動因子 `finalScore = score + noise` 進行總決選排序！
- // ============================================================================================
  leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
  
- // 直接截取前 100 組（或是用戶指定的數量），因為這批已經是在幾百萬大軍中經過隨機隨機點洗禮、脫穎而出的贏家！
  const finalPickSize = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 100));
  let hardwareCleanBoard = leaderBoard.slice(0, finalPickSize);
  
@@ -670,24 +662,20 @@ function compileLeaderboardToOutput() {
  if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
  pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
  
- // 【開頭防線二合一】：嚴格防堵相鄰大組之間連號與扎堆號 🛠
  if (item.comb[0] === hardwareCleanBoard[i-1].comb[0] && item.comb[1] === hardwareCleanBoard[i-1].comb[1]) {
  isHeadVanceDuplicated = true;
  }
  }
  
- // 【2026 物理阻斷鐵網】：若與同組重複過多或開頭死黏，實施動態降分
  if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap || isHeadVanceDuplicated) {
  const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
  const headPenalty = isHeadVanceDuplicated ? 300 : 0; 
- // 計算經過懲罰後的基礎分，但仍保留原先在子執行緒算好的隨機擾動小數部分，使其保持隨機排序多樣性！
  const oldBaseScore = item.score;
  const newBaseScore = Math.max(-400, oldBaseScore - (120 * maxOverlapFound) - headPenalty);
  item.score = newBaseScore;
  item.finalScore = newBaseScore + (item.noise || 0);
  item.unit = currentUnitTracker; 
  } else {
- // 完美不重複的大組生還者，原地獲得健康提權加分
  pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
  item.unit = currentUnitTracker;
  
@@ -704,12 +692,10 @@ function compileLeaderboardToOutput() {
  }
  }
  
- // 依照動態加碼/懲罰後的最新 finalScore，進行最終前台輸出排序
  hardwareCleanBoard.sort((a, b) => b.finalScore - a.finalScore);
  processedSuccessfully = true;
  }
  
- // 3. 完美交卷輸出（保證最終留下來的前 100 名在維持高分的同時，完全彈開、絕不重疊！）
  for (let index = 0; index < hardwareCleanBoard.length; index++) {
  const item = hardwareCleanBoard[index];
  if (!item) continue;
@@ -724,7 +710,8 @@ function compileLeaderboardToOutput() {
  }
 }
 global.compileOutput = compileLeaderboardToOutput;
-// ========================================== 【區塊 1：主執行緒全新替換範圍結束】 ==========================================
+// ========================================== 【區塊 1：主執行緒純文字修復範圍結束】 ==========================================
+
 
 }
 
