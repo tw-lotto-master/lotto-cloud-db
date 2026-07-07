@@ -26,11 +26,26 @@ if (!TRUE_MONGO_URI) {
   throw new Error('Missing required environment variable: MONGO_URI');
 }
 
+// ========================================== 【第一處：主執行緒資料庫防並發熔斷配置替換】 ==========================================
 mongoose.models = {};
 mongoose.modelSchemas = {};
-mongoose.connect(TRUE_MONGO_URI)
-  .then(() => console.log(" 📡 [大腦通電成功] 已物理歸位真房間：MongoDB -> lotto "))
-  .catch(err => console.error(" ❌ 資料庫真房間開啟失敗：", err));
+
+const mongooseOptions = {
+  autoIndex: false, 
+  maxPoolSize: 50,  
+  minPoolSize: 5,   
+  socketTimeoutMS: 45000, 
+  connectTimeoutMS: 45000, 
+  serverSelectionTimeoutMS: 15000, 
+  heartbeatFrequencyMS: 10000, 
+  family: 4 
+};
+
+mongoose.connect(TRUE_MONGO_URI, mongooseOptions)
+  .then(() => console.log("[資料庫通電] MongoDB 已成功接入頂級高並發抗壓通道：lotto"))
+  .catch(err => console.error("[資料庫突發攔截] 抗壓通道初始化失敗: ", err.message));
+// ==================================================================================================================
+
 
 // ─── 操盤手帳戶與商用變動資產資料庫 Schema ───
 const UserSchema = new mongoose.Schema({
