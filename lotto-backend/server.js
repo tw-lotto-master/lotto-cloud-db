@@ -1254,35 +1254,31 @@ if (f10_on && lastPeriod.length > 0) {
 }
 
  // ⚙️ 【大數據防線：關卡 09 ── 鄰號夾擊防線】
- const f9_on = (cfg.f9_on === true || cfg.f9_on === 'true');
+const f9_on = (cfg.f9_on === true || cfg.f9_on === 'true');
 if (f9_on && neighborSet.size > 0) {
-  // 🎯 滿血自癒變數對齊：確保對齊您前端傳過來的鄰號上限參數（預設限制為 2 碼）
+  // 🎯 滿血自癒對齊：精準抓取用戶前端填寫的「包含個數（作為上限擊殺線）」
   const targetMax = Number(cfg.f9_count) || 2; 
-  
+
   filters.push({
     id: 9,
     exec: (comb) => {
       let neiCount = 0;
       const len = comb.length;
-      
+
+      // 1. 老老實實、全量清點這組號碼中到底踩到了幾個鄰碼，絕不用 break 偷懶
       for (let m = 0; m < len; m++) {
         if (neighborSet.has(comb[m])) {
           neiCount++;
-          
-          // 🎯 滿血自癒修正：只要包含的鄰號個數超過了用戶設定的上限（例如 > 2），
-          // 代表鄰號過度扎堆， return true 毫不留情直接封殺剔除！
-          if (neiCount > targetMax) {
-            return true;
-          }
-        }
-        
-        // 剪枝優化：即使剩下的號碼全部都是鄰號，加起來也不會超過 targetMax 時，可以提早安全跳出放行
-        if (neiCount + (len - 1 - m) <= targetMax) {
-          break;
         }
       }
-      
-      return false; // 鄰號個數在安全上限內，判定為健康組合，允許生還放行
+
+      // 2. 完美的物理擊殺線（100% 遵照您的戰術）：
+      // 只要這組牌命中的鄰碼數量「超過」了用戶設定的上限值（targetMax），直接 return true 當場物理殺死！
+      if (neiCount > targetMax) {
+        return true; 
+      }
+
+      return false; // 鄰碼個數在安全上限之內（屬於合格的常態疏散號），允許生還放行
     }
   });
 }
