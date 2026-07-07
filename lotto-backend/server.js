@@ -1226,7 +1226,7 @@ if (f13_on) {
     return true;
   }
 
-// ========================================== 【區塊 2：子執行緒全新替換範圍開始】 ==========================================
+// ========================================== 【區塊 2：子執行緒全新替換範圍（強制基礎評分全開版）】 ==========================================
  let scannedCount = 0;
  const getDynamicMaxCombs = () => {
  const n = basePool.length; const favCount = vip_fav_on && typeof favBalls !== 'undefined' ? favBalls.length : 0;
@@ -1252,10 +1252,10 @@ if (f13_on) {
  // 2. 累計進入評分生存池的總組數（完全不受組數限制，幾百萬組都會通過這裡！）
  localEvaluatedCount++;
  
- // 3. 計算基礎健康評分（100% 還原您原汁原味的加減分規則，無任何省略）
+ // 3. 計算基礎健康評分（全面物理強制全開，無視前端勾選狀態！）
  let healthScore = 100; 
  
- if (cfg.scoreTotalSum) {
+ // ─── 項目 A：強制全量進行【號碼總和評分】 ───
  const sumVal = combination.reduce((x, y) => x + y, 0);
  if (lottoType === "49_6") { 
  if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
@@ -1266,9 +1266,12 @@ if (f13_on) {
  else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
  else healthScore -= 50;
  }
+
+ // ─── 項目 B：強制全量進行【奇偶比例評分】 ───
+ let oddsCount = 0; 
+ for (let i = 0; i < combination.length; i++) {
+ if ((combination[i] & 1) === 1) oddsCount++;
  }
- if (cfg.scoreOddEven) {
- let oddsCount = 0; combination.forEach(num => { if ((num & 1) === 1) oddsCount++; });
  if (lottoType === "49_6") {
  if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
  else if (oddsCount === 3) healthScore += 30;
@@ -1277,10 +1280,13 @@ if (f13_on) {
  if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
  else healthScore -= 50;
  }
- }
- if (cfg.scoreBigSmall) {
+
+ // ─── 項目 C：強制全量進行【大小比例評分】 ───
  const midPoint = lottoType === "49_6" ? 25 : 20;
- let bigCount = 0; combination.forEach(num => { if (num >= midPoint) bigCount++; });
+ let bigCount = 0; 
+ for (let i = 0; i < combination.length; i++) {
+ if (combination[i] >= midPoint) bigCount++;
+ }
  if (lottoType === "49_6") {
  if (bigCount === 2 || bigCount === 4) healthScore += 50;
  else if (bigCount === 3) healthScore += 30;
@@ -1289,19 +1295,28 @@ if (f13_on) {
  if (bigCount === 2 || bigCount === 3) healthScore += 50;
  else healthScore -= 50;
  }
- }
- if (cfg.scoreConsecutive) {
+
+ // ─── 項目 D：強制全量進行【連續號牆評分】 ───
  let currentSeq = 1, maxSeq = 1, totalPairs = 0; 
  for (let m = 1; m < combination.length; m++) {
- if (combination[m] === combination[m - 1] + 1) { currentSeq++; totalPairs++; if (currentSeq > maxSeq) maxSeq = currentSeq; } 
- else currentSeq = 1;
+ if (combination[m] === combination[m - 1] + 1) { 
+ currentSeq++; 
+ totalPairs++; 
+ if (currentSeq > maxSeq) maxSeq = currentSeq; 
+ } else {
+ currentSeq = 1;
+ }
  }
  if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
  else if (maxSeq === 1) healthScore += 30;
  else healthScore -= 50;
+
+ // ─── 項目 E：強制全量進行【除三餘數路分佈評分】 ───
+ let r0 = 0, r1 = 0, r2 = 0; 
+ for (let i = 0; i < combination.length; i++) {
+ const rem = combination[i] % 3; 
+ if (rem === 0) r0++; else if (rem === 1) r1++; else r2++; 
  }
- if (cfg.score012Route) {
- let r0 = 0, r1 = 0, r2 = 0; combination.forEach(num => { const rem = num % 3; if (rem === 0) r0++; else if (rem === 1) r1++; else r2++; });
  if (lottoType === "49_6") {
  if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
  else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
@@ -1309,46 +1324,38 @@ if (f13_on) {
  if ((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) healthScore += 50;
  else healthScore -= 50;
  }
- }
  
- // 📊 【後台監控統計】精確捕捉 250 分以上各分數段的出現頻次
+ // 📊 【後台監控統計】精確捕捉五項全開評分下，250 分以上各分數段的出現頻次
  if (healthScore >= 250) {
  const floorScore = Math.floor(healthScore);
  localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
  }
  
  // 🎯 【隨機基準點提權機制】為此合格組注入獨一無二的「微擾動隨機因子 (0~0.9999)」
- // 這一步能完美解決您的最大痛點：所有得到 -400 分或 250 分的號碼，其加總權重（finalScore）會被徹底打散，避免每次順序都一樣！
+ // 徹底瓦解死鎖僵局！保證所有合格組在相同的 5 項基礎分下，能憑藉擾動值公平竞争
  const currentNoise = Math.random() * 0.9999;
  const finalWeightedScore = healthScore + currentNoise;
  
  const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
  const nodeItem = { score: healthScore, noise: currentNoise, finalScore: finalWeightedScore, comb: combination, formatted };
  
- // 🏆 【蓄水池流式生死鬥演算法】贏的留下，輸的當場銷毀，永不限制池子總大小
+ // 🏆 【蓄水池流式生死鬥演算法】贏的留下，輸的當場銷毀，不限生存池總大小
  if (localLeaderBoard.length < pickLimit) {
- // 蓄水池未滿 100 組，直接放入
  localLeaderBoard.push(nodeItem);
  if (localLeaderBoard.length === pickLimit) {
- // 當剛好填滿 100 組時，進行一次升序排序，使 localLeaderBoard[0] 永遠是這 100 組裡的「最低分守門員」
  localLeaderBoard.sort((a, b) => a.finalScore - b.finalScore);
  }
  } else {
- // 蓄水池已滿：拿當前生還者的隨機評分，去挑戰池中最低分守門員
  if (finalWeightedScore > localLeaderBoard[0].finalScore) {
- // 挑戰成功！守門員出局（自動被垃圾回收銷毀，不吃記憶體），新贏家強勢遞補進入
- localLeaderBoard[0] = nodeItem;
- // 重新進行快速升序排序，確保 localLeaderBoard[0] 依舊保持為最低分
- localLeaderBoard.sort((a, b) => a.finalScore - b.finalScore);
+ localLeaderBoard[0] = nodeItem; // 淘汰守門員
+ localLeaderBoard.sort((a, b) => a.finalScore - b.finalScore); // 重新校準最低分位
  }
- // 💡 挑戰失敗的弱者直接在此結束生命週期，原形銷毀，徹底杜絕舊代碼中無用低分扎堆排列的狀況！
  }
 }
 
  async function triggerChunkFlush() {
  if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
  const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
- // 串流發射時同步傳送當前的全量評分統計快照給主執行緒
  parentPort.postMessage({ 
  type: 'TOTAL_SCAN_PROGRESS', 
  scanned: scannedCount, 
@@ -1379,8 +1386,7 @@ if (f13_on) {
  }
  await dfs(0, 0);
  
- // 最終交卷前，將蓄水池中勝出的前 100 名由低到高反轉，變回「最高分在前」的完美交卷順序
- localLeaderBoard.reverse();
+ localLeaderBoard.reverse(); // 倒序反轉，使最高分在前交付給主緒
  
  parentPort.postMessage({ 
  type: 'TOTAL_SCAN_PROGRESS', 
@@ -1390,7 +1396,6 @@ if (f13_on) {
  stats: Array.from(killStats), 
  totalGen: localTotalGen 
  });
- // 將最終大贏家名單與最完整的後台監控統計包一次封裝，優雅上報給主緒
  parentPort.postMessage({ 
  type: 'FINAL_SURVIVE_DELIVERY', 
  leaderBoard: localLeaderBoard,
@@ -1399,6 +1404,7 @@ if (f13_on) {
  }); 
  })();
 // ========================================== 【區塊 2：子執行緒全新替換範圍結束】 ==========================================
+
 
 }
 
