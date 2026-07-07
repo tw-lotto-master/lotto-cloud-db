@@ -490,8 +490,7 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         workers.push(worker);
 
 
-// ========================================== 【區塊 1：主執行緒純文字修復範圍開始】 ==========================================
-// 2026 全域後台即時統計監控觀測艙（精確統計所有評分參與組數與 250 分以上分佈）
+// ========================================== 【主執行緒修復範圍開始】 ==========================================
 global.monitorEvaluatedCount = 0; 
 global.monitorScoreDistribution = {}; 
 
@@ -506,17 +505,17 @@ worker.on('message', (msg) => {
  if (currentProgressPercent < 5) currentProgressPercent = 5;
  
  if (msg.scanned % 500000 === 0 || msg.scanned === absoluteMaxTotal) {
- console.log(`[全域海選進度] 已老實掃描: ${msg.scanned} / ${absoluteMaxTotal} 組 (${currentProgressPercent}%) | 當前本地總生成: ${msg.totalGen || 0} 組`);
+ console.log("[全域海選進度] 已老實掃描: " + msg.scanned + " / " + absoluteMaxTotal + " 組 (" + currentProgressPercent + "%) | 當前本地總生成: " + (msg.totalGen || 0) + " 組");
  if (msg.stats) {
  const s = msg.stats;
- console.log(`\n======================= [16防線動態擊殺全景觀測] =======================`);
- console.log(` [基建防線] 條件01(地雷排除): ${s[1] || 0} 組 | 條件02(首尾熱區): ${s[2] || 0} 組 | 條件03(落點區塊): ${s[3] || 0} 組`);
- console.log(` [物理過濾] 條件04(同尾限制): ${s[4] || 0} 組 | 條件05(奇偶比例): ${s[5] || 0} 組 | 條件06(號碼總和): ${s[6] || 0} 組`);
- console.log(` [數學規律] 條件07(連續號牆): ${s[7] || 0} 組 | 條件08(等差數列): ${s[8] || 0} 組 | 條件13(算術AC值): ${s[13] || 0} 組`);
- console.log(` [大數據庫] 條件09(鄰號夾擊): ${s[9] || 0} 組 | 條件10(上期連莊): ${s[10] || 0} 組 | 條件14(質數合數): ${s[14] || 0} 組`);
- console.log(` [終極防護] 條件11(大小分流): ${s[11] || 0} 組 | 條件12(除三餘數) : ${s[12] || 0} 組 | 條件15(歷史重疊): ${s[15] || 0} 組`);
- console.log(` [皇家特權] 條件16(必開喜愛): ${s[0] || 0} 組`);
- console.log(`=================================================================================\n`);
+ console.log("\n======================= [16防線動態擊殺全景觀測] =======================");
+ console.log(" [基建防線] 條件01(地雷排除): " + (s[1] || 0) + " 組 | 條件02(首尾熱區): " + (s[2] || 0) + " 組 | 條件03(落點區塊): " + (s[3] || 0) + " 組");
+ console.log(" [物理過濾] 條件04(同尾限制): " + (s[4] || 0) + " 組 | 條件05(奇偶比例): " + (s[5] || 0) + " 組 | 條件06(號碼總和): " + (s[6] || 0) + " 組");
+ console.log(" [數學規律] 條件07(連續號牆): " + (s[7] || 0) + " 組 | 條件08(等差數列): " + (s[8] || 0) + " 組 | 條件13(算術AC值): " + (s[13] || 0) + " 組");
+ console.log(" [大數據庫] 條件09(鄰號夾擊): " + (s[9] || 0) + " 組 | 條件10(上期連莊): " + (s[10] || 0) + " 組 | 條件14(質數合數): " + (s[14] || 0) + " 組");
+ console.log(" [終極防護] 條件11(大小分流): " + (s[11] || 0) + " 組 | 條件12(除三餘數): " + (s[12] || 0) + " 組 | 條件15(歷史重疊): " + (s[15] || 0) + " 組");
+ console.log(" [皇家特權] 條件16(必開喜愛): " + (s[0] || 0) + " 組");
+ console.log("=================================================================================\n");
  }
  }
  
@@ -544,7 +543,7 @@ worker.on('message', (msg) => {
  if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
  if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
  clearTimeout(safetyTimeout);
- console.log(`[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。`);
+ console.log("[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。");
  }
  
  leaderBoard.length = 0;
@@ -555,17 +554,17 @@ worker.on('message', (msg) => {
  if (msg.finalEvaluatedCount) global.monitorEvaluatedCount = msg.finalEvaluatedCount;
  if (msg.finalScoreDistribution) global.monitorScoreDistribution = msg.finalScoreDistribution;
  
- console.log(`=======================================================`);
- console.log(` [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！`); 
- console.log(` 最終死守並交付全榜最優解（真實隨機汰換）：${leaderBoard.length} 組名牌`);
- console.log(` 監控報告：本次生存池實際參與評分總組數為: ${global.monitorEvaluatedCount} 組`);
- console.log(`=======================================================`);
+ console.log("=======================================================");
+ console.log(" [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！"); 
+ console.log(" 最終死守並交付全榜最優解（真實隨機汰換）：" + leaderBoard.length + " 組名牌");
+ console.log(" 監控報告：本次生存池實際參與評分總組數為: " + global.monitorEvaluatedCount + " 組");
+ console.log("=======================================================");
  
  isFinished = true; 
  if (global.heartbeatTimer) {
  clearInterval(global.heartbeatTimer);
  global.heartbeatTimer = null;
- console.log(`[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。`);
+ console.log("[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。");
  }
  
  try {
@@ -596,10 +595,10 @@ worker.on('message', (msg) => {
  fullStats: [], 
  evaluatedCount: global.monitorEvaluatedCount,
  scoreStats250: global.monitorScoreDistribution,
- outputText: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局隨機最優解鎖明牌（有效瓦解死鎖，100%保證分散多樣性！）】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n`
+ outputText: "【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n" + liveScannedCount + " 組 \n \n【當前交付全局隨機最優解鎖明牌（有效瓦解死鎖，100%保證分散多樣性！）】：\n-------------------------\n" + finalOutputCombs.join('') + "-------------------------\n"
  }) + "\n");
  res.end(); 
- console.log(`[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。 `);
+ console.log("[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。");
  }
  } catch (streamErr) {
  console.error("[竣工發射突發攔截] 串流寫入失敗：", streamErr.message);
@@ -627,7 +626,7 @@ function compileLeaderboardToOutput() {
  });
  leaderBoard.forEach((item, index) => {
  const indexStr = String(index + 1).padStart(2, '0');
- finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: ${item.score || 0}分] : ${item.formatted || ""}\n`);
+ finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
  });
  return;
  }
@@ -701,7 +700,7 @@ function compileLeaderboardToOutput() {
  if (!item) continue;
  const indexStr = String(index + 1).padStart(2, '0');
  const displayUnit = item.unit || (Math.floor(index / 12) + 1);
- finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${displayUnit} 大組) [評分: ${item.score !== undefined ? item.score : 0}分] : ${item.formatted || ""}\n`);
+ finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
  }
  
  hardwareCleanBoard = null;
@@ -710,12 +709,7 @@ function compileLeaderboardToOutput() {
  }
 }
 global.compileOutput = compileLeaderboardToOutput;
-// ========================================== 【區塊 1：主執行緒純文字修復範圍結束】 ==========================================
-
-
-}
-
-global.compileOutput = compileLeaderboardToOutput;
+// ========================================== 【主執行緒修復範圍結束】 ==========================================
 
  });
 
