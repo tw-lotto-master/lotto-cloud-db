@@ -619,6 +619,39 @@ worker.on('message', (msg) => {
  
  try {
  if (!res.writableEnded) {
+ // 🌍 2026 皇家竣工艙：動態捕獲前端傳過來的語系參數（防呆機制：預設為 zh 繁中）
+ const finalUiLang = (cfg && cfg.lang) || "zh"; 
+
+ // 🏆 竣工終點站：4 國語言專業大數據名詞映射矩陣（純文字無防爆配置）
+ let headerTitle = "";
+ let poolTotalText = "";
+ let deliveryTitle = "";
+ 
+ if (finalUiLang === "zh") {
+   headerTitle = "【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：";
+   poolTotalText = "【監控報告】本次生存池實際參與評分總組數為：";
+   deliveryTitle = "【當前交付全局隨機最優解鎖明牌（有效瓦解死鎖，100%保證分散多樣性！）】：";
+ } else if (finalUiLang === "en") {
+   headerTitle = "[VIP Fusion Brain Sorting Completed] Real-Time Scanned Passes at Relay Station: ";
+   poolTotalText = "[Monitor Report] Total Sets Evaluated in Current Survival Pool: ";
+   deliveryTitle = "[Currently Delivered Globally Randomized Optimal Tickets (Lock-In Broken, 100% Variance Guaranteed!)]: ";
+ } else if (finalUiLang === "ja") {
+   headerTitle = "【VIP融合AI大脳選別完了】中継拠点のリアルタイム通過総数：";
+   poolTotalText = "【監視レポート】今回の生存プールで実際に評価対象となった総組合せ数：";
+   deliveryTitle = "【現在交付されたグローバルランダム最適解（デッドロック解消、100%の分散多様性を保証！）】：";
+ } else if (finalUiLang === "ko") {
+   headerTitle = "【VIP 융합 AI 브레인 선별 완료】중계소 이번 해선 실시간 통과 총수: ";
+   poolTotalText = "【모니터링 보고】이번 생존 풀 실제 평가 참여 총 조합 수: ";
+   deliveryTitle = "【현재 교부된 글로벌 무작위 최적 해제 명판 (데드락 완벽 해제, 100% 분산 다형성 보장!)]: ";
+ }
+
+ // 🧬 組裝滿血多語系大結局文字區塊（精準注入您要求的「本次生存池實際參與評分總組數」）
+ const finalFormattedOutputText = 
+   headerTitle + "\n" + liveScannedCount + " 組 \n" + 
+   poolTotalText + global.monitorEvaluatedCount + " 組 \n \n" + 
+   deliveryTitle + "\n-------------------------\n" + 
+   finalOutputCombs.join('') + "-------------------------\n";
+
  res.write(JSON.stringify({
  success: true,
  isProgress: false,
@@ -631,12 +664,13 @@ worker.on('message', (msg) => {
  fullStats: [], 
  evaluatedCount: global.monitorEvaluatedCount,
  scoreStats250: global.monitorScoreDistribution,
- outputText: "【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n" + liveScannedCount + " 組 \n \n【當前交付全局隨機最優解鎖明牌（有效瓦解死鎖，100%保證分散多樣性！）】：\n-------------------------\n" + finalOutputCombs.join('') + "-------------------------\n"
+ outputText: finalFormattedOutputText
  }) + "\n");
  res.end(); 
- console.log("[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。");
+ console.log("[串流大結局] 多語系竣工數據順利發射，HTTP Chunked 通道已優雅關閉。");
  }
  } catch (streamErr) {
+
  console.error("[竣工發射突發攔截] 串流寫入失敗：", streamErr.message);
  } finally {
  global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
