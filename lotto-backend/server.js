@@ -661,7 +661,7 @@ function compileLeaderboardToOutput() {
  if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
  pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
  
- if (item.comb[0] === hardwareCleanBoard[i-1].comb[0] && item.comb[1] === hardwareCleanBoard[i-1].comb[1]) {
+ if (item.comb === hardwareCleanBoard[i-1].comb && item.comb === hardwareCleanBoard[i-1].comb) {
  isHeadVanceDuplicated = true;
  }
  }
@@ -691,15 +691,25 @@ function compileLeaderboardToOutput() {
  }
  }
  
- hardwareCleanBoard.sort((a, b) => b.finalScore - a.finalScore);
  processedSuccessfully = true;
  }
  
+ // 🚀 【大組分群化改裝核心】：先依照大組別 (unit) 由小到大排序；若組別相同，再依照隨機總得分由高到低排序
+ hardwareCleanBoard.sort((a, b) => {
+ const aUnit = a.unit || 1;
+ const bUnit = b.unit || 1;
+ if (aUnit !== bUnit) {
+ return aUnit - bUnit; // 組別小的（如第 1 大組）排在前面
+ }
+ return b.finalScore - a.finalScore; // 相同大組內，分數高的排前面
+ });
+ 
+ // 輸出名牌渲染
  for (let index = 0; index < hardwareCleanBoard.length; index++) {
  const item = hardwareCleanBoard[index];
  if (!item) continue;
  const indexStr = String(index + 1).padStart(2, '0');
- const displayUnit = item.unit || (Math.floor(index / 12) + 1);
+ const displayUnit = item.unit || 1;
  finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
  }
  
@@ -708,6 +718,7 @@ function compileLeaderboardToOutput() {
  console.error("[理論大組終極物理隔離晶片異常] ", err.message);
  }
 }
+
 global.compileOutput = compileLeaderboardToOutput;
 // ========================================== 【主執行緒修復範圍結束】 ==========================================
 
@@ -1334,8 +1345,10 @@ if (f13_on) {
  }
 }
 
+// ========================================== 【第二處：子執行緒回報降載優化替換】 ==========================================
  async function triggerChunkFlush() {
- if (scannedCount % 500000 === 0 || scannedCount === maxCombinations) {
+ // 🚀 將過濾密度調整為 1,000,000 組回報一次，大幅釋放主執行緒的事件循環，給資料庫連線絕對充足的活命空間！
+ if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations) {
  const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
  parentPort.postMessage({ 
  type: 'TOTAL_SCAN_PROGRESS', 
@@ -1347,9 +1360,12 @@ if (f13_on) {
  finalEvaluatedCount: localEvaluatedCount,
  finalScoreDistribution: localScoreDistribution
  });
+ // 強制讓出微秒級線程，給 Node.js 處理基礎資料庫連線
  await new Promise(res => { if (typeof setImmediate !== 'undefined') setImmediate(res); else setTimeout(res, 1); });
  }
  }
+// ==================================================================================================================
+
 
  (async function runDeterministicBrain() {
  const favSet = new Set(favBalls); const remainingPool = basePool.filter(ball => !favSet.has(ball)); remainingPool.sort((a, b) => a - b);
