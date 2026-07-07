@@ -501,8 +501,29 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         }, 300000);
 
         // 🌟 核心修正：將前端傳入的歷史資料庫作為 passedHistoryDB 精確指派進去，對齊底層！
-        const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
-        workers.push(worker);
+       const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
+workers.push(worker);
+
+// == ✨ 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感） ==
+try {
+  if (!res.writableEnded) {
+    const initMaxTotal = cfg.lottoType === "49_6" ? 13983816 : 575757;
+    res.write(JSON.stringify({ 
+      isProgress: true, 
+      percent: 1, 
+      currentMatch: 0,
+      scanned: 0,
+      maxTotal: initMaxTotal,
+      totalGen: 0,
+      evaluatedCount: 0,
+      scoreStats250: {}
+    }) + "\n");
+    console.log("[海選開閘點火] 後台已成功發射第一秒初始化進度封包給前端。");
+  }
+} catch (initErr) {
+  console.error("[開閘點火失敗] 初始封包發射中斷：", initErr.message);
+}
+
 
 
 // ========================================== 【主執行緒修復範圍開始】 ==========================================
