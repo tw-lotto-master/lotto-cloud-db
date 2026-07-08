@@ -383,24 +383,24 @@ if (isMainThread) {
   res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
   return res.end();
 }
-    const sessionUserId = req.user && req.user.userId;
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
-    const nowtime = new Date();
-    // 1. 驗證 30 天月費訂閱特權
-    const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
-    // 2. 驗證全新的 24 小時單次解鎖通行證特權
-    const hasValid24hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
+const sessionUserId = req.user && req.user.userId;
+const dbUser = await User.findById(sessionUserId);
+if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
 
-    // 彙整最高免扣點白名單權限
-    const isVipPass = (
-        hasActiveSubscription || 
-        hasValid24hPass || 
-        dbUser.isPaidMember === true || 
-        cfg.isPaidMember === true || cfg.isPaidMember === 'true' || 
-        cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || 
-        cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true'
-    );
+const nowtime = new Date();
+
+// 1. 驗證 30 天月費訂閱特權
+const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
+
+// 👑 2. 驗證全新的 6 小時單次解鎖通行證特權（時效完全與 25 點解鎖對齊！）
+const hasValid6hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
+
+// 👑 彙整最高免扣點白名單權限（徹底火化前端越權後門，只相信資料庫！）
+const isVipPass = (
+  hasActiveSubscription || 
+  hasValid6hPass || 
+  dbUser.isPaidMember === true
+);
     
     const limitOutput = Math.min(100, cfg.count || 5);
     const pickLimit = parseInt(limitOutput) || 5;
@@ -513,18 +513,22 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         }) + "\n");
         return res.end();
     } // 🌟 完美閉合通道 A 
-     if (!isVipPass) {
-        // 如果沒有月費 VIP，也沒有 24 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
-        res.write(JSON.stringify({ 
-            success: false, 
-            status: 402, 
-            message: "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (10點)』獲取憑證！" 
-        }) + "\n");
-        return res.end();
-    } else {
-        // 已持有時效憑證，綠色通道直接放行，0 點數消耗！
-        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
-    }
+    // ========================================== 【後端：權限攔截廣播站 ── 25點/6小時文字同步版】 ==========================================
+if (!isVipPass) {
+  // 如果沒有月費 VIP，也沒有 6 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
+  res.write(JSON.stringify({
+    success: false,
+    status: 402,
+    // 👑 皇家同步：提示文字完美更正為 25 點與 6 小時，與前台介面、扣點邏輯 100% 契合
+    message: "權限鎖定：高階篩選需持有 6 小時通行證，請先點擊『單次解鎖（25點）』獲取憑證！"
+  }) + "\n");
+  
+  return res.end();
+} else {
+  // 已持有一期時效憑證，綠色通道直接放行，0 點數消耗！
+  res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
+}
+
 
     global.activeRequestsCount = (global.activeRequestsCount || 0) + 1;
     console.log(`[極速全量大腦] 啟動 1398 萬組全量位元拓撲過濾引擎，目標 90 秒內大竣工！\n`);
