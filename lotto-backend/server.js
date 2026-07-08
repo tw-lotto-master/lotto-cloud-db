@@ -342,11 +342,20 @@ if (isMainThread) {
   }
 
   // ─── 啟動全案最高核心海選引擎 ───
-  app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) => {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Transfer-Encoding', 'chunked');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
+ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) => {
+ res.setHeader('Content-Type', 'application/json; charset=utf-8');
+ res.setHeader('Transfer-Encoding', 'chunked');
+ res.setHeader('Cache-Control', 'no-cache');
+ res.setHeader('Connection', 'keep-alive');
+
+ // 鋼鐵自癒防線：只要使用者一中斷連線或關網頁，物理強制拔除心跳計時器，防止伺服器記憶體大爆炸 🛑
+ req.on('close', () => {
+   if (global.heartbeatTimer) {
+     clearInterval(global.heartbeatTimer);
+     global.heartbeatTimer = null;
+     console.log("[自癒防爆閘] 偵測到用戶端離線，已物理除惡務盡殘留心跳計時器！");
+   }
+ });
     try {
       const { cfg, globalHistoryDB } = req.body;
     if (cfg) {
@@ -952,9 +961,18 @@ global.compileOutput = compileLeaderboardToOutput;
  }
  }
  }, 10000);
- } catch (globalErr) {
- console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
- try { res.json({ success: false, message: `後台突發故障: ${globalErr.message}` }); } catch (e) {}
+} catch (globalErr) {
+   console.error(" 雲端大腦內核阻斷異常：", globalErr.message);
+   if (global.heartbeatTimer) {
+     clearInterval(global.heartbeatTimer);
+     global.heartbeatTimer = null;
+   }
+   try { 
+     if (!res.writableEnded) {
+       res.write(JSON.stringify({ success: false, message: `後台突發故障: ${globalErr.message}` }) + "\n");
+       res.end();
+     }
+   } catch (e) {}
  }
 });
 } // 完美閉合主執行緒的完全體結構 🌟
