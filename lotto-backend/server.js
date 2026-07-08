@@ -570,8 +570,10 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         }, 300000);
 
         // 🌟 核心修正：將前端傳入的歷史資料庫作為 passedHistoryDB 精確指派進去，對齊底層！
-       const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
-workers.push(worker);
+      if (typeof isVipPass !== 'undefined' && isVipPass === true && cfg) {
+   cfg.isSingleUnlockedCurrentRound = true;
+ }
+ const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
 
 // == ✨ 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感） ==
 try {
