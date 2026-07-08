@@ -764,6 +764,12 @@ worker.on('message', (msg) => {
           modeFooterTitle;
           
         // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
+                // 🎯 滿血注入換行防火牆：在發射前，強行把文字內的所有實體換行換成安全的 \\n，消滅前段 split('\n') 攔截跳針病毒
+        const safeOutputText = String(finalFormattedOutputText || '')
+          .replace(/\r\n/g, '\\n')
+          .replace(/\n/g, '\\n')
+          .replace(/\r/g, '\\n');
+
         res.write(JSON.stringify({
           success: true,
           isProgress: false,
@@ -772,14 +778,14 @@ worker.on('message', (msg) => {
           currentMatch: leaderBoard.length,
           scanned: absoluteMaxTotal,
           maxTotal: absoluteMaxTotal,
-          maxCombinations: absoluteMaxTotal, // 同步提供雙拼字欄位 🟢
+          maxCombinations: absoluteMaxTotal, 
           totalGen: msg.totalGen || absoluteMaxTotal,
           fullStats: [],
           evaluatedCount: global.monitorEvaluatedCount,
           scoreStats250: global.monitorScoreDistribution,
-          outputText: finalFormattedOutputText
+          outputText: safeOutputText // 注入安全的完全體文字 🟢
         }) + "\n");
-        res.end();
+
         console.log("[串流大結局] 多語系工廠排版交付發射，HTTP Chunked 通道已優雅關閉。");
       }
     } catch (streamErr) {
