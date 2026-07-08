@@ -129,115 +129,97 @@ app.post('/api/auth/google-sync', async (req, res) => {
 
 // ─── 四大自癒金流晶片 API ───
 app.post('/api/user/profile-v2', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證失效" });
-    const dbUser = await User.findById(sessionUserId).select('-password');
-    if (!dbUser) return res.status(404).json({ success: false, message: "找不到該會員資料" });
-    return res.json({ success: true, user: dbUser });
-  } catch (err) { return res.status(500).json({ success: false, message: "資產讀取異常" }); }
+ try {
+ const sessionUserId = extractUserIdFromPayload(req);
+ if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證失效" });
+ const dbUser = await User.findById(sessionUserId).select('-password');
+ if (!dbUser) return res.status(404).json({ success: false, message: "找不到該會員資料" });
+ return res.json({ success: true, user: dbUser });
+ } catch (err) { return res.status(500).json({ success: false, message: "資產讀取異常" }); }
 });
 
 app.post('/api/user/buy-points', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "驗證令牌失效" });
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
-    dbUser.points = (Number(dbUser.points) || 0) + 100;
-    dbUser.markModified('points');
-    await dbUser.save();
-    return res.json({ success: true, newPoints: dbUser.points });
-  } catch (err) { return res.status(500).json({ success: false, message: "雲端金流異常" }); }
+ try {
+ const sessionUserId = extractUserIdFromPayload(req);
+ if (!sessionUserId) return res.status(401).json({ success: false, message: "驗證令牌失效" });
+ const dbUser = await User.findById(sessionUserId);
+ if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
+ dbUser.points = (Number(dbUser.points) || 0) + 100;
+ dbUser.markModified('points');
+ await dbUser.save();
+ return res.json({ success: true, newPoints: dbUser.points });
+ } catch (err) { return res.status(500).json({ success: false, message: "雲端金流異常" }); }
 });
 
 app.post('/api/user/subscribe-vip', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
-    const SUBSCRIBE_COST = 150;
-    if ((Number(dbUser.points) || 0) < SUBSCRIBE_COST) {
-      return res.status(400).json({ success: false, message: `續約失敗！需消耗 ${SUBSCRIBE_COST} 點，您的餘額不足。` });
-    }
-    dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - SUBSCRIBE_COST);
-    const now = new Date();
-    let baseDate = (dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > now) ? new Date(dbUser.subscriptionExpiresAt) : now;
-    baseDate.setDate(baseDate.getDate() + 30);
-    dbUser.subscriptionExpiresAt = baseDate;
-    dbUser.isPaidMember = true;
-    dbUser.markModified('points');
-    dbUser.markModified('subscriptionExpiresAt');
-    dbUser.markModified('isPaidMember');
-    await dbUser.save();
-    return res.json({ success: true, subscriptionExpiresAt: dbUser.subscriptionExpiresAt, newPoints: dbUser.points });
-  } catch (err) { return res.status(500).json({ success: false, message: "訂閱處理失敗" }); }
+ try {
+ const sessionUserId = extractUserIdFromPayload(req);
+ if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+ const dbUser = await User.findById(sessionUserId);
+ if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
+ const SUBSCRIBE_COST = 150;
+ if ((Number(dbUser.points) || 0) < SUBSCRIBE_COST) {
+ return res.status(400).json({ success: false, message: `續約失敗！需消耗 ${SUBSCRIBE_COST} 點，您的餘額不足。` });
+ }
+ dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - SUBSCRIBE_COST);
+ const now = new Date();
+ let baseDate = (dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > now) ? new Date(dbUser.subscriptionExpiresAt) : now;
+ baseDate.setDate(baseDate.getDate() + 30);
+ dbUser.subscriptionExpiresAt = baseDate;
+ dbUser.isPaidMember = true;
+ dbUser.markModified('points');
+ dbUser.markModified('subscriptionExpiresAt');
+ dbUser.markModified('isPaidMember');
+ await dbUser.save();
+ return res.json({ success: true, subscriptionExpiresAt: dbUser.subscriptionExpiresAt, newPoints: dbUser.points });
+ } catch (err) { return res.status(500).json({ success: false, message: "訂閱處理失敗" }); }
 });
 
 app.post('/api/user/cancel-vip', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.status(404).json({ success: false, message: "雲端資料庫找不到該帳戶" });
-    dbUser.subscriptionExpiresAt = null;
-    dbUser.isPaidMember = false;
-    await dbUser.save();
-    return res.json({ success: true, message: "訂閱已成功終止，特權重鎖" });
-  } catch (err) { return res.status(500).json({ success: false, message: "伺服器底層內核阻斷錯誤" }); }
+ try {
+ const sessionUserId = extractUserIdFromPayload(req);
+ if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+ const dbUser = await User.findById(sessionUserId);
+ if (!dbUser) return res.status(404).json({ success: false, message: "雲端資料庫找不到該帳戶" });
+ dbUser.subscriptionExpiresAt = null;
+ dbUser.isPaidMember = false;
+ await dbUser.save();
+ return res.json({ success: true, message: "訂閱已成功終止，特權重鎖" });
+ } catch (err) { return res.status(500).json({ success: false, message: "伺服器底層內核阻斷錯誤" }); }
 });
 
-// ========================================== 【後端：單次解鎖 2.0 ── 25點/6小時時效控制內核】 ==========================================
 app.post('/api/user/single-unlock', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身份驗證憑證已失效" });
-    
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
-
-    const now = new Date();
-    
-    // 👑 皇家校正防線：嚴格防重複扣點！檢查 6 小時時效是否還有效
-    if (dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > now) {
-      return res.json({ 
-        success: true, 
-        message: "您已擁有 6 小時免扣點通行特權！", 
-        newPoints: dbUser.points,
-        singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt 
-      });
-    }
-
-    // 👑 升級商業資產限制：改為 25 點
-    const UNLOCK_COST = 25; 
-    if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
-      return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖最高階特權需消耗 ${UNLOCK_COST} 點！` });
-    }
-
-    // 扣除 25 點並注入 6 小時時效
-    dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
-    
-    const expireTime = new Date();
-    // 👑 精準注入 6 小時（而非原本的 24 小時）
-    expireTime.setHours(expireTime.getHours() + 6); 
-    dbUser.singleUnlockExpiresAt = expireTime;
-
-    dbUser.markModified('points');
-    dbUser.markModified('singleUnlockExpiresAt');
-    await dbUser.save();
-
-    console.log(`[通行證發放] 使用者 ${dbUser.username} 扣除 ${UNLOCK_COST} 點，6小時免扣點通道開啟！`);
-    return res.json({ 
-      success: true, 
-      newPoints: dbUser.points, 
-      singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt 
-    });
-
-  } catch (err) {
-    console.error("解鎖時效計算異常:", err);
-    return res.status(500).json({ success: false, message: "雲端授權通道異常" });
-  }
+ try {
+ const sessionUserId = extractUserIdFromPayload(req);
+ if (!sessionUserId) return res.status(401).json({ success: false, message: "身份驗證憑證已失效" });
+ const dbUser = await User.findById(sessionUserId);
+ if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
+ const now = new Date();
+ 
+ if (dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > now) {
+ return res.json({ success: true, message: "您已擁有 6 小時免扣點通行特權！", newPoints: dbUser.points, singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt });
+ }
+ 
+ const UNLOCK_COST = 25;
+ if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
+ return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖最高階特權需消耗 ${UNLOCK_COST} 點！` });
+ }
+ 
+ dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
+ const expireTime = new Date();
+ expireTime.setHours(expireTime.getHours() + 6);
+ dbUser.singleUnlockExpiresAt = expireTime;
+ 
+ dbUser.markModified('points');
+ dbUser.markModified('singleUnlockExpiresAt');
+ await dbUser.save();
+ 
+ console.log(`[通行證發放] 使用者 ${dbUser.username} 扣除 ${UNLOCK_COST} 點，6小時免扣點通道開啟！`);
+ return res.json({ success: true, newPoints: dbUser.points, singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt });
+ } catch (err) {
+ console.error("解鎖時效計算異常:", err);
+ return res.status(500).json({ success: false, message: "雲端授權通道異常" });
+ }
 });
 
 
@@ -359,175 +341,153 @@ if (isMainThread) {
   }
 
   // ─── 啟動全案最高核心海選引擎 ───
-  app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) => {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    res.setHeader('Transfer-Encoding', 'chunked');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    try {
-      const { cfg, globalHistoryDB } = req.body;
-    if (cfg) {
-      // 物理強行咬合：支援前端傳入的各式廣告解鎖欄位型態，完美認證通行證
-      if (cfg.isAdUnlocked === undefined) {
-        cfg.isAdUnlocked = cfg.isAdUnlockedCurrentRound || cfg.adUnlocked || cfg.isAdActive || false;
-      }
-      // 強制修正字串轉型漏洞並對齊（確保前端 isVipAdUnlocked 的 true 被精確解碼）
-      if (cfg.isAdUnlocked === 'true' || cfg.isAdUnlocked === true) {
-        cfg.isAdUnlocked = true;
-      }
-      if (cfg.isSingleUnlockedCurrentRound === undefined) cfg.isSingleUnlockedCurrentRound = cfg.isSingleUnlocked || cfg.singleUnlocked || false;
-      if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
-    }
-// ======= 區塊 1 全新替換代碼 =======
-    if (!cfg) {
-  res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
-  return res.end();
-}
-const sessionUserId = req.user && req.user.userId;
-const dbUser = await User.findById(sessionUserId);
-if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
+app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) => {
+ res.setHeader('Content-Type', 'application/json; charset=utf-8');
+ res.setHeader('Transfer-Encoding', 'chunked');
+ res.setHeader('Cache-Control', 'no-cache');
+ res.setHeader('Connection', 'keep-alive');
+ try {
+ const { cfg, globalHistoryDB } = req.body;
+ if (cfg) {
+ if (cfg.isAdUnlocked === undefined) {
+ cfg.isAdUnlocked = cfg.isAdUnlockedCurrentRound || cfg.adUnlocked || cfg.isAdActive || false;
+ }
+ if (cfg.isAdUnlocked === 'true' || cfg.isAdUnlocked === true) {
+ cfg.isAdUnlocked = true;
+ }
+ if (cfg.isSingleUnlockedCurrentRound === undefined) 
+ cfg.isSingleUnlockedCurrentRound = cfg.isSingleUnlocked || cfg.singleUnlocked || false;
+ if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
+ }
+ if (!cfg) {
+ res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
+ return res.end();
+ }
+ const sessionUserId = req.user && req.user.userId;
+ const dbUser = await User.findById(sessionUserId);
+ if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
+ const nowtime = new Date();
+ 
+ const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
+ const hasValid6hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
+ 
+ // 👑 雙向自癒：補回被省略的前端訊號校正，徹底通車，阻斷時區引發的打開又關上漏洞！
+ const isVipPass = (
+ hasActiveSubscription || 
+ hasValid6hPass || 
+ dbUser.isPaidMember === true ||
+ cfg.isPaidMember === true || cfg.isPaidMember === 'true' ||
+ cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' ||
+ cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true'
+ );
+ 
+ const limitOutput = Math.min(100, cfg.count || 5);
+ const pickLimit = parseInt(limitOutput) || 5;
+ 
+ const isNoConditions = (
+ (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
+ (cfg.f3_on !== true && cfg.f3_on !== 'true') && (cfg.f4_on !== true && cfg.f4_on !== 'true') &&
+ (cfg.f5_on !== true && cfg.f5_on !== 'true') && (cfg.f6_on !== true && cfg.f6_on !== 'true') &&
+ (cfg.f7_on !== true && cfg.f7_on !== 'true') && (cfg.f8_on !== true && cfg.f8_on !== 'true') &&
+ (cfg.f9_on !== true && cfg.f9_on !== 'true') && (cfg.f10_on !== true && cfg.f10_on !== 'true') &&
+ (cfg.f11_on !== true && cfg.f11_on !== 'true') && (cfg.f12_on !== true && cfg.f12_on !== 'true') &&
+ (cfg.f13_on !== true && cfg.f13_on !== 'true') && (cfg.f14_on !== true && cfg.f14_on !== 'true') &&
+ (cfg.f15_on !== true && cfg.f15_on !== 'true') && (cfg.vip_fav_on !== true && cfg.vip_fav_on !== 'true')
+ );
+ const mainLottoType = cfg.lottoType || "39_5";
+ const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
+ const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
+ if (isNoConditions) {
+ console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
+ if (dbUser) {
+ res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
+ }
+ const totalTheoreticalCombs = mainLottoType === "49_6" ? 13983816 : 575757;
+ res.write(JSON.stringify({ isProgress: true, percent: 20, currentMatch: 0 }) + "\n");
+ res.write(JSON.stringify({ isProgress: true, percent: 60, currentMatch: Math.floor(pickLimit / 2) }) + "\n");
+ 
+ const finalOutputCombs = [];
+ const globalUniqueSet = new Set();
+ const historyCacheSet = new Set();
+ const currentPickCount = mainLottoType === "49_6" ? 6 : 5;
+ const targetHistoryDB = globalHistoryDB || [];
+ 
+ if (Array.isArray(targetHistoryDB)) {
+ targetHistoryDB.forEach(h => { 
+ if (Array.isArray(h)) {
+ historyCacheSet.add(h.slice(0, currentPickCount).map(n => String(n).padStart(2, '0')).sort().join(',')); 
+ }
+ });
+ }
+ const availableSlotsPerGroup = mainPickCount;
+ let availableBallsForWheel = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
+ const singleBigGroupLimit = Math.floor(availableBallsForWheel.length / availableSlotsPerGroup);
+ let currentBigGroupUsedBallsSet = new Set();
+ let attempts = 0;
+ while (finalOutputCombs.length < pickLimit && attempts < 50000) {
+ attempts++;
+ let pool = [...availableBallsForWheel].filter(b => !currentBigGroupUsedBallsSet.has(b));
+ if (pool.length < availableSlotsPerGroup || cfg.vipMode !== 'smart') {
+ currentBigGroupUsedBallsSet.clear();
+ pool = [...availableBallsForWheel];
+ }
+ for (let i = pool.length - 1; i > 0; i--) {
+ let j = Math.floor(Math.random() * (i + 1));
+ [pool[i], pool[j]] = [pool[j], pool[i]];
+ }
+ let currentComb = pool.slice(0, availableSlotsPerGroup).sort((a, b) => a - b);
+ const formattedArray = currentComb.map(n => String(n).padStart(2, '0'));
+ const combKey = currentComb.join(',');
+ const historyKey = formattedArray.join(',');
+ if (globalUniqueSet.has(combKey)) continue; 
+ if (historyCacheSet.has(historyKey)) continue; 
 
-const nowtime = new Date();
+ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
+ let hasTooMuchOverlap = false;
+ for (const existingStr of finalOutputCombs) {
+ const match = existingStr.match(/:\s*([\d, \s]+)/);
+ if (!match) continue;
+ // 👑 語法修正：修復原本代碼直接用 match.split 導致的拋錯重啟死鎖！
+ const existingNums = match[1].split(',').map(n => parseInt(n.trim(), 10));
+ let overlap = 0;
+ for (const ball of currentComb) {
+ if (existingNums.includes(ball)) {
+ overlap++;
+ }
+ }
+ if (overlap >= 3) {
+ hasTooMuchOverlap = true;
+ break;
+ }
+ }
+ if (hasTooMuchOverlap) continue;
+ }
+ globalUniqueSet.add(combKey);
+ const nextIndex = finalOutputCombs.length + 1;
+ const indexStr = String(nextIndex).padStart(2, '0');
+ const formattedOutput = formattedArray.join(', ');
+ const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
+ finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formattedOutput}\n`);
+ }
+ res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
+ let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (大組內彩球完全互斥+歷史頭獎蒸發版)' : '一般隨機組合 (無勾選條件自癒+歷史頭獎蒸發版)';
+ res.write(JSON.stringify({
+ success: true,
+ outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖明牌（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+ }) + "\n");
+ return res.end();
+ }
+ if (!isVipPass) {
+ res.write(JSON.stringify({
+ success: false,
+ status: 402,
+ message: "權限鎖定：高階篩選需持有 6 小時通行證，請先點擊『單次解鎖（25點）』獲取憑證！"
+ }) + "\n");
+ return res.end();
+ } else {
+ res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
+ }
 
-// 1. 驗證 30 天月費訂閱特權
-const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
-
-// 👑 2. 驗證全新的 6 小時單次解鎖通行證特權（時效完全與 25 點解鎖對齊！）
-const hasValid6hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
-
-// 👑 彙整最高免扣點白名單權限（徹底火化前端越權後門，只相信資料庫！）
-const isVipPass = (
-  hasActiveSubscription || 
-  hasValid6hPass || 
-  dbUser.isPaidMember === true
-);
-    
-    const limitOutput = Math.min(100, cfg.count || 5);
-    const pickLimit = parseInt(limitOutput) || 5;
-    
-    const isNoConditions = (
-        (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
-        (cfg.f3_on !== true && cfg.f3_on !== 'true') && (cfg.f4_on !== true && cfg.f4_on !== 'true') &&
-        (cfg.f5_on !== true && cfg.f5_on !== 'true') && (cfg.f6_on !== true && cfg.f6_on !== 'true') &&
-        (cfg.f7_on !== true && cfg.f7_on !== 'true') && (cfg.f8_on !== true && cfg.f8_on !== 'true') &&
-        (cfg.f9_on !== true && cfg.f9_on !== 'true') && (cfg.f10_on !== true && cfg.f10_on !== 'true') &&
-        (cfg.f11_on !== true && cfg.f11_on !== 'true') && (cfg.f12_on !== true && cfg.f12_on !== 'true') &&
-        (cfg.f13_on !== true && cfg.f13_on !== 'true') && (cfg.f14_on !== true && cfg.f14_on !== 'true') &&
-        (cfg.f15_on !== true && cfg.f15_on !== 'true') && (cfg.vip_fav_on !== true && cfg.vip_fav_on !== 'true')
-    );
-    const mainLottoType = cfg.lottoType || "39_5";
-    const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
-    const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
-
-    if (isNoConditions) {
-        console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
-        if (dbUser) {
-            res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
-        }
-        const totalTheoreticalCombs = mainLottoType === "49_6" ? 13983816 : 575757;
-        res.write(JSON.stringify({ isProgress: true, percent: 20, currentMatch: 0 }) + "\n");
-        res.write(JSON.stringify({ isProgress: true, percent: 60, currentMatch: Math.floor(pickLimit / 2) }) + "\n");
-        
-        const finalOutputCombs = [];
-        const globalUniqueSet = new Set();
-        const historyCacheSet = new Set();
-        const currentPickCount = mainLottoType === "49_6" ? 6 : 5;
-        const targetHistoryDB = globalHistoryDB || [];
-        
-        if (Array.isArray(targetHistoryDB)) {
-            targetHistoryDB.forEach(h => { 
-                if (Array.isArray(h)) {
-                    historyCacheSet.add(h.slice(0, currentPickCount).map(n => String(n).padStart(2, '0')).sort().join(',')); 
-                }
-            });
-        }
-        const availableSlotsPerGroup = mainPickCount;
-        let availableBallsForWheel = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
-        const singleBigGroupLimit = Math.floor(availableBallsForWheel.length / availableSlotsPerGroup);
-        let currentBigGroupUsedBallsSet = new Set();
-        let attempts = 0;
-
-        while (finalOutputCombs.length < pickLimit && attempts < 50000) {
-            attempts++;
-            let pool = [...availableBallsForWheel].filter(b => !currentBigGroupUsedBallsSet.has(b));
-            if (pool.length < availableSlotsPerGroup || cfg.vipMode !== 'smart') {
-                currentBigGroupUsedBallsSet.clear();
-                pool = [...availableBallsForWheel];
-            }
-            for (let i = pool.length - 1; i > 0; i--) {
-                let j = Math.floor(Math.random() * (i + 1));
-                [pool[i], pool[j]] = [pool[j], pool[i]];
-            }
-            let currentComb = pool.slice(0, availableSlotsPerGroup).sort((a, b) => a - b);
-            const formattedArray = currentComb.map(n => String(n).padStart(2, '0'));
-            const combKey = currentComb.join(',');
-            const historyKey = formattedArray.join(',');
-            if (globalUniqueSet.has(combKey)) continue; 
-            if (historyCacheSet.has(historyKey)) continue; 
-// =========================================================================
-// 👑【免死金牌直通區專用】聰明包牌模式：歷史交付明牌點對點去重打散晶片
-// =========================================================================
-if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
-    let hasTooMuchOverlap = false;
-    
-    // 拿當前這組 currentComb 去跟已經決定要交付的每一組明牌比對
-    for (const existingStr of finalOutputCombs) {
-        // 從既有的字串中（例如 "第 [01] 組 ... : 01, 02, 03..."）把純號碼解析出來
-        const match = existingStr.match(/:\s*([\d, \s]+)/);
-        if (!match) continue;
-        
-        const existingNums = match[1].split(',').map(n => parseInt(n.trim(), 10));
-        
-        // 計算重複了幾顆球
-        let overlap = 0;
-        for (const ball of currentComb) {
-            if (existingNums.includes(ball)) {
-                overlap++;
-            }
-        }
-        
-        // 物理擊殺線：直通區不計算分數，所以只要跟已選號碼重複 3 顆球以上，直接判定長太像，原地擊殺剔除！
-        if (overlap >= 3) {
-            hasTooMuchOverlap = true;
-            break;
-        }
-    }
-    
-    // 踩雷則直接 continue 跳過這組號碼，重新拋射下一組，直到號碼完全彈開！
-    if (hasTooMuchOverlap) continue;
-}
-// =========================================================================
-
-            globalUniqueSet.add(combKey);
-            const nextIndex = finalOutputCombs.length + 1;
-            const indexStr = String(nextIndex).padStart(2, '0');
-            const formattedOutput = formattedArray.join(', ');
-            const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
-            finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formattedOutput}\n`);
-        }
-        res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
-        let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (大組內彩球完全互斥+歷史頭獎蒸發版)' : '一般隨機組合 (無勾選條件自癒+歷史頭獎蒸發版)';
-        res.write(JSON.stringify({
-            success: true,
-            outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖明牌（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
-        }) + "\n");
-        return res.end();
-    } // 🌟 完美閉合通道 A 
-    // ========================================== 【後端：權限攔截廣播站 ── 25點/6小時文字同步版】 ==========================================
-if (!isVipPass) {
-  // 如果沒有月費 VIP，也沒有 6 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
-  res.write(JSON.stringify({
-    success: false,
-    status: 402,
-    // 👑 皇家同步：提示文字完美更正為 25 點與 6 小時，與前台介面、扣點邏輯 100% 契合
-    message: "權限鎖定：高階篩選需持有 6 小時通行證，請先點擊『單次解鎖（25點）』獲取憑證！"
-  }) + "\n");
-  
-  return res.end();
-} else {
-  // 已持有一期時效憑證，綠色通道直接放行，0 點數消耗！
-  res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
-}
 
 
     global.activeRequestsCount = (global.activeRequestsCount || 0) + 1;
