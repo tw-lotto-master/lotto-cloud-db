@@ -529,7 +529,7 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (大組內彩球完全互斥+歷史頭獎蒸發版)' : '一般隨機組合 (無勾選條件自癒+歷史頭獎蒸發版)';
         res.write(JSON.stringify({
             success: true,
-            outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖明牌（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+            outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖組合（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
         }) + "\n");
         return res.end();
     } // 🌟 完美閉合通道 A 
@@ -599,19 +599,21 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
 
 // == 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感） == ✨
 try {
- if (!res.writableEnded) {
-   const initMaxTotal = cfg.lottoType === "49_6" ? 13983816 : 575757;
-   res.write(JSON.stringify({ 
-     isProgress: true, 
-     percent: 1, 
-     currentMatch: 0,
-     scanned: 0,
-     maxTotal: initMaxTotal,
-     totalGen: 0,
-     evaluatedCount: 0,
-     scoreStats250: {}
-   }) + "\n");
-   console.log("[海選開閘點火] 後台已成功發射第一秒初始化進度封包給前端。");
+  if (!res.writableEnded) {
+    const initMaxTotal = cfg.lottoType === "49_6" ? 13983816 : 575757;
+    res.write(JSON.stringify({ 
+      isProgress: true, 
+      percent: 1, 
+      currentMatch: 0,
+      scanned: 0,
+      // 🎯 雙通道咬合：第一秒開閘即同時向新、舊前端發送 maxTotal 與 maxCombinations 變數
+      maxTotal: initMaxTotal,
+      maxCombinations: initMaxTotal,
+      totalGen: 0,
+      evaluatedCount: 0,
+      scoreStats250: {}
+    }) + "\n");
+    console.log("[海選開閘點火] 後台已成功發射第一秒初始化進度封包給前端。");
  }
 } catch (initErr) {
  console.error("[開閘點火失敗] 初始封包發射中斷：", initErr.message);
@@ -647,23 +649,26 @@ worker.on('message', (msg) => {
  console.log("=================================================================================\n");
  }
  }
- 
- try {
+  try {
  if (!res.writableEnded) {
- res.write(JSON.stringify({ 
- isProgress: true, 
- percent: currentProgressPercent, 
- currentMatch: leaderBoard.length,
- scanned: msg.scanned,
- maxTotal: absoluteMaxTotal,
- totalGen: msg.totalGen || 0,
- evaluatedCount: global.monitorEvaluatedCount,
- scoreStats250: global.monitorScoreDistribution
- }) + "\n");
+   // 🎯 滿血還原動態自癒：從子執行緒傳過來的 msg.maxTotal 才是包含條件1或16扣除後的最新浮動真實總數！
+   const liveFloatingTotal = msg.maxTotal || absoluteMaxTotal;
+   
+   res.write(JSON.stringify({ 
+     isProgress: true, 
+     percent: currentProgressPercent, 
+     currentMatch: leaderBoard.length,
+     scanned: msg.scanned,
+     // 🎯 雙通道咬合：同時提供新、舊前端急需的兩個拼字欄位，徹底解決畫面一千四百萬定死感！
+     maxTotal: liveFloatingTotal,
+     maxCombinations: liveFloatingTotal,
+     totalGen: msg.totalGen || 0,
+     evaluatedCount: global.monitorEvaluatedCount,
+     scoreStats250: global.monitorScoreDistribution
+   }) + "\n");
  }
  } catch (e) {}
- return;
- }
+
  
  if (msg.type === 'CHUNK_SYNC_BOARD') {
  return;
@@ -726,30 +731,34 @@ worker.on('message', (msg) => {
         let txtUnitQuantifier = "組"; // 🚀 補上單位量詞變數，徹底物理火化殘留中文
 
         if (rawUiLang === "zh") {
-          headerTitle = "【VIP純隨機大竣工】中繼站本次海選實時通過總數：";
-          poolTotalText = "【監控報告】本次生存池實際參與評分總組數為：";
-          deliveryTitle = "【當前交付解鎖明牌（已完美大組控重，且100%過濾歷史頭獎紀錄！）】：";
-          modeFooterTitle = "【輸出模式】聰明包牌（大組內彩球完全互斥+歷史）";
-          txtUnitQuantifier = "組";
-        } else if (rawUiLang === "en") {
-          headerTitle = "[VIP Pure Randomization Completed] Real-Time Scanned Passes at Relay Station: ";
-          poolTotalText = "[Monitor Report] Total Sets Evaluated in Current Survival Pool: ";
-          deliveryTitle = "[Currently Delivered Unlocked Tickets (Perfect Unit Control & 100% Filtered Jackpot History!)]: ";
-          modeFooterTitle = "[Output Mode] Smart Wheeling (Full Exclusion Within Units + History Check)";
-          txtUnitQuantifier = "Sets";
-        } else if (rawUiLang === "ja") {
-          headerTitle = "【VIP純ランダム大竣工】中継拠点のリアルタイム通過総数：";
-          poolTotalText = "【監視レポート】今回の生存プールで実際に評価対象となった総組合せ数：";
-          deliveryTitle = "【現在交付されたロック解除名札（見事な大グループ重畳制御、過去の1等当選記録を100%フィルター！）】：";
-          modeFooterTitle = "【出力モード】スマート連番（大グループ内彩球完全相互排他＋過去データ）";
-          txtUnitQuantifier = "組";
-        } else if (rawUiLang === "ko") {
-          headerTitle = "【VIP 순수 무작위 대준공】중계소 이번 해선 실시간 통과 총수: ";
-          poolTotalText = "【모니터링 보고】이번 생존 풀 실제 평가 참여 총 조합 수: ";
-          deliveryTitle = "【현재 교부된 잠금 해제 명판 (완벽한 대조합 가중치 제어 및 역대 1등 당첨 기록 100% 필터링 완료!)]: ";
-          modeFooterTitle = "【출력 모드】스마트 조합 (대조합 내 번호 완전 상호 배제 + 역대 기록)";
-          txtUnitQuantifier = "개 조합";
-        }
+           headerTitle = " 【VIP純隨機大竣工】中繼站本次海選實時通過總組數：";
+  poolTotalText = " 【監控報告】本次生存池實際參與評分總組數為：";
+  // 🎯 繁中洗詞：將「明牌」點對點完美更換為合法科學的「篩選組合」
+  deliveryTitle = " 【當前交付解鎖之篩選組合 (已完美大組控重，且100%過濾歷史頭獎紀錄！)】：";
+  modeFooterTitle = " 【輸出模式】聰明包牌 (大組內彩球完全互斥+歷史) ";
+  txtUnitQuantifier = "組";
+ } else if (rawUiLang === "en") {
+  headerTitle = " [VIP Pure Randomization Completed] Real-Time Scanned Passes at Relay Station: ";
+  poolTotalText = " [Monitor Report] Total Sets Evaluated in Current Survival Pool: ";
+  // 🎯 英文同步校正：確保 Delivered Unlocked Tickets 符合合規名詞規格
+  deliveryTitle = " [Currently Delivered Filtered Combinations (Perfect Unit Control & 100% Filtered Jackpot History!)]: ";
+  modeFooterTitle = " [Output Mode] Smart Wheeling (Full Exclusion Within Units + History Check) ";
+  txtUnitQuantifier = "Sets";
+ } else if (rawUiLang === "ja") {
+  headerTitle = " 【VIP純ランダム大竣工】中継拠点のリアルタイム通過総数：";
+  poolTotalText = " 【監視レポート】今回の生存プールで実際に評価対象となった総組合せ数：";
+  // 🎯 日文同步洗詞：將「名札(明牌名冊)」修正為合法正規的「当選予測の組み合わせ(預測組合)」
+  deliveryTitle = " 【現在交付されたロック解除の当選予測組み合わせ (見事な大グループ重量制御、過去の1等当選記録を100%フィルター！)】：";
+  modeFooterTitle = " 【出力モード】スマート連番 (大グループ内彩球完全相互排他＋過去データ) ";
+  txtUnitQuantifier = "組";
+ } else if (rawUiLang === "ko") {
+  headerTitle = " 【VIP 순수 무작위 대준공】중계소 이번 해선 실시간 통과 총수: ";
+  poolTotalText = " 【모니터링 보고】이번 생존 풀 실제 평가 참여 총 조합 수: ";
+  // 🎯 韓文同步洗詞：將「명판(明牌名冊)」修正為科學安全的「당첨 예측 조합(預測組合)」
+  deliveryTitle = " 【현재 교부된 잠금 해제 당첨 예측 조합 (완벽한 대조합 가중치 제어 및 역대 1등 당첨 기록 100% 필터링 완료!)]: ";
+  modeFooterTitle = " 【출력 모드】스마트 조합 (대조합 내 번호 완전 상호 배제 + 역대 기록)";
+  txtUnitQuantifier = "개 조합";
+ }
 
         // 🧬 究極拼接閉環：利用 txtUnitQuantifier 動態替換原本死結的中文「組」字，並在最末端補上輸出模式說明！
         const finalFormattedOutputText = 
