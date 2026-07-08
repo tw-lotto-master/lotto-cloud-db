@@ -588,30 +588,33 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
             resolve();
         }, 300000);
 
-        // 🌟 核心修正：將前端傳入的歷史資料庫作為 passedHistoryDB 精確指派進去，對齊底層！
-      if (typeof isVipPass !== 'undefined' && isVipPass === true && cfg) {
+ // 核心修正：將前端傳入的歷史資料庫作為 passedHistoryDB 精確指派進去，對齊底層！
+ if (typeof isVipPass !== 'undefined' && isVipPass === true && cfg) {
    cfg.isSingleUnlockedCurrentRound = true;
  }
+ 
+ // 🎯 滿血還原商用時序：精密建立 Worker 執行緒通道，確保 threadId 軌道完美咬合
  const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
+ workers.push(worker);
 
-// == ✨ 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感） ==
+// == 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感） == ✨
 try {
-  if (!res.writableEnded) {
-    const initMaxTotal = cfg.lottoType === "49_6" ? 13983816 : 575757;
-    res.write(JSON.stringify({ 
-      isProgress: true, 
-      percent: 1, 
-      currentMatch: 0,
-      scanned: 0,
-      maxTotal: initMaxTotal,
-      totalGen: 0,
-      evaluatedCount: 0,
-      scoreStats250: {}
-    }) + "\n");
-    console.log("[海選開閘點火] 後台已成功發射第一秒初始化進度封包給前端。");
-  }
+ if (!res.writableEnded) {
+   const initMaxTotal = cfg.lottoType === "49_6" ? 13983816 : 575757;
+   res.write(JSON.stringify({ 
+     isProgress: true, 
+     percent: 1, 
+     currentMatch: 0,
+     scanned: 0,
+     maxTotal: initMaxTotal,
+     totalGen: 0,
+     evaluatedCount: 0,
+     scoreStats250: {}
+   }) + "\n");
+   console.log("[海選開閘點火] 後台已成功發射第一秒初始化進度封包給前端。");
+ }
 } catch (initErr) {
-  console.error("[開閘點火失敗] 初始封包發射中斷：", initErr.message);
+ console.error("[開閘點火失敗] 初始封包發射中斷：", initErr.message);
 }
 
 
