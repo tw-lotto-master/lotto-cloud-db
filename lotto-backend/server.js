@@ -497,11 +497,12 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         return res.end();
     } // 🌟 完美閉合通道 A 
      if (!isVipPass) {
-        // 如果沒有月費 VIP，也沒有 24 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
-        res.write(JSON.stringify({ 
-            success: false, 
-            status: 402, 
-            message: "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (25點)』獲取憑證！"
+ // 如果沒有月費 VIP，也沒有 24 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
+ res.write(JSON.stringify({ 
+ success: false, 
+ status: 402, 
+ message: "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (25點)』獲取憑證！" 
+ }) + "\n");
         return res.end();
     } else {
         // 已持有時效憑證，綠色通道直接放行，0 點數消耗！
