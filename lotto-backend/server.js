@@ -342,151 +342,151 @@ if (isMainThread) {
 
   // ─── 啟動全案最高核心海選引擎 ───
 app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) => {
- res.setHeader('Content-Type', 'application/json; charset=utf-8');
- res.setHeader('Transfer-Encoding', 'chunked');
- res.setHeader('Cache-Control', 'no-cache');
- res.setHeader('Connection', 'keep-alive');
- try {
- const { cfg, globalHistoryDB } = req.body;
- if (cfg) {
- if (cfg.isAdUnlocked === undefined) {
- cfg.isAdUnlocked = cfg.isAdUnlockedCurrentRound || cfg.adUnlocked || cfg.isAdActive || false;
- }
- if (cfg.isAdUnlocked === 'true' || cfg.isAdUnlocked === true) {
- cfg.isAdUnlocked = true;
- }
- if (cfg.isSingleUnlockedCurrentRound === undefined) 
- cfg.isSingleUnlockedCurrentRound = cfg.isSingleUnlocked || cfg.singleUnlocked || false;
- if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
- }
- if (!cfg) {
- res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
- return res.end();
- }
- const sessionUserId = req.user && req.user.userId;
- const dbUser = await User.findById(sessionUserId);
- if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
- const nowtime = new Date();
- 
- const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
- const hasValid6hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
- 
- // 👑 雙向自癒：補回被省略的前端訊號校正，徹底通車，阻斷時區引發的打開又關上漏洞！
- const isVipPass = (
- hasActiveSubscription || 
- hasValid6hPass || 
- dbUser.isPaidMember === true ||
- cfg.isPaidMember === true || cfg.isPaidMember === 'true' ||
- cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' ||
- cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true'
- );
- 
- const limitOutput = Math.min(100, cfg.count || 5);
- const pickLimit = parseInt(limitOutput) || 5;
- 
- const isNoConditions = (
- (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
- (cfg.f3_on !== true && cfg.f3_on !== 'true') && (cfg.f4_on !== true && cfg.f4_on !== 'true') &&
- (cfg.f5_on !== true && cfg.f5_on !== 'true') && (cfg.f6_on !== true && cfg.f6_on !== 'true') &&
- (cfg.f7_on !== true && cfg.f7_on !== 'true') && (cfg.f8_on !== true && cfg.f8_on !== 'true') &&
- (cfg.f9_on !== true && cfg.f9_on !== 'true') && (cfg.f10_on !== true && cfg.f10_on !== 'true') &&
- (cfg.f11_on !== true && cfg.f11_on !== 'true') && (cfg.f12_on !== true && cfg.f12_on !== 'true') &&
- (cfg.f13_on !== true && cfg.f13_on !== 'true') && (cfg.f14_on !== true && cfg.f14_on !== 'true') &&
- (cfg.f15_on !== true && cfg.f15_on !== 'true') && (cfg.vip_fav_on !== true && cfg.vip_fav_on !== 'true')
- );
- const mainLottoType = cfg.lottoType || "39_5";
- const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
- const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
- if (isNoConditions) {
- console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
- if (dbUser) {
- res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
- }
- const totalTheoreticalCombs = mainLottoType === "49_6" ? 13983816 : 575757;
- res.write(JSON.stringify({ isProgress: true, percent: 20, currentMatch: 0 }) + "\n");
- res.write(JSON.stringify({ isProgress: true, percent: 60, currentMatch: Math.floor(pickLimit / 2) }) + "\n");
- 
- const finalOutputCombs = [];
- const globalUniqueSet = new Set();
- const historyCacheSet = new Set();
- const currentPickCount = mainLottoType === "49_6" ? 6 : 5;
- const targetHistoryDB = globalHistoryDB || [];
- 
- if (Array.isArray(targetHistoryDB)) {
- targetHistoryDB.forEach(h => { 
- if (Array.isArray(h)) {
- historyCacheSet.add(h.slice(0, currentPickCount).map(n => String(n).padStart(2, '0')).sort().join(',')); 
- }
- });
- }
- const availableSlotsPerGroup = mainPickCount;
- let availableBallsForWheel = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
- const singleBigGroupLimit = Math.floor(availableBallsForWheel.length / availableSlotsPerGroup);
- let currentBigGroupUsedBallsSet = new Set();
- let attempts = 0;
- while (finalOutputCombs.length < pickLimit && attempts < 50000) {
- attempts++;
- let pool = [...availableBallsForWheel].filter(b => !currentBigGroupUsedBallsSet.has(b));
- if (pool.length < availableSlotsPerGroup || cfg.vipMode !== 'smart') {
- currentBigGroupUsedBallsSet.clear();
- pool = [...availableBallsForWheel];
- }
- for (let i = pool.length - 1; i > 0; i--) {
- let j = Math.floor(Math.random() * (i + 1));
- [pool[i], pool[j]] = [pool[j], pool[i]];
- }
- let currentComb = pool.slice(0, availableSlotsPerGroup).sort((a, b) => a - b);
- const formattedArray = currentComb.map(n => String(n).padStart(2, '0'));
- const combKey = currentComb.join(',');
- const historyKey = formattedArray.join(',');
- if (globalUniqueSet.has(combKey)) continue; 
- if (historyCacheSet.has(historyKey)) continue; 
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Transfer-Encoding', 'chunked');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  
+  try {
+    const { cfg, globalHistoryDB } = req.body;
+    
+    // 👑 2026 皇家全相容轉譯晶片：100% 封死 49_6 與 39_5 模式下的變數遺失盲點！
+    if (cfg) {
+      cfg.isPaidMember = (cfg.isPaidMember === true || cfg.isPaidMember === 'true' || cfg.isPaidMemberCurrentRound === true);
+      cfg.isSingleUnlockedCurrentRound = (cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || cfg.isSingleUnlocked === true || cfg.singleUnlocked === true);
+      cfg.isAdUnlocked = (cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true' || cfg.isAdUnlockedCurrentRound === true || cfg.adUnlocked === true);
+    } else {
+      res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
+      return res.end();
+    }
 
- if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
- let hasTooMuchOverlap = false;
- for (const existingStr of finalOutputCombs) {
- const match = existingStr.match(/:\s*([\d, \s]+)/);
- if (!match) continue;
- // 👑 語法修正：修復原本代碼直接用 match.split 導致的拋錯重啟死鎖！
- const existingNums = match[1].split(',').map(n => parseInt(n.trim(), 10));
- let overlap = 0;
- for (const ball of currentComb) {
- if (existingNums.includes(ball)) {
- overlap++;
- }
- }
- if (overlap >= 3) {
- hasTooMuchOverlap = true;
- break;
- }
- }
- if (hasTooMuchOverlap) continue;
- }
- globalUniqueSet.add(combKey);
- const nextIndex = finalOutputCombs.length + 1;
- const indexStr = String(nextIndex).padStart(2, '0');
- const formattedOutput = formattedArray.join(', ');
- const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
- finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formattedOutput}\n`);
- }
- res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
- let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (大組內彩球完全互斥+歷史頭獎蒸發版)' : '一般隨機組合 (無勾選條件自癒+歷史頭獎蒸發版)';
- res.write(JSON.stringify({
- success: true,
- outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖明牌（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
- }) + "\n");
- return res.end();
- }
- if (!isVipPass) {
- res.write(JSON.stringify({
- success: false,
- status: 402,
- message: "權限鎖定：高階篩選需持有 6 小時通行證，請先點擊『單次解鎖（25點）』獲取憑證！"
- }) + "\n");
- return res.end();
- } else {
- res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
- }
+    const sessionUserId = req.user && req.user.userId;
+    const dbUser = await User.findById(sessionUserId);
+    if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
+    
+    const nowtime = new Date();
+    const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
+    const hasValid6hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
+    
+    // 👑 雙向自癒：結合資料庫實時攔截與前台全相容轉譯訊號，在 49_6 模式下也 100% 通車
+    const isVipPass = (
+      hasActiveSubscription || 
+      hasValid6hPass || 
+      dbUser.isPaidMember === true ||
+      cfg.isPaidMember === true || 
+      cfg.isSingleUnlockedCurrentRound === true || 
+      cfg.isAdUnlocked === true
+    );
+    
+    const limitOutput = Math.min(100, cfg.count || 5);
+    const pickLimit = parseInt(limitOutput) || 5;
+    
+    const isNoConditions = (
+      (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
+      (cfg.f3_on !== true && cfg.f3_on !== 'true') && (cfg.f4_on !== true && cfg.f4_on !== 'true') &&
+      (cfg.f5_on !== true && cfg.f5_on !== 'true') && (cfg.f6_on !== true && cfg.f6_on !== 'true') &&
+      (cfg.f7_on !== true && cfg.f7_on !== 'true') && (cfg.f8_on !== true && cfg.f8_on !== 'true') &&
+      (cfg.f9_on !== true && cfg.f9_on !== 'true') && (cfg.f10_on !== true && cfg.f10_on !== 'true') &&
+      (cfg.f11_on !== true && cfg.f11_on !== 'true') && (cfg.f12_on !== true && cfg.f12_on !== 'true') &&
+      (cfg.f13_on !== true && cfg.f13_on !== 'true') && (cfg.f14_on !== true && cfg.f14_on !== 'true') &&
+      (cfg.f15_on !== true && cfg.f15_on !== 'true') && (cfg.vip_fav_on !== true && cfg.vip_fav_on !== 'true')
+    );
+    
+    const mainLottoType = cfg.lottoType || "39_5";
+    const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
+    const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
+    
+    if (isNoConditions) {
+      console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
+      if (dbUser) {
+        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
+      }
+      const totalTheoreticalCombs = mainLottoType === "49_6" ? 13983816 : 575757;
+      res.write(JSON.stringify({ isProgress: true, percent: 20, currentMatch: 0 }) + "\n");
+      res.write(JSON.stringify({ isProgress: true, percent: 60, currentMatch: Math.floor(pickLimit / 2) }) + "\n");
+      
+      const finalOutputCombs = [];
+      const globalUniqueSet = new Set();
+      const historyCacheSet = new Set();
+      const currentPickCount = mainLottoType === "49_6" ? 6 : 5;
+      const targetHistoryDB = globalHistoryDB || [];
+      
+      if (Array.isArray(targetHistoryDB)) {
+        targetHistoryDB.forEach(h => { 
+          if (Array.isArray(h)) {
+            historyCacheSet.add(h.slice(0, currentPickCount).map(n => String(n).padStart(2, '0')).sort().join(',')); 
+          }
+        });
+      }
+      const availableSlotsPerGroup = mainPickCount;
+      let availableBallsForWheel = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
+      const singleBigGroupLimit = Math.floor(availableBallsForWheel.length / availableSlotsPerGroup);
+      let currentBigGroupUsedBallsSet = new Set();
+      let attempts = 0;
+      while (finalOutputCombs.length < pickLimit && attempts < 50000) {
+        attempts++;
+        let pool = [...availableBallsForWheel].filter(b => !currentBigGroupUsedBallsSet.has(b));
+        if (pool.length < availableSlotsPerGroup || cfg.vipMode !== 'smart') {
+          currentBigGroupUsedBallsSet.clear();
+          pool = [...availableBallsForWheel];
+        }
+        for (let i = pool.length - 1; i > 0; i--) {
+          let j = Math.floor(Math.random() * (i + 1));
+          [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        let currentComb = pool.slice(0, availableSlotsPerGroup).sort((a, b) => a - b);
+        const formattedArray = currentComb.map(n => String(n).padStart(2, '0'));
+        const combKey = currentComb.join(',');
+        const historyKey = formattedArray.join(',');
+        if (globalUniqueSet.has(combKey)) continue; 
+        if (historyCacheSet.has(historyKey)) continue; 
+        
+        if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
+          let hasTooMuchOverlap = false;
+          for (const existingStr of finalOutputCombs) {
+            const match = existingStr.match(/:\s*([\d, \s]+)/);
+            if (!match) continue;
+            const existingNums = match[1].split(',').map(n => parseInt(n.trim(), 10));
+            let overlap = 0;
+            for (const ball of currentComb) {
+              if (existingNums.includes(ball)) {
+                overlap++;
+              }
+            }
+            if (overlap >= 3) {
+              hasTooMuchOverlap = true;
+              break;
+            }
+          }
+          if (hasTooMuchOverlap) continue;
+        }
+        globalUniqueSet.add(combKey);
+        const nextIndex = finalOutputCombs.length + 1;
+        const indexStr = String(nextIndex).padStart(2, '0');
+        const formattedOutput = formattedArray.join(', ');
+        const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
+        finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formattedOutput}\n`);
+      }
+      res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCom Combs.length }) + "\n");
+      let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (大組內彩球完全互斥+歷史頭獎蒸發版)' : '一般隨機組合 (無勾選條件自癒+歷史頭獎蒸發版)';
+      res.write(JSON.stringify({
+        success: true,
+        outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖明牌（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+      }) + "\n");
+      return res.end();
+    } 
+    
+    if (!isVipPass) {
+      res.write(JSON.stringify({
+        success: false,
+        status: 402,
+        message: "權限鎖定：高階篩選需持有 6 小時通行證，請先點擊『單次解鎖（25點）』獲取憑證！"
+      }) + "\n");
+      return res.end();
+    } else {
+      res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
+    }
+
 
 
 
