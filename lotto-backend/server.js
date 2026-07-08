@@ -770,29 +770,29 @@ worker.on('message', (msg) => {
 // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
 
 
- res.write(JSON.stringify({
- success: true,
- isProgress: false,
- isCompleted: true,
- percent: 100,
- currentMatch: leaderBoard.length,
- scanned: absoluteMaxTotal,
- maxTotal: absoluteMaxTotal,
- totalGen: msg.totalGen || absoluteMaxTotal,
- fullStats: [], 
- evaluatedCount: global.monitorEvaluatedCount,
- scoreStats250: global.monitorScoreDistribution,
- outputText: finalFormattedOutputText
- }) + "\n");
- res.end(); 
- console.log("[串流大結局] 多語系竣工數據順利發射，HTTP Chunked 通道已優雅關閉。");
- }
- } catch (streamErr) {
-
- console.error("[竣工發射突發攔截] 串流寫入失敗：", streamErr.message);
- } finally {
- global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
- }
+        res.write(JSON.stringify({
+          success: true,
+          isProgress: false,
+          isCompleted: true,
+          percent: 100,
+          currentMatch: leaderBoard.length,
+          scanned: absoluteMaxTotal,
+          maxTotal: absoluteMaxTotal,
+          maxCombinations: absoluteMaxTotal, // 同步提供雙拼字欄位 🟢
+          totalGen: msg.totalGen || absoluteMaxTotal,
+          fullStats: [],
+          evaluatedCount: global.monitorEvaluatedCount,
+          scoreStats250: global.monitorScoreDistribution,
+          outputText: finalFormattedOutputText
+        }) + "\n");
+        res.end();
+        console.log("[串流大結局] 多語系工廠排版交付發射，HTTP Chunked 通道已優雅關閉。");
+      }
+    } catch (streamErr) {
+      console.error("[大結局交付攔截] 發射過程中斷失敗：", streamErr.message);
+    } finally {
+      global.activeRequestCount = Math.max(0, (global.activeRequestCount || 1) - 1);
+    }
  return;
  }
 });
