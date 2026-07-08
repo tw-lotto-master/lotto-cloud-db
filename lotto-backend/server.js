@@ -371,28 +371,37 @@ if (isMainThread) {
       if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
     }
 // ======= 區塊 1 全新替換代碼 =======
-    if (!cfg) {
-  res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
-  return res.end();
+ if (!cfg) {
+ res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
+ return res.end();
 }
-    const sessionUserId = req.user && req.user.userId;
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
-    const nowtime = new Date();
-    // 1. 驗證 30 天月費訂閱特權
-    const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
-    // 2. 驗證全新的 24 小時單次解鎖通行證特權
-    const hasValid24hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
+ // 🎯 滿血身分雙防線解碼：優先從中間件或 Payload 內文清洗提取最真實的 ID
+ const sessionUserId = (req.user && req.user.userId) || extractUserIdFromPayload(req);
+ if (!sessionUserId) {
+ res.write(JSON.stringify({ success: false, status: 401, message: "身分驗證失效，請重新登入" }) + "\n");
+ return res.end();
+}
 
-    // 彙整最高免扣點白名單權限
-    const isVipPass = (
-        hasActiveSubscription || 
-        hasValid24hPass || 
-        dbUser.isPaidMember === true || 
-        cfg.isPaidMember === true || cfg.isPaidMember === 'true' || 
-        cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || 
-        cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true'
-    );
+ // 🎯 穿透資料庫快取死結：強制使用 lean() 清空 Mongoose 內部物件快取，100% 直連讀取當前最新儲存的 25 點通行證
+ const dbUser = await User.findById(sessionUserId).lean();
+ if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
+ 
+ const nowtime = new Date();
+ // 1. 驗證 30 天月費訂閱特權
+ const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
+ // 2. 驗證全新的 24 小時單次解鎖通行證特權 (此處在精確直連下將滿血判定為 true)
+ const hasValid24hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
+ 
+ // 彙整最高免扣點白名單權限 (完美咬合，綠色通道動態自癒放行)
+ const isVipPass = (
+ hasActiveSubscription || 
+ hasValid24hPass || 
+ dbUser.isPaidMember === true || 
+ cfg.isPaidMember === true || cfg.isPaidMember === 'true' || 
+ cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || 
+ cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true'
+ );
+
     
     const limitOutput = Math.min(100, cfg.count || 5);
     const pickLimit = parseInt(limitOutput) || 5;
