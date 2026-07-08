@@ -188,40 +188,58 @@ app.post('/api/user/cancel-vip', async (req, res) => {
   } catch (err) { return res.status(500).json({ success: false, message: "伺服器底層內核阻斷錯誤" }); }
 });
 
+// ========================================== 【後端：單次解鎖 2.0 ── 25點/6小時時效控制內核】 ==========================================
 app.post('/api/user/single-unlock', async (req, res) => {
- try {
-     const sessionUserId = extractUserIdFromPayload(req);
-     if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-     const dbUser = await User.findById(sessionUserId);
-     if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
-     
-     // ─── 檢查是否仍在 24 小時通行證有效期內 ───
-     const now = new Date();
-     if (dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > now) {
-         return res.json({ success: true, message: "您已擁有 24 小時免扣點通行特權！", newPoints: dbUser.points });
-     }
-     
-     const UNLOCK_COST = 10;
-     if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
-         return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階過濾防線需消耗 ${UNLOCK_COST} 點。` });
-     }
-     
-     // 扣除 10 點並注入 24 小時（1天）截止線
-     dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
-     const expireTime = new Date();
-     expireTime.setHours(expireTime.getHours() + 24); // 精確發放 24 小時時效
-     dbUser.singleUnlockExpiresAt = expireTime;
-     
-     dbUser.markModified('points');
-     dbUser.markModified('singleUnlockExpiresAt');
-     await dbUser.save();
-     
-     console.log(`[通行證發放] 使用者 ${dbUser.username} 扣除 10 點，24小時免扣點通道開啟！`);
-     return res.json({ success: true, newPoints: dbUser.points, singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt });
- } catch (err) { 
-     return res.status(500).json({ success: false, message: "雲端授權通道異常" }); 
- }
+  try {
+    const sessionUserId = extractUserIdFromPayload(req);
+    if (!sessionUserId) return res.status(401).json({ success: false, message: "身份驗證憑證已失效" });
+    
+    const dbUser = await User.findById(sessionUserId);
+    if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
+
+    const now = new Date();
+    
+    // 👑 皇家校正防線：嚴格防重複扣點！檢查 6 小時時效是否還有效
+    if (dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > now) {
+      return res.json({ 
+        success: true, 
+        message: "您已擁有 6 小時免扣點通行特權！", 
+        newPoints: dbUser.points,
+        singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt 
+      });
+    }
+
+    // 👑 升級商業資產限制：改為 25 點
+    const UNLOCK_COST = 25; 
+    if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
+      return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖最高階特權需消耗 ${UNLOCK_COST} 點！` });
+    }
+
+    // 扣除 25 點並注入 6 小時時效
+    dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
+    
+    const expireTime = new Date();
+    // 👑 精準注入 6 小時（而非原本的 24 小時）
+    expireTime.setHours(expireTime.getHours() + 6); 
+    dbUser.singleUnlockExpiresAt = expireTime;
+
+    dbUser.markModified('points');
+    dbUser.markModified('singleUnlockExpiresAt');
+    await dbUser.save();
+
+    console.log(`[通行證發放] 使用者 ${dbUser.username} 扣除 ${UNLOCK_COST} 點，6小時免扣點通道開啟！`);
+    return res.json({ 
+      success: true, 
+      newPoints: dbUser.points, 
+      singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt 
+    });
+
+  } catch (err) {
+    console.error("解鎖時效計算異常:", err);
+    return res.status(500).json({ success: false, message: "雲端授權通道異常" });
+  }
 });
+
 
 
 // ─── 雲端收藏夾儲存與拉取 API ───
