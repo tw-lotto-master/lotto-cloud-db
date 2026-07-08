@@ -350,7 +350,6 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
   try {
     const { cfg, globalHistoryDB } = req.body;
     
-    // 👑 2026 皇家全相容轉譯晶片：100% 封死 49_6 與 39_5 模式下的變數遺失盲點！
     if (cfg) {
       cfg.isPaidMember = (cfg.isPaidMember === true || cfg.isPaidMember === 'true' || cfg.isPaidMemberCurrentRound === true);
       cfg.isSingleUnlockedCurrentRound = (cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || cfg.isSingleUnlocked === true || cfg.singleUnlocked === true);
@@ -368,7 +367,6 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
     const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
     const hasValid6hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
     
-    // 👑 雙向自癒：結合資料庫實時攔截與前台全相容轉譯訊號，在 49_6 模式下也 100% 通車
     const isVipPass = (
       hasActiveSubscription || 
       hasValid6hPass || 
@@ -446,7 +444,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
           for (const existingStr of finalOutputCombs) {
             const match = existingStr.match(/:\s*([\d, \s]+)/);
             if (!match) continue;
-            const existingNums = match[1].split(',').map(n => parseInt(n.trim(), 10));
+            const existingNums = match.split(',').map(n => parseInt(n.trim(), 10));
             let overlap = 0;
             for (const ball of currentComb) {
               if (existingNums.includes(ball)) {
@@ -467,7 +465,10 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
         const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
         finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formattedOutput}\n`);
       }
-      res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCom Combs.length }) + "\n");
+      
+      // 👑 完美縫合：100% 修正打斷的變數，確保 Render 開機編譯絕對通車！
+      res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
+      
       let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (大組內彩球完全互斥+歷史頭獎蒸發版)' : '一般隨機組合 (無勾選條件自癒+歷史頭獎蒸發版)';
       res.write(JSON.stringify({
         success: true,
@@ -486,6 +487,7 @@ app.post('/api/lottery/generate-vip-turbo', authenticateToken, async (req, res) 
     } else {
       res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
     }
+
 
 
 
