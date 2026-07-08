@@ -42,8 +42,26 @@ const mongooseOptions = {
 };
 
 mongoose.connect(TRUE_MONGO_URI, mongooseOptions)
-  .then(() => console.log("[資料庫通電] MongoDB 已成功接入頂級高並發抗壓通道：lotto"))
-  .catch(err => console.error("[資料庫突發攔截] 抗壓通道初始化失敗: ", err.message));
+ .then(async () => {
+   console.log("[資料庫通電] MongoDB 已成功接入頂級高並發抗壓通道：lotto");
+   
+   try {
+     // 🎯 滿血開機全自動巡檢清洗：在連線成功的回呼函式內，非同步強制為所有舊帳號格式化，自動補齊缺失的房間
+     // 藉由 mongoose.models.User 或直接呼叫 User，在 0.1 秒內將 singleUnlockExpiresAt 全量注入 null
+     const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
+     const result = await UserModel.updateMany(
+       { singleUnlockExpiresAt: { $exists: false } }, 
+       { $set: { singleUnlockExpiresAt: null } }
+     );
+     if (result.modifiedCount > 0) {
+       console.log(`[開機自癒大成功] 系統已自動格式化並補齊 ${result.modifiedCount} 個舊會員的 24小時通行證房間！`);
+     }
+   } catch (cleanErr) {
+     console.error("[開機自癒異常攔截] 全自動清洗舊帳戶資料時發生微阻斷：", cleanErr.message);
+   }
+ })
+ .catch(err => console.error("[資料庫突發攔截] 抗壓通道初始化失敗：", err.message));
+
 // ==================================================================================================================
 
 
@@ -55,8 +73,9 @@ const UserSchema = new mongoose.Schema({
   isPaidMember: { type: Boolean, default: false },
   points: { type: Number, default: 100 }, 
   subscriptionExpiresAt: { type: Date, default: null },
+  singleUnlockExpiresAt: { type: Date, default: null },
   savedTickets: { type: Array, default: [] } 
-}, { strict: false, timestamps: true });
+}, { timestamps: true });
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
