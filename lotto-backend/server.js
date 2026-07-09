@@ -639,12 +639,12 @@ worker.on('message', (msg) => {
  if (msg.stats) {
  const s = msg.stats;
  console.log("\n======================= [16防線動態擊殺全景觀測] =======================");
- console.log(" [基建防線] 條件01(地雷排除): " + (s[1] || 0) + " 組 | 條件02(首尾熱區): " + (s[2] || 0) + " 組 | 條件03(落點區塊): " + (s[3] || 0) + " 組");
- console.log(" [物理過濾] 條件04(同尾限制): " + (s[4] || 0) + " 組 | 條件05(奇偶比例): " + (s[5] || 0) + " 組 | 條件06(號碼總和): " + (s[6] || 0) + " 組");
- console.log(" [數學規規] 條件07(連續號牆): " + (s[7] || 0) + " 組 | 條件08(等差數列): " + (s[8] || 0) + " 組 | 條件13(算術AC值): " + (s[13] || 0) + " 組");
- console.log(" [大數據庫] 條件09(鄰號夾擊): " + (s[9] || 0) + " 組 | 條件10(上期連莊): " + (s[10] || 0) + " 組 | 條件14(質數合數): " + (s[14] || 0) + " 組");
- console.log(" [終極防護] 條件11(大小分流): " + (s[11] || 0) + " 組 | 條件12(除三餘數): " + (s[12] || 0) + " 組 | 條件15(歷史重疊): " + (s[15] || 0) + " 組");
- console.log(" [皇家特權] 條件16(必開喜愛): " + (s[0] || 0) + " 組");
+ console.log(" [基建防線] 條件01(地雷排除): " + (s || 0) + " 組 | 條件02(首尾熱區): " + (s || 0) + " 組 | 條件03(落點區塊): " + (s || 0) + " 組");
+ console.log(" [物理過濾] 條件04(同尾限制): " + (s || 0) + " 組 | 條件05(奇偶比例): " + (s || 0) + " 組 | 條件06(號碼總和): " + (s || 0) + " 組");
+ console.log(" [數學規規] 條件07(連續號牆): " + (s || 0) + " 組 | 條件08(等差數列): " + (s || 0) + " 組 | 條件13(算術AC值): " + (s || 0) + " 組");
+ console.log(" [大數據庫] 條件09(鄰號夾擊): " + (s || 0) + " 組 | 條件10(上期連莊): " + (s || 0) + " 組 | 條件14(質數合數): " + (s || 0) + " 組");
+ console.log(" [終極防護] 條件11(大小分流): " + (s || 0) + " 組 | 條件12(除三餘數): " + (s || 0) + " 組 | 條件15(歷史重疊): " + (s || 0) + " 組");
+ console.log(" [皇家特權] 條件16(必開喜愛): " + (s || 0) + " 組");
 console.log("===========================================================================\n");
  }
  }
@@ -714,7 +714,6 @@ console.log("===================================================================
  } catch (e) {}
  
  try {
- // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復開始】 ==========================================
  if (!res.writableEnded) {
  let rawUiLang = (cfg && cfg.lang) ? String(cfg.lang).trim().toLowerCase().substring(0, 2) : "zh";
  if (rawUiLang !== "en" && rawUiLang !== "ja" && rawUiLang !== "ko") {
@@ -753,15 +752,12 @@ console.log("===================================================================
  txtUnitQuantifier = "개 조합";
  }
  
- const finalFormattedOutputText = 
- headerTitle + "\n" + liveScannedCount + " " + txtUnitQuantifier + " \n" + 
- poolTotalText + global.monitorEvaluatedCount + " " + txtUnitQuantifier + " \n\n" + 
- deliveryTitle + "\n-------------------------\n" + 
- finalOutputCombs.join('') + "-------------------------\n" + 
- modeFooterTitle;
- // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
+ const finalFormattedOutputText = headerTitle + "\n" + liveScannedCount + " " + txtUnitQuantifier + " \n" + poolTotalText + global.monitorEvaluatedCount + " " + txtUnitQuantifier + " \n\n" + deliveryTitle + "\n-------------------------\n" + finalOutputCombs.join('') + "-------------------------\n" + modeFooterTitle;
+ // 👑 【結構完美閉合點】：100% 閉合區塊二末尾多語系字串拼接與 if (!!res.writableEnded) 防線
  }
- } catch (e) {} // 🎯 【完美修復補丁】：100% 閉合外層多語系精密修復的 try 區塊，熄滅 SyntaxError 紅燈！
+ } catch (e) {
+ console.error("[多語系編譯異常] 攔截防護: ", e.message);
+ }
 
  // 【2026 串流合龍純文字晶片】：全量清洗除噪，直接放行純文字行流，徹底粉碎 15 分鐘 pending 死鎖！ 🚀 [INDEX=0.1.11]
  const safeOutputText = String(finalFormattedOutputText || '')
