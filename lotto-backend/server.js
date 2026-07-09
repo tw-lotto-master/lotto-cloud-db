@@ -598,23 +598,26 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
  workers.push(worker);
 
 // == 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感） == ✨
+// == 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感，注入初始階段標籤） == ✨
 try {
   if (!res.writableEnded) {
-    const initMaxTotal = cfg.lottoType === "49_6" ? 13983816 : 575757;
-    res.write(JSON.stringify({ 
-      isProgress: true, 
-      percent: 1, 
-      currentMatch: 0,
-      scanned: 0,
-      // 🎯 雙通道咬合：第一秒開閘即同時向新、舊前端發送 maxTotal 與 maxCombinations 變數
-      maxTotal: initMaxTotal,
-      maxCombinations: initMaxTotal,
-      totalGen: 0,
-      evaluatedCount: 0,
-      scoreStats250: {}
-    }) + "\n");
-    console.log("[海選開閘點火] 後台已成功發射第一秒初始化進度封包給前端。");
+ const initMaxTotal = cfg.lottoType === "49_6" ? 13983816 : 575757;
+ res.write(JSON.stringify({ 
+ isProgress: true, 
+ percent: 1, 
+ stage: "FILTERING", // 注入初始海選核心標籤 🟢
+ currentMatch: 0,
+ scanned: 0,
+ maxTotal: initMaxTotal,
+ maxCombinations: initMaxTotal,
+ totalGen: 0,
+ evaluatedCount: 0,
+ scoreStats250: {}
+ }) + "\n");
+ console.log("[海選開閘點火] 後台已成功發射第一秒初始化進度封包給前端。");
  }
+} catch (initErr) {
+
 } catch (initErr) {
  console.error("[開閘點火失敗] 初始封包發射中斷：", initErr.message);
 }
@@ -646,16 +649,22 @@ worker.on('message', (msg) => {
  }
  }
  try {
+  try {
  if (!res.writableEnded) {
  // 滿血還原動態自癒：從子執行緒傳過來的 msg.maxTotal 才是包含條件1或16扣除後的最新浮動真實總數！ 🎯
  const liveFloatingTotal = msg.maxTotal || absoluteMaxTotal;
- 
- res.write(JSON.stringify({ 
+   
+   // 動態判定當前階段標籤，同步推送給前端解碼艙 🟢
+   let currentStage = "FILTERING";
+   if (currentProgressPercent >= 95) currentStage = "SCORING";
+   if (currentProgressPercent >= 99) currentStage = "MUTUAL_EXCLUSION";
+
+   res.write(JSON.stringify({ 
  isProgress: true, 
  percent: currentProgressPercent, 
+ stage: currentStage, // 滿血補齊階段變數 🟢
  currentMatch: leaderBoard.length,
  scanned: msg.scanned,
- // 雙通道咬合：同時提供新、舊前端急需的兩個拼字欄位，徹底解決畫面一千四百萬定死感！ 🎯
  maxTotal: liveFloatingTotal,
  maxCombinations: liveFloatingTotal,
  totalGen: msg.totalGen || 0,
@@ -664,6 +673,7 @@ worker.on('message', (msg) => {
  }) + "\n");
  }
  } catch (e) {}
+
  }
   if (msg.type === 'CHUNK_SYNC_BOARD') {
     return;
@@ -764,11 +774,10 @@ worker.on('message', (msg) => {
           modeFooterTitle;
           
         // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
-                // 🎯 滿血注入換行防火牆：在發射前，強行把文字內的所有實體換行換成安全的 \\n，消滅前段 split('\n') 攔截跳針病毒
- // 【串流合龍防火牆】：保留標準 JSON 換行字元，完美對接前端 .innerText 渲染大竣工 🟢
+ // 【串流合龍防火牆】：全量清洗除噪殘留的 \r\n 換行符號，確保大結局 JSON 完美對接前端 .split('\n') 與 .innerText 渲染 🟢
  const safeOutputText = String(finalFormattedOutputText || '')
  .replace(/\r\n/g, '\n')
- .replace(/\r/g, '\n');
+ .replace(/\r/g, '\n'); // 100% 格式化清洗，消滅殘留 Carriage Return 阻斷 🛡️
 
  res.write(JSON.stringify({
  success: true,
@@ -783,17 +792,17 @@ worker.on('message', (msg) => {
  fullStats: [],
  evaluatedCount: global.monitorEvaluatedCount,
  scoreStats250: global.monitorScoreDistribution,
- outputText: safeOutputText // 注入完美換行的完全體文字 🟢
+ outputText: safeOutputText // 注入完全體清洗文字 🟢
  }) + "\n");
+ console.log("[串流大結局] 多語系工廠排版交付發射，HTTP Chunked 通道已優雅關閉。");
+ }
+ } catch (streamErr) {
+ console.error("[大結局交付攔截] 發射過程中斷失敗：", streamErr.message);
+ } finally {
+ // 【修正拼字死鎖補丁】：精確修正 activeRequestsCount 的拼字（補上 s），徹底杜絕後台超時重啟！ 🎯
+ global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
+ }
 
-
-        console.log("[串流大結局] 多語系工廠排版交付發射，HTTP Chunked 通道已優雅關閉。");
-      }
-    } catch (streamErr) {
-      console.error("[大結局交付攔截] 發射過程中斷失敗：", streamErr.message);
-    } finally {
-      global.activeRequestCount = Math.max(0, (global.activeRequestCount || 1) - 1);
-    }
     return;
   }
 });
