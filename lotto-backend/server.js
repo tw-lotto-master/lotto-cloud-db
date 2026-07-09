@@ -635,7 +635,7 @@ worker.on('message', (msg) => {
  let currentProgressPercent = Math.min(99, Math.floor((msg.scanned / absoluteMaxTotal) * 100));
  if (currentProgressPercent < 5) currentProgressPercent = 5;
  if (msg.scanned % 500000 === 0 || msg.scanned === absoluteMaxTotal) {
- console.log("[全域海選進度] 已老實掃描: " + msg.scanned + " / " + absoluteMaxTotal + " 組 (" + currentProgressPercent + "%) | 當前本地總生成: " + (msg.totalGen || 0) + " 組 ");
+ console.log("[全域海選進度] 已老實掃描: " + msg.scanned + " / " + absoluteMaxTotal + "組 (" + currentProgressPercent + "%) | 當前本地總生成: " + (msg.totalGen || 0) + " 組 ");
  if (msg.stats) {
  const s = msg.stats;
  console.log("\n======================= [16防線動態擊殺全景觀測] =======================");
@@ -645,24 +645,19 @@ worker.on('message', (msg) => {
  console.log(" [大數據庫] 條件09(鄰號夾擊): " + (s[9] || 0) + " 組 | 條件10(上期連莊): " + (s[10] || 0) + " 組 | 條件14(質數合數): " + (s[14] || 0) + " 組");
  console.log(" [終極防護] 條件11(大小分流): " + (s[11] || 0) + " 組 | 條件12(除三餘數): " + (s[12] || 0) + " 組 | 條件15(歷史重疊): " + (s[15] || 0) + " 組");
  console.log(" [皇家特權] 條件16(必開喜愛): " + (s[0] || 0) + " 組");
- console.log("===================================================================================\n");
+console.log("===========================================================================\n");
  }
  }
- 
-  try {
+ try {
  if (!res.writableEnded) {
- // 滿血還原動態自癒：從子執行緒傳過來的 msg.maxTotal 才是包含條件1或16扣除後的最新浮動真實總數！ 🎯
  const liveFloatingTotal = msg.maxTotal || absoluteMaxTotal;
-   
-   // 動態判定當前階段標籤，同步推送給前端解碼艙 🟢
-   let currentStage = "FILTERING";
-   if (currentProgressPercent >= 95) currentStage = "SCORING";
-   if (currentProgressPercent >= 99) currentStage = "MUTUAL_EXCLUSION";
-
-   res.write(JSON.stringify({ 
+ let currentStage = "FILTERING";
+ if (currentProgressPercent >= 95) currentStage = "SCORING";
+ if (currentProgressPercent >= 99) currentStage = "MUTUAL_EXCLUSION";
+ res.write(JSON.stringify({ 
  isProgress: true, 
  percent: currentProgressPercent, 
- stage: currentStage, // 滿血補齊階段變數 🟢
+ stage: currentStage, 
  currentMatch: leaderBoard.length,
  scanned: msg.scanned,
  maxTotal: liveFloatingTotal,
@@ -673,108 +668,99 @@ worker.on('message', (msg) => {
  }) + "\n");
  }
  } catch (e) {}
-
  }
-  if (msg.type === 'CHUNK_SYNC_BOARD') {
-    return;
-  }
-  
-  if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
-    if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
-      clearTimeout(safetyTimeout);
-      console.log("[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。");
-    }
-    
-    leaderBoard.length = 0;
-    if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
-      leaderBoard.push(...msg.leaderBoard);
-    }
-    
-    if (msg.finalEvaluatedCount) global.monitorEvaluatedCount = msg.finalEvaluatedCount;
-    if (msg.finalScoreDistribution) global.monitorScoreDistribution = msg.finalScoreDistribution;
-    
-    console.log("=======================================================");
-    console.log(" [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！"); 
-    console.log(" 最終死守並交付全榜最優解（真實隨機汰換）：" + leaderBoard.length + " 組名牌");
-    console.log(" 監控報告：本次生存池實際參與評分總組數為: " + global.monitorEvaluatedCount + " 組");
-    console.log("=======================================================");
-    
-    isFinished = true; 
-    if (global.heartbeatTimer) {
-      clearInterval(global.heartbeatTimer);
-      global.heartbeatTimer = null;
-      console.log("[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。");
-    }
-    
-    try {
-      if (!res.writableEnded) {
-        res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "SCORING", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
-      }
-    } catch (e) {}
-    
-    compileLeaderboardToOutput();
-    
-    try {
-      if (!res.writableEnded) {
-        res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "MUTUAL_EXCLUSION", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
-      }
-    } catch (e) {}
-    
-    try {
-      // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復開始】 ==========================================
-      if (!res.writableEnded) {
-        // 萬能相容去噪：強行轉小寫並裁切前兩碼，徹底打通前端傳送大小寫不一致的暗號 🚀 斷路！
-        let rawUiLang = (cfg && cfg.lang) ? String(cfg.lang).trim().toLowerCase().substring(0, 2) : "zh";
-        if (rawUiLang !== "en" && rawUiLang !== "ja" && rawUiLang !== "ko") {
-          rawUiLang = "zh";
-        }
-        
-        let headerTitle = "";
-        let poolTotalText = "";
-        let deliveryTitle = "";
-        let modeFooterTitle = "";
-        let txtUnitQuantifier = "組"; // 補上單位量詞變數，徹底物理火化殘留中文 🚀
-        
-        if (rawUiLang === "zh") {
-          headerTitle = " 【VIP純隨機大竣工】中繼站本次海選實時通過總組數：";
-          poolTotalText = " 【監控報告】本次生存池實際參與評分總組數為：";
-          // 繁中洗詞：將「明牌」點對點完美更換為合法科學的「篩選組合」 🎯
-          deliveryTitle = " 【當前交付解鎖之篩選組合 (已完美大組控重，且100%過濾歷史頭獎紀錄！)】：";
-          modeFooterTitle = " 【輸出模式】聰明包牌 (大組內彩球完全互斥+歷史) ";
-          txtUnitQuantifier = "組";
-        } else if (rawUiLang === "en") {
-          headerTitle = " [VIP Pure Randomization Completed] Real-Time Scanned Passes at Relay Station: ";
-          poolTotalText = " [Monitor Report] Total Sets Evaluated in Current Survival Pool: ";
-          // 英文同步校正：確保 Delivered Unlocked Tickets 符合合規名詞規格 🎯
-          deliveryTitle = " [Currently Delivered Filtered Combinations (Perfect Unit Control & 100% Filtered Jackpot History!)]: ";
-          modeFooterTitle = " [Output Mode] Smart Wheeling (Full Exclusion Within Units + History Check) ";
-          txtUnitQuantifier = "Sets";
-        } else if (rawUiLang === "ja") {
-          headerTitle = " 【VIP純ランダム大竣工】中継拠点のリアルタイム通過総数：";
-          poolTotalText = " 【監視レポート】今回の生存プールで実際に評価対象となった総組合せ数：";
-          // 日文同步洗詞：將「名札(明牌名冊)」修正為合法正規的「当選予測の組み合わせ(預測組合)」 🎯
-          deliveryTitle = " 【現在交付されたロック解除の当選予測組み合わせ (見事な大グループ重量制御、過去の1等当選記録を100%フィルター！)】：";
-          modeFooterTitle = " 【出力モード】スマート連番 (大グループ内彩球完全相互排他＋過去データ) ";
-          txtUnitQuantifier = "組";
-        } else if (rawUiLang === "ko") {
-          headerTitle = " 【VIP 순수 무작위 대준공】중계소 이번 해선 실시간 통과 총수: ";
-          poolTotalText = " 【모니터링 보고】이번 생존 풀 실제 평가 참여 총 조합 수: ";
-          // 韓文同步洗詞：將「명판(明牌名冊)」修正為科學安全的「당첨 예측 조합(預測組合)」 🎯
-          deliveryTitle = " 【현재 교부된 잠금 해제 당첨 예측 조합 (완벽한 대조합 가중치 제어 및 역대 1등 당첨 기록 100% 필터링 완료!)]: ";
-          modeFooterTitle = " 【출력 모드】스마트 조합 (대조합 내 번호 warm 한 상호 배제 + 역대 기록)";
-          txtUnitQuantifier = "개 조합";
-        }
-        
-        // 究極拼接閉環：利用 txtUnitQuantifier 動態替換原本死結的中文「組」字，並在最末端補上輸出模式說明！ 🧬
-        const finalFormattedOutputText = 
-          headerTitle + "\n" + liveScannedCount + " " + txtUnitQuantifier + " \n" + 
-          poolTotalText + global.monitorEvaluatedCount + " " + txtUnitQuantifier + " \n\n" + 
-          deliveryTitle + "\n-------------------------\n" + 
-          finalOutputCombs.join('') + "-------------------------\n" +
-          modeFooterTitle;
-          
-        // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
-  // 【2026 串流合龍純文字晶片】：全量清洗除噪，直接放行純文字行流，徹底粉碎 15 分鐘 pending 死鎖！ 🚀
+ if (msg.type === 'CHUNK_SYNC_BOARD') {
+ return;
+ }
+ if (msg.type === 'FINAL_SURVIVE_DELIVERY') {
+ if (typeof safetyTimeout !== 'undefined' && safetyTimeout !== null) {
+ clearTimeout(safetyTimeout);
+ console.log("[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。");
+ }
+ 
+ leaderBoard.length = 0;
+ if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
+ leaderBoard.push(...msg.leaderBoard);
+ }
+ 
+ if (msg.finalEvaluatedCount) global.monitorEvaluatedCount = msg.finalEvaluatedCount;
+ if (msg.finalScoreDistribution) global.monitorScoreDistribution = msg.finalScoreDistribution;
+ 
+ console.log("=======================================================");
+ console.log(" [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！"); 
+ console.log(" 最終死守並交付全榜最優解（真實隨機汰換）：" + leaderBoard.length + " 組名牌");
+ console.log(" 監控報告：本次生存池實際參與評分總組數為: " + global.monitorEvaluatedCount + " 組");
+ console.log("=======================================================");
+ 
+ isFinished = true; 
+ if (global.heartbeatTimer) {
+ clearInterval(global.heartbeatTimer);
+ global.heartbeatTimer = null;
+ console.log("[自癒通訊鎖] 主緒已成功截斷全域續命心袋包，預備進行最終串流合龍。");
+ }
+ 
+ try {
+ if (!res.writableEnded) {
+ res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "SCORING", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
+ }
+ } catch (e) {}
+ 
+ compileLeaderboardToOutput();
+ 
+ try {
+ if (!res.writableEnded) {
+ res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "MUTUAL_EXCLUSION", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
+ }
+ } catch (e) {}
+ 
+ try {
+ // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復開始】 ==========================================
+ if (!res.writableEnded) {
+ let rawUiLang = (cfg && cfg.lang) ? String(cfg.lang).trim().toLowerCase().substring(0, 2) : "zh";
+ if (rawUiLang !== "en" && rawUiLang !== "ja" && rawUiLang !== "ko") {
+ rawUiLang = "zh";
+ }
+ 
+ let headerTitle = "";
+ let poolTotalText = "";
+ let deliveryTitle = "";
+ let modeFooterTitle = "";
+ let txtUnitQuantifier = "組"; 
+ 
+ if (rawUiLang === "zh") {
+ headerTitle = " 【VIP純隨機大竣工】中繼站本次海選實時通過總組數：";
+ poolTotalText = " 【監控報告】本次生存池實際參與評分總組數為：";
+ deliveryTitle = " 【當前交付解鎖之篩選組合 (已完美大組控重，且100%過濾歷史頭獎紀錄！)】：";
+ modeFooterTitle = " 【輸出模式】聰明包牌 (大組內彩球完全互斥+歷史) ";
+ txtUnitQuantifier = "組";
+ } else if (rawUiLang === "en") {
+ headerTitle = " [VIP Pure Randomization Completed] Real-Time Scanned Passes at Relay Station: ";
+ poolTotalText = " [Monitor Report] Total Sets Evaluated in Current Survival Pool: ";
+ deliveryTitle = " [Currently Delivered Filtered Combinations (Perfect Unit Control & 100% Filtered Jackpot History!)]: ";
+ modeFooterTitle = " [Output Mode] Smart Wheeling (Full Exclusion Within Units + History Check) ";
+ txtUnitQuantifier = "Sets";
+ } else if (rawUiLang === "ja") {
+ headerTitle = " 【VIP純ランダム大竣工】中継拠点のリアルタイム通過總數：";
+ poolTotalText = " 【監視レポート】今回の生存プールで実際に評価対象となった総組合せ数：";
+ deliveryTitle = " 【現在交付されたロック解除の当選予測組み合わせ (見事な大グループ重量制御、過去の1等当選記録を100%フィルター！)】：";
+ modeFooterTitle = " 【出力モード】スマート連番 (大グループ内彩球完全相互排他＋過去データ) ";
+ txtUnitQuantifier = "組";
+ } else if (rawUiLang === "ko") {
+ headerTitle = " 【VIP 순수 무작위 대준공】 중계소 이번 해선 실시간 통과 총수: ";
+ poolTotalText = " 【모니터링 보고】 이번 생존 풀 실제 평가 참여 총 조합 수: ";
+ deliveryTitle = " 【현재 교부된 잠금 해제 당첨 예측 조합 (완벽한 대조합 가중치 제어 및 역대 1등 당첨 기록 필터링 완료!)]: ";
+ modeFooterTitle = " 【출력 모드】 스마트 조합 (대조합 내 번호 완전 상호 배제 + 역대 기록)";
+ txtUnitQuantifier = "개 조합";
+ }
+ 
+ const finalFormattedOutputText = 
+ headerTitle + "\n" + liveScannedCount + " " + txtUnitQuantifier + " \n" + 
+ poolTotalText + global.monitorEvaluatedCount + " " + txtUnitQuantifier + " \n\n" + 
+ deliveryTitle + "\n-------------------------\n" + 
+ finalOutputCombs.join('') + "-------------------------\n" + 
+ modeFooterTitle;
+ // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
+ // 【2026 串流合龍純文字晶片】：全量清洗除噪，直接放行純文字行流，徹底粉碎 15 分鐘 pending 死鎖！ 🚀 [INDEX=0.1.11]
  const safeOutputText = String(finalFormattedOutputText || '')
  .replace(/\r\n/g, '\n')
  .replace(/\r/g, '\n');
@@ -792,14 +778,14 @@ worker.on('message', (msg) => {
  } catch (streamErr) {
      console.error("[大結局交付攔截] 發射過程中斷失敗：", streamErr.message);
  } finally {
-     // 【修正拼字死鎖補丁】：精確修正 activeRequestsCount 的拼字（補上 s），徹底杜絕後台超時重啟！ 🎯
+     // 【修正拼字死鎖補丁】：精確修正 activeRequestsCount 的拼字（補上 s），徹底杜絕後台超時重啟！ 🎯 [INDEX=0.1.12]
      global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
  }
+ return;
+ }
+ }
+});
 
-
-    return;
-  }
-};
 
 
 function compileLeaderboardToOutput() {
