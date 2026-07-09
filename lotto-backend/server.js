@@ -1618,24 +1618,27 @@ if (f13_on) {
 }
 
 // ========================================== 【第二處：子執行緒回報降載優化替換】 ==========================================
- async function triggerChunkFlush() {
- // 🚀 將過濾密度調整為 1,000,000 組回報一次，大幅釋放主執行緒的事件循環，給資料庫連線絕對充足的活命空間！
- if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations) {
- const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
- parentPort.postMessage({ 
- type: 'TOTAL_SCAN_PROGRESS', 
- scanned: scannedCount, 
- maxTotal: maxCombinations, 
- percent: currentPercent, 
- stats: Array.from(killStats), 
- totalGen: localTotalGen,
- finalEvaluatedCount: localEvaluatedCount,
- finalScoreDistribution: localScoreDistribution
- });
- // 強制讓出微秒級線程，給 Node.js 處理基礎資料庫連線
- await new Promise(res => { if (typeof setImmediate !== 'undefined') setImmediate(res); else setTimeout(res, 1); });
- }
- }
+// 【2026 Worker 高鐵高速動態降載晶片】：高頻率釋放執行緒，消滅重型記憶體轉換，速度拉回高鐵規格！ 🟢
+async function triggerChunkFlush() {
+    if (scannedCount % 200000 === 0 || scannedCount === maxCombinations) {
+        if (parentPort) {
+            const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
+            parentPort.postMessage({
+                type: 'TOTAL_SCAN_PROGRESS',
+                scanned: scannedCount,
+                maxTotal: maxCombinations,
+                percent: currentPercent,
+                stats: killStats, // 核心優化：直接發射，廢除耗費 CPU 算力的 Array.from 記憶體深拷貝！ 🛡️
+                totalGen: localTotalGen,
+                finalEvaluatedCount: localEvaluatedCount,
+                finalScoreDistribution: localScoreDistribution
+            });
+        }
+        // 強制掛起讓出微秒級線程，讓 Node.js 垃圾回收與 Render 防火牆完美通電
+        await new Promise(res => setTimeout(res, 1));
+    }
+}
+
 // ==================================================================================================================
 
 
