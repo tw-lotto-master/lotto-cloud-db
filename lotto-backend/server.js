@@ -799,7 +799,7 @@ worker.on('message', (msg) => {
 
     return;
   }
-});
+};
 
 
 function compileLeaderboardToOutput() {
