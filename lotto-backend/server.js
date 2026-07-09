@@ -618,7 +618,7 @@ try {
  }
 } catch (initErr) {
 
-} catch (initErr) {
+
  console.error("[開閘點火失敗] 初始封包發射中斷：", initErr.message);
 }
 
