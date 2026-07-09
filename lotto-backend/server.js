@@ -774,34 +774,28 @@ worker.on('message', (msg) => {
           modeFooterTitle;
           
         // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
- // 【串流合龍防火牆】：全量清洗除噪殘留的 \r\n 換行符號，確保大結局 JSON 完美對接前端 .split('\n') 與 .innerText 渲染 🟢
+  // 【2026 串流合龍純文字晶片】：全量清洗除噪，直接放行純文字行流，徹底粉碎 15 分鐘 pending 死鎖！ 🚀
  const safeOutputText = String(finalFormattedOutputText || '')
  .replace(/\r\n/g, '\n')
- .replace(/\r/g, '\n'); // 100% 格式化清洗，消滅殘留 Carriage Return 阻斷 🛡️
+ .replace(/\r/g, '\n');
 
- res.write(JSON.stringify({
- success: true,
- isProgress: false,
- isCompleted: true,
- percent: 100,
- currentMatch: leaderBoard.length,
- scanned: absoluteMaxTotal,
- maxTotal: absoluteMaxTotal,
- maxCombinations: absoluteMaxTotal, 
- totalGen: msg.totalGen || absoluteMaxTotal,
- fullStats: [],
- evaluatedCount: global.monitorEvaluatedCount,
- scoreStats250: global.monitorScoreDistribution,
- outputText: safeOutputText // 注入完全體清洗文字 🟢
- }) + "\n");
- console.log("[串流大結局] 多語系工廠排版交付發射，HTTP Chunked 通道已優雅關閉。");
- }
+ try {
+     if (!res.writableEnded) {
+         // 1. 先向前端解碼艙發射最高優先級的純文字竣工訊號彈 📡
+         res.write("===VIP_COMPLETED_SUCCESS===\n");
+         
+         // 2. 廢除 JSON 物件，直接將多語系大報告赤裸裸地按行發射出去 🟢
+         res.write(safeOutputText + "\n");
+         
+         console.log("[純文字串流大結局] 幾十萬字號碼大報告已安全越過括號防線，全線通車！");
+     }
  } catch (streamErr) {
- console.error("[大結局交付攔截] 發射過程中斷失敗：", streamErr.message);
+     console.error("[大結局交付攔截] 發射過程中斷失敗：", streamErr.message);
  } finally {
- // 【修正拼字死鎖補丁】：精確修正 activeRequestsCount 的拼字（補上 s），徹底杜絕後台超時重啟！ 🎯
- global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
+     // 【修正拼字死鎖補丁】：精確修正 activeRequestsCount 的拼字（補上 s），徹底杜絕後台超時重啟！ 🎯
+     global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
  }
+
 
     return;
   }
