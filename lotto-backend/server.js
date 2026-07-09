@@ -677,55 +677,45 @@ console.log("===================================================================
  clearTimeout(safetyTimeout);
  console.log("[安全防禦解鎖] 大數據全量竣工，5分鐘限時熔斷器已成功物理拆除。");
  }
- 
  leaderBoard.length = 0;
  if (msg.leaderBoard && Array.isArray(msg.leaderBoard)) {
  leaderBoard.push(...msg.leaderBoard);
  }
- 
  if (msg.finalEvaluatedCount) global.monitorEvaluatedCount = msg.finalEvaluatedCount;
  if (msg.finalScoreDistribution) global.monitorScoreDistribution = msg.finalScoreDistribution;
- 
  console.log("=======================================================");
  console.log(" [大數據全量 100% 竣工通車] 1398 萬組海選大竣工！"); 
  console.log(" 最終死守並交付全榜最優解（真實隨機汰換）：" + leaderBoard.length + " 組名牌");
  console.log(" 監控報告：本次生存池實際參與評分總組數為: " + global.monitorEvaluatedCount + " 組");
  console.log("=======================================================");
- 
  isFinished = true; 
  if (global.heartbeatTimer) {
  clearInterval(global.heartbeatTimer);
  global.heartbeatTimer = null;
  console.log("[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。");
  }
- 
  try {
  if (!res.writableEnded) {
  res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "SCORING", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
  }
  } catch (e) {}
- 
  compileLeaderboardToOutput();
- 
  try {
  if (!res.writableEnded) {
  res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "MUTUAL_EXCLUSION", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
  }
  } catch (e) {}
- 
  try {
  if (!res.writableEnded) {
  let rawUiLang = (cfg && cfg.lang) ? String(cfg.lang).trim().toLowerCase().substring(0, 2) : "zh";
  if (rawUiLang !== "en" && rawUiLang !== "ja" && rawUiLang !== "ko") {
  rawUiLang = "zh";
  }
- 
  let headerTitle = "";
  let poolTotalText = "";
  let deliveryTitle = "";
  let modeFooterTitle = "";
  let txtUnitQuantifier = "組"; 
- 
  if (rawUiLang === "zh") {
  headerTitle = " 【VIP純隨機大竣工】中繼站本次海選實時通過總組數：";
  poolTotalText = " 【監控報告】本次生存池實際參與評分總組數為：";
@@ -752,38 +742,35 @@ console.log("===================================================================
  txtUnitQuantifier = "개 조합";
  }
  
- const finalFormattedOutputText = headerTitle + "\n" + liveScannedCount + " " + txtUnitQuantifier + " \n" + poolTotalText + global.monitorEvaluatedCount + " " + txtUnitQuantifier + " \n\n" + deliveryTitle + "\n-------------------------\n" + finalOutputCombs.join('') + "-------------------------\n" + modeFooterTitle;
- // 👑 【結構完美閉合點】：100% 閉合區塊二末尾多語系字串拼接與 if (!!res.writableEnded) 防線
- }
- } catch (e) {
- console.error("[多語系編譯異常] 攔截防護: ", e.message);
- }
+ // 🌟 【1:1 滿血多語系工廠完全體：使用模板字串，徹底瓦解字串拼接引發的 missing 括號漏洞】
+ const finalFormattedOutputText = `${headerTitle}\n${liveScannedCount} ${txtUnitQuantifier} \n${poolTotalText}${global.monitorEvaluatedCount} ${txtUnitQuantifier} \n\n${deliveryTitle}\n-------------------------\n${finalOutputCombs.join('')}-------------------------\n${modeFooterTitle}`;
 
- // 【2026 串流合龍純文字晶片】：全量清洗除噪，直接放行純文字行流，徹底粉碎 15 分鐘 pending 死鎖！ 🚀 [INDEX=0.1.11]
- const safeOutputText = String(finalFormattedOutputText || '')
- .replace(/\r\n/g, '\n')
- .replace(/\r/g, '\n');
-
+ // 【2026 串流合龍純文字晶片】：全量清洗除噪，直接放行純文字行流，徹底粉碎 15 分鐘 pending 死鎖！ [INDEX=0.1.11] 🚀
+ const safeOutputText = String(finalFormattedOutputText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
  try {
-     if (!res.writableEnded) {
-         // 1. 先向前端解碼艙發射最高優先級的純文字竣工訊號彈 📡
-         res.write("===VIP_COMPLETED_SUCCESS===\n");
-         
-         // 2. 廢除 JSON 物件，直接將多語系大報告赤裸裸地按行發射出去 🟢
-         res.write(safeOutputText + "\n");
-         
-         console.log("[純文字串流大結局] 幾十萬字號碼大報告已安全越過括號防線，全線通車！");
-     }
+ if (!res.writableEnded) {
+ // 1. 先向前端解碼艙發射最高優先級的純文字竣工訊號彈 📡
+ res.write("===VIP_COMPLETED_SUCCESS===\n");
+ 
+ // 2. 廢除 JSON 物件，直接將多語系大報告赤裸裸地按行發射出去 🟢
+ res.write(safeOutputText + "\n");
+ 
+ console.log("[純文字串流大結局] 幾十萬字號碼大報告已安全越過括號防線，全線通車！");
+ }
  } catch (streamErr) {
-     console.error("[大結局交付攔截] 發射過程中斷失敗：", streamErr.message);
+ console.error("[大結局交付攔截] 發射過程中斷失敗：", streamErr.message);
  } finally {
-     // 【修正拼字死鎖補丁】：精確修正 activeRequestsCount 的拼字（補上 s），徹底杜絕後台超時重啟！ 🎯 [INDEX=0.1.12]
-     global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
+ // 【修正拼字死鎖補丁】：精確修正 activeRequestsCount 的拼字（補上 s），徹底杜絕後台超時重啟！ [INDEX=0.1.12] 🎯
+ global.activeRequestsCount = Math.max(0, (global.activeRequestsCount || 1) - 1);
  }
  return;
  }
+ } catch (e) {
+ console.error("[多語系內核防禦異常] ", e.message);
+ }
  }
 });
+
 
 
 
