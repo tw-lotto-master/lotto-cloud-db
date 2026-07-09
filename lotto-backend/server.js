@@ -765,26 +765,27 @@ worker.on('message', (msg) => {
           
         // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
                 // 🎯 滿血注入換行防火牆：在發射前，強行把文字內的所有實體換行換成安全的 \\n，消滅前段 split('\n') 攔截跳針病毒
-        const safeOutputText = String(finalFormattedOutputText || '')
-          .replace(/\r\n/g, '\\n')
-          .replace(/\n/g, '\\n')
-          .replace(/\r/g, '\\n');
+ // 【串流合龍防火牆】：保留標準 JSON 換行字元，完美對接前端 .innerText 渲染大竣工 🟢
+ const safeOutputText = String(finalFormattedOutputText || '')
+ .replace(/\r\n/g, '\n')
+ .replace(/\r/g, '\n');
 
-        res.write(JSON.stringify({
-          success: true,
-          isProgress: false,
-          isCompleted: true,
-          percent: 100,
-          currentMatch: leaderBoard.length,
-          scanned: absoluteMaxTotal,
-          maxTotal: absoluteMaxTotal,
-          maxCombinations: absoluteMaxTotal, 
-          totalGen: msg.totalGen || absoluteMaxTotal,
-          fullStats: [],
-          evaluatedCount: global.monitorEvaluatedCount,
-          scoreStats250: global.monitorScoreDistribution,
-          outputText: safeOutputText // 注入安全的完全體文字 🟢
-        }) + "\n");
+ res.write(JSON.stringify({
+ success: true,
+ isProgress: false,
+ isCompleted: true,
+ percent: 100,
+ currentMatch: leaderBoard.length,
+ scanned: absoluteMaxTotal,
+ maxTotal: absoluteMaxTotal,
+ maxCombinations: absoluteMaxTotal, 
+ totalGen: msg.totalGen || absoluteMaxTotal,
+ fullStats: [],
+ evaluatedCount: global.monitorEvaluatedCount,
+ scoreStats250: global.monitorScoreDistribution,
+ outputText: safeOutputText // 注入完美換行的完全體文字 🟢
+ }) + "\n");
+
 
         console.log("[串流大結局] 多語系工廠排版交付發射，HTTP Chunked 通道已優雅關閉。");
       }
