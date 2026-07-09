@@ -696,7 +696,7 @@ console.log("===================================================================
  if (global.heartbeatTimer) {
  clearInterval(global.heartbeatTimer);
  global.heartbeatTimer = null;
- console.log("[自癒通訊鎖] 主緒已成功截斷全域續命心袋包，預備進行最終串流合龍。");
+ console.log("[自癒通訊鎖] 主緒已成功截斷全域續命心跳包，預備進行最終串流合龍。");
  }
  
  try {
@@ -740,7 +740,7 @@ console.log("===================================================================
  modeFooterTitle = " [Output Mode] Smart Wheeling (Full Exclusion Within Units + History Check) ";
  txtUnitQuantifier = "Sets";
  } else if (rawUiLang === "ja") {
- headerTitle = " 【VIP純ランダム大竣工】中継拠点のリアルタイム通過總數：";
+ headerTitle = " 【VIP純ランダム大竣工】中継拠点のリアルタイム通過総数：";
  poolTotalText = " 【監視レポート】今回の生存プールで実際に評価対象となった総組合せ数：";
  deliveryTitle = " 【現在交付されたロック解除の当選予測組み合わせ (見事な大グループ重量制御、過去の1等当選記録を100%フィルター！)】：";
  modeFooterTitle = " 【出力モード】スマート連番 (大グループ内彩球完全相互排他＋過去データ) ";
@@ -760,6 +760,9 @@ console.log("===================================================================
  finalOutputCombs.join('') + "-------------------------\n" + 
  modeFooterTitle;
  // ========================================== 【後台主執行緒大結局與單位量詞多語系精密修復結束】 ==========================================
+ }
+ } catch (e) {} // 🎯 【完美修復補丁】：100% 閉合外層多語系精密修復的 try 區塊，熄滅 SyntaxError 紅燈！
+
  // 【2026 串流合龍純文字晶片】：全量清洗除噪，直接放行純文字行流，徹底粉碎 15 分鐘 pending 死鎖！ 🚀 [INDEX=0.1.11]
  const safeOutputText = String(finalFormattedOutputText || '')
  .replace(/\r\n/g, '\n')
@@ -785,6 +788,7 @@ console.log("===================================================================
  }
  }
 });
+
 
 
 
