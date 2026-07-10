@@ -763,53 +763,70 @@ function compileLeaderboardToOutput() {
  let outputCounterForUnit = 0;
  let currentUnitTracker = 1;
  
- for (let i = 0; i < hardwareCleanBoard.length; i++) {
+for (let i = 0; i < hardwareCleanBoard.length; i++) {
  let item = hardwareCleanBoard[i];
  if (!item || !item.comb) continue;
  
+ // 排除喜愛號之後，拿這組號碼去跟當前大組已經選中的號碼進行交叉查殺
  const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
  
  let overlapCount = 0;
- pureCombs.forEach(ball => { if (usedNumbersInCurrentUnit.has(ball)) overlapCount++; });
+ pureCombs.forEach(ball => { 
+     if (usedNumbersInCurrentUnit.has(ball)) overlapCount++; 
+ });
  
+ // 額外核驗：跟前一組號碼的相鄰重疊率（防止連續輸出長太像的號碼）
  let prevOverlapCount = 0;
  let isHeadVanceDuplicated = false;
- 
  if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
- pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
- if (item.comb === hardwareCleanBoard[i-1].comb) {
- isHeadVanceDuplicated = true;
+     pureCombs.forEach(ball => { 
+         if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; 
+     });
+     if (item.comb === hardwareCleanBoard[i-1].comb) {
+         isHeadVanceDuplicated = true;
+     }
  }
- }
- 
- if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap || isHeadVanceDuplicated) {
- const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
- const headPenalty = isHeadVanceDuplicated ? 300 : 0; 
- const oldBaseScore = item.score;
- const newBaseScore = Math.max(-400, oldBaseScore - (120 * maxOverlapFound) - headPenalty);
- item.score = newBaseScore;
- item.finalScore = newBaseScore + (item.noise || 0);
- item.unit = currentUnitTracker; 
+
+ // 🎯 【核心重大改動：只要有一碼重複就扣分，全不重複大力加分】
+ // 1. 判定是否踩到重複地雷：大組內重複 >= 1 碼，或者跟鄰組重複 >= 1 碼，或者完全撞號
+ if (overlapCount >= 1 || prevOverlapCount >= 1 || isHeadVanceDuplicated) {
+     
+     // 抓出最大重複顆數，作為懲罰分母
+     const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
+     const headPenalty = isHeadVanceDuplicated ? 400 : 0; 
+     
+     const oldBaseScore = item.score;
+     // ⚡ 一碼即扣分：只要有重複，不管是一碼還是兩碼，直接重扣（150 * 重複顆數），物理強制往後排、使其被替代！
+     const newBaseScore = Math.max(-500, oldBaseScore - (150 * maxOverlapFound) - headPenalty);
+     
+     item.score = newBaseScore;
+     item.finalScore = newBaseScore + (item.noise || 0);
+     item.unit = currentUnitTracker; // 留在當前大組，但分數已暴跌
+     
  } else {
- pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
- item.unit = currentUnitTracker;
- 
- const oldBaseScore = item.score;
- const newBaseScore = Math.max(250, oldBaseScore + 150); 
- item.score = newBaseScore;
- item.finalScore = newBaseScore + (item.noise || 0);
+     // 2. ✨ 【全不重複綠色通道】：大組內 0 碼重複，完美分散！
+     // 將這組純號碼全量灌入當前大組的 Set 記憶庫中
+     pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
+     item.unit = currentUnitTracker;
+     
+     const oldBaseScore = item.score;
+     // 🚀 大力提權：全不重複的超級健康組合，直接在基礎分上瘋狂「+250 分」，強行逼它往前衝排到最前面！
+     const newBaseScore = Math.max(350, oldBaseScore + 250); 
+     
+     item.score = newBaseScore;
+     item.finalScore = newBaseScore + (item.noise || 0);
  }
  
- // 🎯 【大組別實體隔離切換核心】：每成功處理一筆，實體計數器加 1
+ // 大組別實體隔離切換控制計數
  outputCounterForUnit++;
  
- // 當此大組累積的組數達到了由「地雷號/喜愛號」公式決定的 `maxCombsPerUnit` 上限時，強行切換大組！
+ // 當此大組累積的組數達到了上限時，強行切換下一大組並清空記憶
  if (outputCounterForUnit >= maxCombsPerUnit) {
- currentUnitTracker++;
- outputCounterForUnit = 0; // 計數器歸零
- usedNumbersInCurrentUnit.clear(); // 物理清空大組單元記憶
+     currentUnitTracker++;
+     outputCounterForUnit = 0; 
+     usedNumbersInCurrentUnit.clear(); 
  }
- }
+}
  
  processedSuccessfully = true;
  }
