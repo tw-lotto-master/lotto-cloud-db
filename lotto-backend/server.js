@@ -496,7 +496,7 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (大組內彩球完全互斥+歷史頭獎蒸發版)' : '一般隨機組合 (無勾選條件自癒+歷史頭獎蒸發版)';
         res.write(JSON.stringify({
             success: true,
-            outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖明牌（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+            outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖組合（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
         }) + "\n");
         return res.end();
     } // 🌟 完美閉合通道 A 
@@ -686,7 +686,7 @@ worker.on('message', (msg) => {
  fullStats: [], 
  evaluatedCount: global.monitorEvaluatedCount,
  scoreStats250: global.monitorScoreDistribution,
- outputText: "【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n" + liveScannedCount + " 組 \n \n【當前交付全局隨機最優解鎖明牌（有效瓦解死鎖，100%保證分散多樣性！）】：\n-------------------------\n" + finalOutputCombs.join('') + "-------------------------\n"
+ outputText: "【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n" + liveScannedCount + " 組 \n \n【當前交付全局隨機最優解鎖組合（有效瓦解死鎖，100%保證分散多樣性！）】：\n-------------------------\n" + finalOutputCombs.join('') + "-------------------------\n"
  }) + "\n");
  res.end(); 
  console.log("[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。");
