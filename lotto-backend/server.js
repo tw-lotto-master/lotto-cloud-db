@@ -355,7 +355,7 @@ if (isMainThread) {
 }
 
  // 🎯 穿透資料庫快取死結：強制使用 lean() 清空 Mongoose 內部物件快取，100% 直連讀取當前最新儲存的 25 點通行證
-  const dbUser = await User.findById(sessionUserId);
+  const dbUser = await User.findById(sessionUserId).lean();
     if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
 || res.end();
  
