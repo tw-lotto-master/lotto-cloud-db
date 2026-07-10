@@ -723,16 +723,16 @@ function compileLeaderboardToOutput() {
       return;
     }
 
-    // ─── 2. 👑 智慧模式：100% 剩餘球數極限壓榨與 0 重複「完美矩陣覆蓋演算法」 ───
-    // 一開始依據基礎評分進行一次全量排位 (高分在最前線，作為海選基礎種子)
+    // ─── 2. 👑 智慧模式：每大組 0 重複塞滿 8/7 組 ＆ 剩餘球數 100% 壓榨演算法 ───
+    // 依據基礎評分進行全量排位 (高分在最前線)
     leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
 
-    // 💡 1. 物理精確計算場上「真正剩下能用」的所有大樂透/539球數集合
+    // 💡 1. 物理精確計算場上「真正剩下能用」的所有球數集合
     const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
     const isF1Enabled = (cfg && cfg.f1_on === true);
     const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.map(Number) : [];
     
-    // 將排除號以外的所有號碼，全量存入「待開採號碼庫」中 💎
+    // 初始化可用球池
     const availablePool = new Set();
     for (let ball = 1; ball <= maxLottoBalls; ball++) {
         if (!f1Kills.includes(ball) && !favNums.map(Number).includes(ball)) {
@@ -740,122 +740,95 @@ function compileLeaderboardToOutput() {
         }
     }
 
-    // 計算每組除了必出喜愛號之外，還「需要補幾顆球」
     const favCount = favNums.length;
     const ballsNeededPerComb = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
     
-    // 計算出在數學空間上，剩下的球數極限能「完美互斥」排出幾組大房間
+    // 💡 計算每一大組理論上「最多能塞幾組完全互斥的號碼」
     let maxCombsPerUnit = Math.floor(availablePool.size / ballsNeededPerComb);
     if (!isF1Enabled) {
-      maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7; // 大樂透極限 8 大組 / 539極限 7 大組
+      maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7; // 大樂透 8 組 / 539 共 7 組
     }
     if (maxCombsPerUnit < 1) maxCombsPerUnit = 1;
 
-    // 建立各大組的管理單元
     const unitGroups = [];
-    for (let g = 0; g < maxCombsPerUnit; g++) {
-        unitGroups.push({
-            id: g + 1,
-            usedNumbers: new Set(),
+    const totalPickedIndices = new Set(); // 記錄全域哪些號碼已被開採
+
+    // 💡 2. 啟動大組輪迴開拓艙
+    // 只要全量池子還沒被撈完，我們就一間一間大組開拓下去，直到滿足前端要的總組數
+    while (totalPickedIndices.size < leaderBoard.length) {
+        let currentUnitId = unitGroups.length + 1;
+        let currentGroup = {
+            id: currentUnitId,
+            usedNumbers: new Set(), // 每一大組自己獨立的 0 重複核驗記憶庫 🔒
             list: []
-        });
-    }
+        };
 
-    // 標記哪些號碼已經被各大組收納
-    const totalPickedIndices = new Set();
+        let foundAnyInThisUnit = false;
 
-    // 💡 2. 核心大開採：優先讓高分種子號碼，把各大組的「第一個床位」塞滿，建立完美的互斥根基
-    for (let g = 0; g < maxCombsPerUnit; g++) {
+        // 開始為當前這間大組，從高分到低分海選「完全不跟這大組內撞號」的候補
         for (let i = 0; i < leaderBoard.length; i++) {
+            // 🎯 【關鍵核心】：只要當前大組塞滿了 8 組（或539的7組），立刻強制封艙，去開下一大組！
+            if (currentGroup.list.length >= maxCombsPerUnit) break;
             if (totalPickedIndices.has(i)) continue;
+
             const item = leaderBoard[i];
             if (!item || !item.comb) continue;
 
             const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
             
-            // 首組必須與前面的大組種子也保持 0 重複，才能在根基上達到全場不撞號
-            let isSeedDuplicate = false;
-            for (let prevG = 0; prevG < g; prevG++) {
-                if (pureCombs.some(ball => unitGroups[prevG].usedNumbers.has(ball))) {
-                    isSeedDuplicate = true;
-                    break;
-                }
-            }
-
-            if (!isSeedDuplicate) {
-                pureCombs.forEach(ball => unitGroups[g].usedNumbers.add(ball));
-                item.unit = unitGroups[g].id;
-                unitGroups[g].list.push(item);
-                totalPickedIndices.add(i);
-                break; // 當前大組種子就位，立刻換下一個大組
-            }
-        }
-    }
-
-    // 💡 3. 剩餘球數完美壓榨器：全量回溯，逼迫剩下的高分組合，只要能幫任何一個大組消化掉「剩餘未使用的球」，就強行歸類！
-    for (let i = 0; i < leaderBoard.length; i++) {
-        if (totalPickedIndices.has(i)) continue;
-        const item = leaderBoard[i];
-        if (!item || !item.comb) continue;
-
-        const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
-
-        // 幫這組優秀的號碼，尋找最合適的 0 重複大組房間
-        for (let g = 0; g < unitGroups.length; g++) {
-            const group = unitGroups[g];
-            
-            // 如果這個大組空間已經滿了（例如大樂透已放了1組，大組上限是它自己，此為完美拓樸）
-            // 在您不允許大組內重複的硬指標下，每大組精確存放 1 組，即可達到全場球數 100% 互斥使用！
-            if (group.list.length >= 1) continue; 
-
-            // 100% 絕對 0 重複硬核驗證引信
+            // 🔒 鋼鐵防線：100% 絕對 0 重複，只要撞當前大組 1 碼就阻斷
             let hasOverlap = false;
             for (let b = 0; b < pureCombs.length; b++) {
-                if (group.usedNumbers.has(pureCombs[b])) {
+                if (currentGroup.usedNumbers.has(pureCombs[b])) {
                     hasOverlap = true;
                     break;
                 }
             }
 
-            // 🟢 完美通關：在這個大組內完全 0 重複！
             if (!hasOverlap) {
-                pureCombs.forEach(ball => group.usedNumbers.add(ball));
-                item.unit = group.id;
-                group.list.push(item);
+                // 留在本大組內，灌入記憶
+                pureCombs.forEach(ball => currentGroup.usedNumbers.add(ball));
+                item.unit = currentUnitId;
+                currentGroup.list.push(item);
                 totalPickedIndices.add(i);
-                break; // 分配完畢，看下一組號碼
+                foundAnyInThisUnit = true;
             }
         }
-    }
 
-    // 💡 4. 【算力底線自癒補丁】：如果高分池太過極端，導致某個大組在第 2 階段沒被塞滿
-    // 系統啟動「強制二進制餘數拼圖」，主動去 availablePool 撈出剩下的孤兒球，在記憶體中暴力合規組裝高分號碼，確保不浪費任何一顆球！
-    unitGroups.forEach(group => {
-        if (group.list.length === 0) {
-            // 抓出當前大組還沒用過、且全場也還沒被別人用掉的純淨賸餘號碼
-            const leftBalls = [...availablePool].filter(ball => {
-                return !unitGroups.some(g => g.usedNumbers.has(ball));
-            });
-            
-            if (leftBalls.length >= ballsNeededPerComb) {
-                const pickedBalls = leftBalls.slice(0, ballsNeededPerComb);
-                // 物理強制吞噬並標記使用，不浪費球數！
-                pickedBalls.forEach(ball => group.usedNumbers.add(ball));
+        // 💡 3. 【球數極限壓榨拼圖】：如果當前大組掃完一輪後，因為撞號沒能湊滿 8 組，
+        // 系統主動去 availablePool 追蹤這大組還沒用過的孤兒球，在記憶體中暴力組裝出全新不浪費的高分組合，強行塞滿 8 組/7 組！
+        if (currentGroup.list.length > 0 && currentGroup.list.length < maxCombsPerUnit) {
+            while (currentGroup.list.length < maxCombsPerUnit) {
+                // 抓出本大組尚未使用的剩餘號碼
+                const leftBalls = [...availablePool].filter(ball => !currentGroup.usedNumbers.has(ball));
                 
-                // 還原完整的號碼陣列（將必出號與被壓榨出的賸餘號合體）
-                const finalSynthesizedComb = [...favNums, ...pickedBalls].sort((a,b)=>a-b);
-                const formattedStr = finalSynthesizedComb.map(n => String(n).padStart(2, '0')).join(', ');
-                
-                group.list.push({
-                    score: 350,
-                    comb: finalSynthesizedComb,
-                    formatted: formattedStr,
-                    unit: group.id,
-                    noise: 0
-                });
+                if (leftBalls.length >= ballsNeededPerComb) {
+                    const pickedBalls = leftBalls.slice(0, ballsNeededPerComb);
+                    pickedBalls.forEach(ball => currentGroup.usedNumbers.add(ball));
+                    
+                    const finalSynthesizedComb = [...favNums, ...pickedBalls].sort((a,b)=>a-b);
+                    const formattedStr = finalSynthesizedComb.map(n => String(n).padStart(2, '0')).join(', ');
+                    
+                    currentGroup.list.push({
+                        score: 350,
+                        comb: finalSynthesizedComb,
+                        formatted: formattedStr,
+                        unit: currentUnitId,
+                        noise: 0
+                    });
+                    foundAnyInThisUnit = true;
+                } else {
+                    break; // 剩下的球不夠拼成一組了，停止壓榨
+                }
             }
         }
-    });
+
+        if (currentGroup.list.length > 0) {
+            unitGroups.push(currentGroup);
+        }
+
+        if (!foundAnyInThisUnit) break; // 防死結安全熔斷
+    }
 
     // 限制最終要輸出給前端的指定總組數 (對齊 cfg.count)
     const finalRequestedCount = Math.max(1, Number(cfg.count) || 100);
