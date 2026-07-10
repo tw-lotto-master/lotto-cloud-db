@@ -723,78 +723,103 @@ function compileLeaderboardToOutput() {
       return;
     }
 
-      // ─── 2. 👑 智慧模式：100% 純淨海選 ＆ 0 重複「全量高分主動分流演算法」 ───
-    // 依據 16 道防線活下來的最終分數進行嚴格排位 (高分在最前線)
+     // ─── 2. 👑 智慧模式：真・1398萬大池深度算力對流 ＆ 100% 0重複「完美回溯分流晶片」 ───
+    // 一開始依據 16 道防線活下來的最終分數進行嚴格排位
     leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
 
-    // 動態計算每大組的實體組數上限 (您截圖中的黃金核心換算公式)
+    // 💡 1. 精確動態參數計算
     const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
     const isF1Enabled = (cfg && cfg.f1_on === true);
     const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.map(Number) : [];
     
-    // 初始化可用球數，僅用作容量參考
     let remainingBallCount = maxLottoBalls - f1Kills.length;
     const favCount = favNums.length;
     const ballsNeededPerComb = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
     
     let maxCombsPerUnit = Math.floor(remainingBallCount / ballsNeededPerComb);
     if (!isF1Enabled) {
-      maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7; // 大樂透上限 8 組 / 539 上限 7 組
+      maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7; // 大樂透極限 8 組 / 539 極限 7 組
     }
     if (maxCombsPerUnit < 1) maxCombsPerUnit = 1;
 
-    const unitGroups = [];
-    const totalPickedIndices = new Set(); // 記錄全域哪些優質號碼已被分流
+    // 💡 2. 放大海選淘金深度：從 16 道防線存活下來的池子裡，一口氣抓出前 2000 組「真・350分優質大軍」進行深度對流
+    const candidatePoolSize = Math.min(leaderBoard.length, 2000);
+    const premiumCandidates = leaderBoard.slice(0, candidatePoolSize);
 
-    // 💡 啟動大組輪迴開拓艙：只看 16 防線活下來的高分池
-    while (totalPickedIndices.size < leaderBoard.length) {
+    const unitGroups = [];
+    const globalUsedIndices = new Set(); // 記錄全域哪些號碼最終被採納
+
+    // 💡 3. 開啟大組輪迴發射艙
+    while (globalUsedIndices.size < premiumCandidates.length) {
         let currentUnitId = unitGroups.length + 1;
         let currentGroup = {
             id: currentUnitId,
-            usedNumbers: new Set(), // 每一大組獨立的 0 重複核驗記憶庫 🔒
+            usedNumbers: new Set(),
             list: []
         };
 
-        let foundAnyInThisUnit = false;
+        // 🧠 【深度回溯算力對流核內】
+        // 我們使用回溯探索法（Backtracking Survey），在優質池中主動幫這個大組「配對」出極限數量的 0 重複組合
+        let localPickedIndices = [];
+        
+        function backTrackSearch(startIndex) {
+            // 只要當前大組順利拼滿了 8 組（大樂透）或 7 組（539），代表這間房間已達數學空間完美極限，立刻成功收工！
+            if (currentGroup.list.length >= maxCombsPerUnit) return true;
 
-        // 從高分到低分，深度海選能放進當前大組且 0 重複的「真・優質號碼」
-        for (let i = 0; i < leaderBoard.length; i++) {
-            // 達到了物理上限，封艙去開下一大組
-            if (currentGroup.list.length >= maxCombsPerUnit) break;
-            if (totalPickedIndices.has(i)) continue;
+            for (let i = startIndex; i < premiumCandidates.length; i++) {
+                if (globalUsedIndices.has(i) || localPickedIndices.includes(i)) continue;
 
-            const item = leaderBoard[i];
-            if (!item || !item.comb) continue;
+                const item = premiumCandidates[i];
+                if (!item || !item.comb) continue;
 
-            const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
-            
-            // 🔒 鐵律：100% 絕對 0 重複判定，只要撞本大組 1 碼就反彈
-            let hasOverlap = false;
-            for (let b = 0; b < pureCombs.length; b++) {
-                if (currentGroup.usedNumbers.has(pureCombs[b])) {
-                    hasOverlap = true;
-                    break;
+                const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
+
+                // 🔒 100% 絕對 0 重複鋼鐵壁壘，只要撞 1 碼就阻斷
+                let hasOverlap = false;
+                for (let b = 0; b < pureCombs.length; b++) {
+                    if (currentGroup.usedNumbers.has(pureCombs[b])) {
+                        hasOverlap = true;
+                        break;
+                    }
+                }
+
+                // 🟢 發現潛在完美拼圖碎片！
+                if (!hasOverlap) {
+                    // 嘗試將此號碼放入大組
+                    pureCombs.forEach(ball => currentGroup.usedNumbers.add(ball));
+                    currentGroup.list.push(item);
+                    localPickedIndices.push(i);
+
+                    // 異步向下探測：看看順著這個組合往下配，能不能把接下來的床位也完美填滿？
+                    if (backTrackSearch(i + 1)) {
+                        return true; // 下方回報成功，一路通車放行！
+                    }
+
+                    // 🛑 【算力自癒對流修正】：如果發現順著這組號碼往下走會把路走死（後面湊不滿了）
+                    // 演算法立刻展現算力大對流，物理「吐出」這組號碼，換抓下一個號碼來重新配對！
+                    localPickedIndices.pop();
+                    currentGroup.list.pop();
+                    pureCombs.forEach(ball => currentGroup.usedNumbers.delete(ball));
                 }
             }
-
-            if (!hasOverlap) {
-                pureCombs.forEach(ball => currentGroup.usedNumbers.add(ball));
-                item.unit = currentUnitId;
-                currentGroup.list.push(item);
-                totalPickedIndices.add(i); // 標記被優雅分流
-                foundAnyInThisUnit = true;
-            }
+            
+            // 如果池子全部掃完一遍，在極限 0 重複下真的無法填滿到 8 組，則優雅接受當前能做到的最大互斥數量（防死結）
+            return false;
         }
 
-        // ✨【重大優化】：我們徹底刪除、物理蒸發了舊版「強制拿賸餘球拼湊連號垃圾」的 while 區塊！
-        // 寧缺勿濫！如果在高分池裡找不滿 8 組，第 1 大組就停在它最純淨的組數，直接把房間存檔！
+        // 點火啟動當前大組的深度配對
+        backTrackSearch(0);
 
+        // 如果這輪大對流成功幫大組撈到了組合，將這間房間正式收納存檔
         if (currentGroup.list.length > 0) {
+            localPickedIndices.forEach(idx => {
+                premiumCandidates[idx].unit = currentUnitId;
+                globalUsedIndices.add(idx);
+            });
             unitGroups.push(currentGroup);
+        } else {
+            break; // 全池枯竭，優雅斷開
         }
-
-        // 安全熔斷：如果整池高分號碼都核驗完了，連一組 0 重複的都生不出來，直接斷開
-        if (!foundAnyInThisUnit) break; 
     }
 
     // 限制最終要輸出給前端的指定總組數 (對齊 cfg.count)
