@@ -725,12 +725,9 @@ function compileLeaderboardToOutput() {
 
     // ─── 2. 👑 智慧模式：滿血主動大組拓樸隔離（0 浪費算力、最大限度釋放記憶體） ───
     // 依據基礎評分進行一次高分排位
-    leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
+   leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
 
-    const finalPickSize = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 100));
-    const hardwareCleanBoard = leaderBoard.slice(0, finalPickSize);
-
-    // 動態計算每大組的實體組數上限
+    // 動態計算每大組的實體組數上限 (您截圖中的黃金核心換算公式)
     const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
     const isF1Enabled = (cfg && cfg.f1_on === true);
     const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0;
@@ -744,56 +741,65 @@ function compileLeaderboardToOutput() {
     }
     if (maxCombsPerUnit < 1) maxCombsPerUnit = 1;
 
-    // 🧠 核心升級：建立「動態大組管理器陣列」
-    // 格式：[ { usedNumbers: Set, list: [] }, { usedNumbers: Set, list: [] } ]
+    // 建立大組管理器陣列
     const unitGroups = [];
+    
+    // 標記哪些號碼已經被各大組收納，防止重複分流
+    const totalPickedIndices = new Set();
 
-    // 實時遍歷最優號碼池（僅走一次，0重複運算）
-    for (let i = 0; i < hardwareCleanBoard.length; i++) {
-      const item = hardwareCleanBoard[i];
-      if (!item || !item.comb) continue;
+    // 🧠 核心提權升級：採用「多輪深度回溯篩選」，每輪都必須把當前大組瘋狂塞滿到上限才收工！
+    while (totalPickedIndices.size < leaderBoard.length) {
+      let currentGroupIndex = unitGroups.length;
+      let currentGroup = {
+        usedNumbers: new Set(),
+        list: []
+      };
 
-      const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
-      let assigned = false;
+      let foundAnyInThisRound = false;
 
-      // 幫這組號碼主動尋找「最合適、0重複、且還沒滿」的大組房間 🔍
-      for (let g = 0; g < unitGroups.length; g++) {
-        const group = unitGroups[g];
+      // 開始為當前這間大組，從全量高分池（100% 覆蓋所有生成組合）中深度海選符合 0 重複的完美候補
+      for (let i = 0; i < leaderBoard.length; i++) {
+        // 如果當前大組已經達到物理組合上限（如大樂透8組、539共7組），立刻強制截斷，封艙開新大組房間！
+        if (currentGroup.list.length >= maxCombsPerUnit) break;
         
-        // 檢查該大組是否滿了
-        if (group.list.length >= maxCombsPerUnit) continue;
+        // 如果這組號碼已經在前面輪次被別的大組撈走了，略過
+        if (totalPickedIndices.has(i)) continue;
 
-        // 檢查與該大組內已選的所有球是否有任何「1碼重複」
+        const item = leaderBoard[i];
+        if (!item || !item.comb) continue;
+
+        const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
+        
+        // 🔒 硬核檢驗引信：100% 絕對 0 重複判定，只要撞 1 碼就直接物理阻斷！
         let hasOverlap = false;
         for (let b = 0; b < pureCombs.length; b++) {
-          if (group.usedNumbers.has(pureCombs[b])) {
+          if (currentGroup.usedNumbers.has(pureCombs[b])) {
             hasOverlap = true;
-            break; // 只要有一碼重複，直接阻斷，換看下一個大組房間
+            break; 
           }
         }
 
-        // 🟢 完美通關：在這個大組內完全 0 重複，且房間有空位！
+        // 🟢 完美綠色通道：與當前大組完全 0 重複！
         if (!hasOverlap) {
-          pureCombs.forEach(ball => group.usedNumbers.add(ball));
-          item.unit = g + 1; // 標記大組編號
-          group.list.push(item);
-          assigned = true;
-          break; // 分配完畢，立刻跳出，看下一組號碼
+          pureCombs.forEach(ball => currentGroup.usedNumbers.add(ball));
+          item.unit = currentGroupIndex + 1; // 標記大組編號
+          currentGroup.list.push(item);
+          totalPickedIndices.add(i); // 標記已撈走
+          foundAnyInThisRound = true;
         }
       }
 
-      // 🛑 如果現有的大組房間全部都跟這組號碼有重複，或者是房間都滿了
-      // 我們不浪費時間扣分，直接在最下方「為它開一間全新、乾淨的大組房間」！
-      if (!assigned) {
-        const newGroupIndex = unitGroups.length;
-        const newGroup = {
-          usedNumbers: new Set(pureCombs),
-          list: [item]
-        };
-        item.unit = newGroupIndex + 1; // 新大組編號
-        unitGroups.push(newGroup);
+      // 如果當前大組塞進了至少一組號碼，將此房間打包存檔
+      if (currentGroup.list.length > 0) {
+        unitGroups.push(currentGroup);
       }
+
+      // 💡 安全熔斷底線：如果全量池子都掃完了，連一組 0 重複的都擠不出來，代表剩餘號碼全撞，必須強制中斷跳出
+      if (!foundAnyInThisRound) break;
     }
+
+    // 限制最終要輸出給前端的指定總組數 (對齊 cfg.count)
+    const finalRequestedCount = Math.max(1, Number(cfg.count) || 100);
 
     // ─── 3. 大竣工輸出：依照大組順序與高低分，直接噴射交付 🚀 ───
     let globalIndex = 1;
