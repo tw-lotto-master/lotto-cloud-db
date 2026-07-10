@@ -701,157 +701,115 @@ worker.on('message', (msg) => {
 });
 
 function compileLeaderboardToOutput() {
- finalOutputCombs.length = 0; 
- if (!leaderBoard || leaderBoard.length === 0) return;
- 
- try {
- const isSmartMode = (cfg && cfg.vipMode === 'smart');
- const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
- const favNums = isFavEnabled ? cfg.vip_fav_set : [];
- 
- if (!isSmartMode) {
- leaderBoard.sort((a, b) => {
- const aFinal = (a.score || 0) + (a.noise || Math.random() * 0.99);
- const bFinal = (b.score || 0) + (b.noise || Math.random() * 0.99);
- return bFinal - aFinal;
- });
- leaderBoard.forEach((item, index) => {
- const indexStr = String(index + 1).padStart(2, '0');
- finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
- });
- return;
- }
- 
- leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
- 
- const finalPickSize = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 100));
- let hardwareCleanBoard = leaderBoard.slice(0, finalPickSize);
- 
- // ============================================================================================
- // 🧠 【2026 剩餘球數動態大組拓樸補丁】：精準解析前端是否有排除地雷號、勾選喜愛號
- // ============================================================================================
- const totalBallsAvailable = 49; // 預設滿球數 49 碼
- const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
- const isF1Enabled = (cfg && cfg.f1_on === true);
- const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0; // 地雷號排除數量
- 
- // 計算排除地雷號之後的「真實剩餘可用球數」
- const remainingBallCount = Math.max(1, maxLottoBalls - f1Kills);
- 
- // 動態計算喜愛號彈性分母（大樂透 6/5/4，539 5/4/3）
- const favCount = favNums.length;
- const ballsPerCombination = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
- 
- // 🚀 依照剩餘球數/每組球數，動態算出每大組理論上「最多只能容納幾組」！
- let maxCombsPerUnit = Math.floor(remainingBallCount / ballsPerCombination);
- 
- // 如果前端「沒有勾選排除地雷號」，硬性啟用您的黃金預設邊界（大樂透最多8組，539最多7組）
- if (!isF1Enabled) {
-     maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7;
- }
- if (maxCombsPerUnit < 1) maxCombsPerUnit = 1; // 安全防禦底線
- 
- let currentAllowedOverlap = 1; 
- let processedSuccessfully = false;
- let loopSanityCheck = 0;
- 
- while (!processedSuccessfully && loopSanityCheck < 5) {
- loopSanityCheck++;
- let usedNumbersInCurrentUnit = new Set();
- 
- // 🚀 建立一個實體計數器，只要成功分配完一組，計數器就遞增，達到上限強制切換下一大組
- let outputCounterForUnit = 0;
- let currentUnitTracker = 1;
- 
-for (let i = 0; i < hardwareCleanBoard.length; i++) {
- let item = hardwareCleanBoard[i];
- if (!item || !item.comb) continue;
- 
- // 排除喜愛號之後，拿這組號碼去跟當前大組已經選中的號碼進行交叉查殺
- const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
- 
- let overlapCount = 0;
- pureCombs.forEach(ball => { 
-     if (usedNumbersInCurrentUnit.has(ball)) overlapCount++; 
- });
- 
- // 額外核驗：跟前一組號碼的相鄰重疊率（防止連續輸出長太像的號碼）
- let prevOverlapCount = 0;
- let isHeadVanceDuplicated = false;
- if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
-     pureCombs.forEach(ball => { 
-         if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; 
-     });
-     if (item.comb === hardwareCleanBoard[i-1].comb) {
-         isHeadVanceDuplicated = true;
-     }
- }
+  finalOutputCombs.length = 0; 
+  if (!leaderBoard || leaderBoard.length === 0) return;
 
- // 🎯 【核心重大改動：只要有一碼重複就扣分，全不重複大力加分】
- // 1. 判定是否踩到重複地雷：大組內重複 >= 1 碼，或者跟鄰組重複 >= 1 碼，或者完全撞號
- if (overlapCount >= 1 || prevOverlapCount >= 1 || isHeadVanceDuplicated) {
-     
-     // 抓出最大重複顆數，作為懲罰分母
-     const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
-     const headPenalty = isHeadVanceDuplicated ? 400 : 0; 
-     
-     const oldBaseScore = item.score;
-     // ⚡ 一碼即扣分：只要有重複，不管是一碼還是兩碼，直接重扣（150 * 重複顆數），物理強制往後排、使其被替代！
-     const newBaseScore = Math.max(-500, oldBaseScore - (150 * maxOverlapFound) - headPenalty);
-     
-     item.score = newBaseScore;
-     item.finalScore = newBaseScore + (item.noise || 0);
-     item.unit = currentUnitTracker; // 留在當前大組，但分數已暴跌
-     
- } else {
-     // 2. ✨ 【全不重複綠色通道】：大組內 0 碼重複，完美分散！
-     // 將這組純號碼全量灌入當前大組的 Set 記憶庫中
-     pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
-     item.unit = currentUnitTracker;
-     
-     const oldBaseScore = item.score;
-     // 🚀 大力提權：全不重複的超級健康組合，直接在基礎分上瘋狂「+250 分」，強行逼它往前衝排到最前面！
-     const newBaseScore = Math.max(350, oldBaseScore + 250); 
-     
-     item.score = newBaseScore;
-     item.finalScore = newBaseScore + (item.noise || 0);
- }
- 
- // 大組別實體隔離切換控制計數
- outputCounterForUnit++;
- 
- // 當此大組累積的組數達到了上限時，強行切換下一大組並清空記憶
- if (outputCounterForUnit >= maxCombsPerUnit) {
-     currentUnitTracker++;
-     outputCounterForUnit = 0; 
-     usedNumbersInCurrentUnit.clear(); 
- }
-}
- 
- processedSuccessfully = true;
- }
- 
- hardwareCleanBoard.sort((a, b) => {
- const aUnit = a.unit || 1;
- const bUnit = b.unit || 1;
- if (aUnit !== bUnit) {
- return aUnit - bUnit; 
- }
- return b.finalScore - a.finalScore; 
- });
- 
- for (let index = 0; index < hardwareCleanBoard.length; index++) {
- const item = hardwareCleanBoard[index];
- if (!item) continue;
- const indexStr = String(index + 1).padStart(2, '0');
- const displayUnit = item.unit || 1;
- finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
- }
- 
- hardwareCleanBoard = null;
- } catch (err) {
- console.error("[理論大組終極物理隔離晶片異常] ", err.message);
- }
+  try {
+    const isSmartMode = (cfg && cfg.vipMode === 'smart');
+    const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
+    const favNums = isFavEnabled ? cfg.vip_fav_set : [];
+
+    // ─── 1. 標準模式直接快速排位 ───
+    if (!isSmartMode) {
+      leaderBoard.sort((a, b) => {
+        const aFinal = (a.score || 0) + (a.noise || Math.random() * 0.99);
+        const bFinal = (b.score || 0) + (b.noise || Math.random() * 0.99);
+        return bFinal - aFinal;
+      });
+      leaderBoard.forEach((item, index) => {
+        const indexStr = String(index + 1).padStart(2, '0');
+        finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
+      });
+      return;
+    }
+
+    // ─── 2. 👑 智慧模式：滿血主動大組拓樸隔離（0 浪費算力、最大限度釋放記憶體） ───
+    // 依據基礎評分進行一次高分排位
+    leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
+
+    const finalPickSize = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 100));
+    const hardwareCleanBoard = leaderBoard.slice(0, finalPickSize);
+
+    // 動態計算每大組的實體組數上限
+    const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
+    const isF1Enabled = (cfg && cfg.f1_on === true);
+    const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0;
+    const remainingBallCount = Math.max(1, maxLottoBalls - f1Kills);
+    const favCount = favNums.length;
+    const ballsPerCombination = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
+    
+    let maxCombsPerUnit = Math.floor(remainingBallCount / ballsPerCombination);
+    if (!isF1Enabled) {
+      maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7;
+    }
+    if (maxCombsPerUnit < 1) maxCombsPerUnit = 1;
+
+    // 🧠 核心升級：建立「動態大組管理器陣列」
+    // 格式：[ { usedNumbers: Set, list: [] }, { usedNumbers: Set, list: [] } ]
+    const unitGroups = [];
+
+    // 實時遍歷最優號碼池（僅走一次，0重複運算）
+    for (let i = 0; i < hardwareCleanBoard.length; i++) {
+      const item = hardwareCleanBoard[i];
+      if (!item || !item.comb) continue;
+
+      const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
+      let assigned = false;
+
+      // 幫這組號碼主動尋找「最合適、0重複、且還沒滿」的大組房間 🔍
+      for (let g = 0; g < unitGroups.length; g++) {
+        const group = unitGroups[g];
+        
+        // 檢查該大組是否滿了
+        if (group.list.length >= maxCombsPerUnit) continue;
+
+        // 檢查與該大組內已選的所有球是否有任何「1碼重複」
+        let hasOverlap = false;
+        for (let b = 0; b < pureCombs.length; b++) {
+          if (group.usedNumbers.has(pureCombs[b])) {
+            hasOverlap = true;
+            break; // 只要有一碼重複，直接阻斷，換看下一個大組房間
+          }
+        }
+
+        // 🟢 完美通關：在這個大組內完全 0 重複，且房間有空位！
+        if (!hasOverlap) {
+          pureCombs.forEach(ball => group.usedNumbers.add(ball));
+          item.unit = g + 1; // 標記大組編號
+          group.list.push(item);
+          assigned = true;
+          break; // 分配完畢，立刻跳出，看下一組號碼
+        }
+      }
+
+      // 🛑 如果現有的大組房間全部都跟這組號碼有重複，或者是房間都滿了
+      // 我們不浪費時間扣分，直接在最下方「為它開一間全新、乾淨的大組房間」！
+      if (!assigned) {
+        const newGroupIndex = unitGroups.length;
+        const newGroup = {
+          usedNumbers: new Set(pureCombs),
+          list: [item]
+        };
+        item.unit = newGroupIndex + 1; // 新大組編號
+        unitGroups.push(newGroup);
+      }
+    }
+
+    // ─── 3. 大竣工輸出：依照大組順序與高低分，直接噴射交付 🚀 ───
+    let globalIndex = 1;
+    for (let g = 0; g < unitGroups.length; g++) {
+      const group = unitGroups[g];
+      // 保持房間內的號碼依然是依照原本的高分排位從高到低
+      group.list.forEach(item => {
+        const indexStr = String(globalIndex).padStart(2, '0');
+        finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + item.unit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
+        globalIndex++;
+      });
+    }
+
+  } catch (err) {
+    console.error("[物理大組拓樸歸位晶片異常] ", err.message);
+  }
 }
 
 
