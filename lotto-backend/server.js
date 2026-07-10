@@ -319,13 +319,15 @@ if (isMainThread) {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
 
-    // 鋼鐵自癒防線：只要使用者一中斷連線或關網頁，物理強制拔除心跳計時器，防止伺服器記憶體大爆炸 🛑
+     // 鋼鐵自癒防線：只要使用者一中斷連線或關網頁，物理強制拔除心跳計時器，防止伺服器記憶體大爆炸 🛑
  req.on('close', () => {
    if (global.heartbeatTimer) {
      clearInterval(global.heartbeatTimer);
      global.heartbeatTimer = null;
      console.log("[自癒防爆閘] 偵測到用戶端離線，已物理除惡務盡殘留心跳計時器！");
    }
+ });
+
 
     try {
       const { cfg, globalHistoryDB } = req.body;
