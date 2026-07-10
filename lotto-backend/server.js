@@ -701,145 +701,140 @@ worker.on('message', (msg) => {
 });
 
 function compileLeaderboardToOutput() {
-  finalOutputCombs.length = 0; 
-  if (!leaderBoard || leaderBoard.length === 0) return;
-
-  try {
-    const isSmartMode = (cfg && cfg.vipMode === 'smart');
-    const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
-    const favNums = isFavEnabled ? cfg.vip_fav_set : [];
-
-    // ─── 1. 標準模式直接快速排位 ───
-    if (!isSmartMode) {
-      leaderBoard.sort((a, b) => {
-        const aFinal = (a.score || 0) + (a.noise || Math.random() * 0.99);
-        const bFinal = (b.score || 0) + (b.noise || Math.random() * 0.99);
-        return bFinal - aFinal;
-      });
-      leaderBoard.forEach((item, index) => {
-        const indexStr = String(index + 1).padStart(2, '0');
-        finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
-      });
-      return;
-    }
-
-     // ─── 2. 👑 智慧模式：真・1398萬大池深度算力對流 ＆ 100% 0重複「完美回溯分流晶片」 ───
-    // 一開始依據 16 道防線活下來的最終分數進行嚴格排位
-    leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
-
-    // 💡 1. 精確動態參數計算
-    const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
-    const isF1Enabled = (cfg && cfg.f1_on === true);
-    const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.map(Number) : [];
-    
-    let remainingBallCount = maxLottoBalls - f1Kills.length;
-    const favCount = favNums.length;
-    const ballsNeededPerComb = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
-    
-    let maxCombsPerUnit = Math.floor(remainingBallCount / ballsNeededPerComb);
-    if (!isF1Enabled) {
-      maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7; // 大樂透極限 8 組 / 539 極限 7 組
-    }
-    if (maxCombsPerUnit < 1) maxCombsPerUnit = 1;
-
-    // 💡 2. 放大海選淘金深度：從 16 道防線存活下來的池子裡，一口氣抓出前 2000 組「真・350分優質大軍」進行深度對流
-    const candidatePoolSize = Math.min(leaderBoard.length, 2000);
-    const premiumCandidates = leaderBoard.slice(0, candidatePoolSize);
-
-    const unitGroups = [];
-    const globalUsedIndices = new Set(); // 記錄全域哪些號碼最終被採納
-
-    // 💡 3. 開啟大組輪迴發射艙
-    while (globalUsedIndices.size < premiumCandidates.length) {
-        let currentUnitId = unitGroups.length + 1;
-        let currentGroup = {
-            id: currentUnitId,
-            usedNumbers: new Set(),
-            list: []
-        };
-
-        // 🧠 【深度回溯算力對流核內】
-        // 我們使用回溯探索法（Backtracking Survey），在優質池中主動幫這個大組「配對」出極限數量的 0 重複組合
-        let localPickedIndices = [];
-        
-        function backTrackSearch(startIndex) {
-            // 只要當前大組順利拼滿了 8 組（大樂透）或 7 組（539），代表這間房間已達數學空間完美極限，立刻成功收工！
-            if (currentGroup.list.length >= maxCombsPerUnit) return true;
-
-            for (let i = startIndex; i < premiumCandidates.length; i++) {
-                if (globalUsedIndices.has(i) || localPickedIndices.includes(i)) continue;
-
-                const item = premiumCandidates[i];
-                if (!item || !item.comb) continue;
-
-                const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
-
-                // 🔒 100% 絕對 0 重複鋼鐵壁壘，只要撞 1 碼就阻斷
-                let hasOverlap = false;
-                for (let b = 0; b < pureCombs.length; b++) {
-                    if (currentGroup.usedNumbers.has(pureCombs[b])) {
-                        hasOverlap = true;
-                        break;
-                    }
-                }
-
-                // 🟢 發現潛在完美拼圖碎片！
-                if (!hasOverlap) {
-                    // 嘗試將此號碼放入大組
-                    pureCombs.forEach(ball => currentGroup.usedNumbers.add(ball));
-                    currentGroup.list.push(item);
-                    localPickedIndices.push(i);
-
-                    // 異步向下探測：看看順著這個組合往下配，能不能把接下來的床位也完美填滿？
-                    if (backTrackSearch(i + 1)) {
-                        return true; // 下方回報成功，一路通車放行！
-                    }
-
-                    // 🛑 【算力自癒對流修正】：如果發現順著這組號碼往下走會把路走死（後面湊不滿了）
-                    // 演算法立刻展現算力大對流，物理「吐出」這組號碼，換抓下一個號碼來重新配對！
-                    localPickedIndices.pop();
-                    currentGroup.list.pop();
-                    pureCombs.forEach(ball => currentGroup.usedNumbers.delete(ball));
-                }
-            }
-            
-            // 如果池子全部掃完一遍，在極限 0 重複下真的無法填滿到 8 組，則優雅接受當前能做到的最大互斥數量（防死結）
-            return false;
-        }
-
-        // 點火啟動當前大組的深度配對
-        backTrackSearch(0);
-
-        // 如果這輪大對流成功幫大組撈到了組合，將這間房間正式收納存檔
-        if (currentGroup.list.length > 0) {
-            localPickedIndices.forEach(idx => {
-                premiumCandidates[idx].unit = currentUnitId;
-                globalUsedIndices.add(idx);
-            });
-            unitGroups.push(currentGroup);
-        } else {
-            break; // 全池枯竭，優雅斷開
-        }
-    }
-
-    // 限制最終要輸出給前端的指定總組數 (對齊 cfg.count)
-    const finalRequestedCount = Math.max(1, Number(cfg.count) || 100);
-
-    // ─── 3. 大竣工輸出：依照大組順序與高低分，直接噴射交付 🚀 ───
-    let globalIndex = 1;
-    for (let g = 0; g < unitGroups.length; g++) {
-      const group = unitGroups[g];
-      // 保持房間內的號碼依然是依照原本的高分排位從高到低
-      group.list.forEach(item => {
-        const indexStr = String(globalIndex).padStart(2, '0');
-        finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + item.unit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
-        globalIndex++;
-      });
-    }
-
-  } catch (err) {
-    console.error("[物理大組拓樸歸位晶片異常] ", err.message);
-  }
+ finalOutputCombs.length = 0; 
+ if (!leaderBoard || leaderBoard.length === 0) return;
+ 
+ try {
+ const isSmartMode = (cfg && cfg.vipMode === 'smart');
+ const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
+ const favNums = isFavEnabled ? cfg.vip_fav_set : [];
+ 
+ if (!isSmartMode) {
+ leaderBoard.sort((a, b) => {
+ const aFinal = (a.score || 0) + (a.noise || Math.random() * 0.99);
+ const bFinal = (b.score || 0) + (b.noise || Math.random() * 0.99);
+ return bFinal - aFinal;
+ });
+ leaderBoard.forEach((item, index) => {
+ const indexStr = String(index + 1).padStart(2, '0');
+ finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
+ });
+ return;
+ }
+ 
+ leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
+ 
+ const finalPickSize = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 100));
+ let hardwareCleanBoard = leaderBoard.slice(0, finalPickSize);
+ 
+ // ============================================================================================
+ // 🧠 【2026 剩餘球數動態大組拓樸補丁】：精準解析前端是否有排除地雷號、勾選喜愛號
+ // ============================================================================================
+ const totalBallsAvailable = 49; // 預設滿球數 49 碼
+ const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
+ const isF1Enabled = (cfg && cfg.f1_on === true);
+ const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0; // 地雷號排除數量
+ 
+ // 計算排除地雷號之後的「真實剩餘可用球數」
+ const remainingBallCount = Math.max(1, maxLottoBalls - f1Kills);
+ 
+ // 動態計算喜愛號彈性分母（大樂透 6/5/4，539 5/4/3）
+ const favCount = favNums.length;
+ const ballsPerCombination = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
+ 
+ // 🚀 依照剩餘球數/每組球數，動態算出每大組理論上「最多只能容納幾組」！
+ let maxCombsPerUnit = Math.floor(remainingBallCount / ballsPerCombination);
+ 
+ // 如果前端「沒有勾選排除地雷號」，硬性啟用您的黃金預設邊界（大樂透最多8組，539最多7組）
+ if (!isF1Enabled) {
+     maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7;
+ }
+ if (maxCombsPerUnit < 1) maxCombsPerUnit = 1; // 安全防禦底線
+ 
+ let currentAllowedOverlap = 1; 
+ let processedSuccessfully = false;
+ let loopSanityCheck = 0;
+ 
+ while (!processedSuccessfully && loopSanityCheck < 5) {
+ loopSanityCheck++;
+ let usedNumbersInCurrentUnit = new Set();
+ 
+ // 🚀 建立一個實體計數器，只要成功分配完一組，計數器就遞增，達到上限強制切換下一大組
+ let outputCounterForUnit = 0;
+ let currentUnitTracker = 1;
+ 
+ for (let i = 0; i < hardwareCleanBoard.length; i++) {
+ let item = hardwareCleanBoard[i];
+ if (!item || !item.comb) continue;
+ 
+ const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
+ 
+ let overlapCount = 0;
+ pureCombs.forEach(ball => { if (usedNumbersInCurrentUnit.has(ball)) overlapCount++; });
+ 
+ let prevOverlapCount = 0;
+ let isHeadVanceDuplicated = false;
+ 
+ if (i > 0 && hardwareCleanBoard[i-1] && hardwareCleanBoard[i-1].comb) {
+ pureCombs.forEach(ball => { if (hardwareCleanBoard[i-1].comb.includes(ball)) prevOverlapCount++; });
+ if (item.comb === hardwareCleanBoard[i-1].comb) {
+ isHeadVanceDuplicated = true;
+ }
+ }
+ 
+ if (overlapCount >= currentAllowedOverlap || prevOverlapCount >= currentAllowedOverlap || isHeadVanceDuplicated) {
+ const maxOverlapFound = Math.max(overlapCount, prevOverlapCount);
+ const headPenalty = isHeadVanceDuplicated ? 300 : 0; 
+ const oldBaseScore = item.score;
+ const newBaseScore = Math.max(-400, oldBaseScore - (120 * maxOverlapFound) - headPenalty);
+ item.score = newBaseScore;
+ item.finalScore = newBaseScore + (item.noise || 0);
+ item.unit = currentUnitTracker; 
+ } else {
+ pureCombs.forEach(ball => usedNumbersInCurrentUnit.add(ball));
+ item.unit = currentUnitTracker;
+ 
+ const oldBaseScore = item.score;
+ const newBaseScore = Math.max(250, oldBaseScore + 150); 
+ item.score = newBaseScore;
+ item.finalScore = newBaseScore + (item.noise || 0);
+ }
+ 
+ // 🎯 【大組別實體隔離切換核心】：每成功處理一筆，實體計數器加 1
+ outputCounterForUnit++;
+ 
+ // 當此大組累積的組數達到了由「地雷號/喜愛號」公式決定的 `maxCombsPerUnit` 上限時，強行切換大組！
+ if (outputCounterForUnit >= maxCombsPerUnit) {
+ currentUnitTracker++;
+ outputCounterForUnit = 0; // 計數器歸零
+ usedNumbersInCurrentUnit.clear(); // 物理清空大組單元記憶
+ }
+ }
+ 
+ processedSuccessfully = true;
+ }
+ 
+ hardwareCleanBoard.sort((a, b) => {
+ const aUnit = a.unit || 1;
+ const bUnit = b.unit || 1;
+ if (aUnit !== bUnit) {
+ return aUnit - bUnit; 
+ }
+ return b.finalScore - a.finalScore; 
+ });
+ 
+ for (let index = 0; index < hardwareCleanBoard.length; index++) {
+ const item = hardwareCleanBoard[index];
+ if (!item) continue;
+ const indexStr = String(index + 1).padStart(2, '0');
+ const displayUnit = item.unit || 1;
+ finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
+ }
+ 
+ hardwareCleanBoard = null;
+ } catch (err) {
+ console.error("[理論大組終極物理隔離晶片異常] ", err.message);
+ }
 }
 
 
