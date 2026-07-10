@@ -42,8 +42,26 @@ const mongooseOptions = {
 };
 
 mongoose.connect(TRUE_MONGO_URI, mongooseOptions)
-  .then(() => console.log("[資料庫通電] MongoDB 已成功接入頂級高並發抗壓通道：lotto"))
-  .catch(err => console.error("[資料庫突發攔截] 抗壓通道初始化失敗: ", err.message));
+ .then(async () => {
+   console.log("[資料庫通電] MongoDB 已成功接入頂級高並發抗壓通道：lotto");
+   
+   try {
+     // 🎯 滿血開機全自動巡檢清洗：在連線成功的回呼函式內，非同步強制為所有舊帳號格式化，自動補齊缺失的房間
+     // 藉由 mongoose.models.User 或直接呼叫 User，在 0.1 秒內將 singleUnlockExpiresAt 全量注入 null
+     const UserModel = mongoose.models.User || mongoose.model('User', UserSchema);
+     const result = await UserModel.updateMany(
+       { singleUnlockExpiresAt: { $exists: false } }, 
+       { $set: { singleUnlockExpiresAt: null } }
+     );
+     if (result.modifiedCount > 0) {
+       console.log(`[開機自癒大成功] 系統已自動格式化並補齊 ${result.modifiedCount} 個舊會員的 24小時通行證房間！`);
+     }
+   } catch (cleanErr) {
+     console.error("[開機自癒異常攔截] 全自動清洗舊帳戶資料時發生微阻斷：", cleanErr.message);
+   }
+ })
+ .catch(err => console.error("[資料庫突發攔截] 抗壓通道初始化失敗：", err.message));
+
 // ==================================================================================================================
 
 
@@ -55,8 +73,10 @@ const UserSchema = new mongoose.Schema({
   isPaidMember: { type: Boolean, default: false },
   points: { type: Number, default: 100 }, 
   subscriptionExpiresAt: { type: Date, default: null },
+  singleUnlockExpiresAt: { type: Date, default: null },
   savedTickets: { type: Array, default: [] } 
-}, { strict: false, timestamps: true });
+}, { timestamps: true });
+
 
 const User = mongoose.models.User || mongoose.model('User', UserSchema);
 
@@ -190,38 +210,40 @@ app.post('/api/user/cancel-vip', async (req, res) => {
 
 app.post('/api/user/single-unlock', async (req, res) => {
  try {
-     const sessionUserId = extractUserIdFromPayload(req);
-     if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-     const dbUser = await User.findById(sessionUserId);
-     if (!dbUser) return res.status(404).json({ success: false, message: "用戶不存在" });
-     
-     // ─── 檢查是否仍在 24 小時通行證有效期內 ───
-     const now = new Date();
-     if (dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > now) {
-         return res.json({ success: true, message: "您已擁有 24 小時免扣點通行特權！", newPoints: dbUser.points });
-     }
-     
-     const UNLOCK_COST = 10;
-     if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
-         return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階過濾防線需消耗 ${UNLOCK_COST} 點。` });
-     }
-     
-     // 扣除 10 點並注入 24 小時（1天）截止線
-     dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
-     const expireTime = new Date();
-     expireTime.setHours(expireTime.getHours() + 24); // 精確發放 24 小時時效
-     dbUser.singleUnlockExpiresAt = expireTime;
-     
-     dbUser.markModified('points');
-     dbUser.markModified('singleUnlockExpiresAt');
-     await dbUser.save();
-     
-     console.log(`[通行證發放] 使用者 ${dbUser.username} 扣除 10 點，24小時免扣點通道開啟！`);
-     return res.json({ success: true, newPoints: dbUser.points, singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt });
+ // 採用自癒晶片優先從 headers 或 body 解析出使用者 ID，雙防線防止空憑證阻斷
+ const sessionUserId = extractUserIdFromPayload(req);
+ if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證失效，請重新登入" });
+ const dbUser = await User.findById(sessionUserId);
+ if (!dbUser) return res.status(404).json({ success: false, message: "操盤手帳戶不存在" });
+ 
+ const now = new Date();
+ if (dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > now) {
+ return res.json({ success: true, message: "您已擁有 24 小時免扣點通行特權！", newPoints: dbUser.points });
+ }
+ 
+ // 【升級核心】單次解鎖扣除點數由 10 點精準調升至 25 點
+ const UNLOCK_COST = 25;
+ if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
+ return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階過濾防線需消耗 ${UNLOCK_COST} 點，請先儲值。` });
+ }
+ 
+ // 安全扣除 25 點資產，並注入 24 小時白名單截止線
+ dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
+ const expireTime = new Date();
+ expireTime.setHours(expireTime.getHours() + 24); 
+ dbUser.singleUnlockExpiresAt = expireTime;
+ 
+ dbUser.markModified('points');
+ dbUser.markModified('singleUnlockExpiresAt');
+ await dbUser.save();
+ 
+ console.log(`[通行證發放] 操盤手 ${dbUser.username} 成功扣除 25 點，24小時高階防線通道全線放行！`);
+ return res.json({ success: true, newPoints: dbUser.points, singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt });
  } catch (err) { 
      return res.status(500).json({ success: false, message: "雲端授權通道異常" }); 
  }
 });
+
 
 
 // ─── 雲端收藏夾儲存與拉取 API ───
@@ -296,6 +318,15 @@ if (isMainThread) {
     res.setHeader('Transfer-Encoding', 'chunked');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+
+    // 鋼鐵自癒防線：只要使用者一中斷連線或關網頁，物理強制拔除心跳計時器，防止伺服器記憶體大爆炸 🛑
+ req.on('close', () => {
+   if (global.heartbeatTimer) {
+     clearInterval(global.heartbeatTimer);
+     global.heartbeatTimer = null;
+     console.log("[自癒防爆閘] 偵測到用戶端離線，已物理除惡務盡殘留心跳計時器！");
+   }
+
     try {
       const { cfg, globalHistoryDB } = req.body;
     if (cfg) {
@@ -303,36 +334,46 @@ if (isMainThread) {
       if (cfg.isAdUnlocked === undefined) {
         cfg.isAdUnlocked = cfg.isAdUnlockedCurrentRound || cfg.adUnlocked || cfg.isAdActive || false;
       }
-      // 強制修正字串轉型漏洞並對齊（確保前端 isVipAdUnlocked 的 true 被精確解碼）
+     // 強制修正字串轉型漏洞並對齊（確保前端 isVipAdUnlocked 的 true 被精確解碼）
       if (cfg.isAdUnlocked === 'true' || cfg.isAdUnlocked === true) {
         cfg.isAdUnlocked = true;
       }
       if (cfg.isSingleUnlockedCurrentRound === undefined) cfg.isSingleUnlockedCurrentRound = cfg.isSingleUnlocked || cfg.singleUnlocked || false;
       if (cfg.isPaidMember === undefined) cfg.isPaidMember = cfg.isPaidMemberCurrentRound || false;
     }
-// ======= 區塊 1 全新替換代碼 =======
-    if (!cfg) {
-  res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
-  return res.end();
-}
-    const sessionUserId = req.user && req.user.userId;
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
-    const nowtime = new Date();
-    // 1. 驗證 30 天月費訂閱特權
-    const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
-    // 2. 驗證全新的 24 小時單次解鎖通行證特權
-    const hasValid24hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
 
-    // 彙整最高免扣點白名單權限
-    const isVipPass = (
-        hasActiveSubscription || 
-        hasValid24hPass || 
-        dbUser.isPaidMember === true || 
-        cfg.isPaidMember === true || cfg.isPaidMember === 'true' || 
-        cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || 
-        cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true'
-    );
+// ======= 區塊 1 全新替換代碼 =======
+ if (!cfg) {
+ res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
+ return res.end();
+}
+ // 🎯 滿血身分雙防線解碼：優先從中間件或 Payload 內文清洗提取最真實的 ID
+ const sessionUserId = (req.user && req.user.userId) || extractUserIdFromPayload(req);
+ if (!sessionUserId) {
+ res.write(JSON.stringify({ success: false, status: 401, message: "身分驗證失效，請重新登入" }) + "\n");
+ return res.end();
+}
+
+ // 🎯 穿透資料庫快取死結：強制使用 lean() 清空 Mongoose 內部物件快取，100% 直連讀取當前最新儲存的 25 點通行證
+ const dbUser = await User.findById(sessionUserId).lean();
+ if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
+ 
+ const nowtime = new Date();
+ // 1. 驗證 30 天月費訂閱特權
+ const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
+ // 2. 驗證全新的 24 小時單次解鎖通行證特權 (此處在精確直連下將滿血判定為 true)
+ const hasValid24hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
+ 
+ // 彙整最高免扣點白名單權限 (完美咬合，綠色通道動態自癒放行)
+ const isVipPass = (
+ hasActiveSubscription || 
+ hasValid24hPass || 
+ dbUser.isPaidMember === true || 
+ cfg.isPaidMember === true || cfg.isPaidMember === 'true' || 
+ cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || 
+ cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true'
+ );
+
     
     const limitOutput = Math.min(100, cfg.count || 5);
     const pickLimit = parseInt(limitOutput) || 5;
@@ -446,12 +487,12 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         return res.end();
     } // 🌟 完美閉合通道 A 
      if (!isVipPass) {
-        // 如果沒有月費 VIP，也沒有 24 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
-        res.write(JSON.stringify({ 
-            success: false, 
-            status: 402, 
-            message: "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (10點)』獲取憑證！" 
-        }) + "\n");
+ // 如果沒有月費 VIP，也沒有 24 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
+ res.write(JSON.stringify({ 
+ success: false, 
+ status: 402, 
+ message: "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (25點)』獲取憑證！" 
+ }) + "\n");
         return res.end();
     } else {
         // 已持有時效憑證，綠色通道直接放行，0 點數消耗！
