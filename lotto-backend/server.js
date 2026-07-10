@@ -355,9 +355,8 @@ if (isMainThread) {
 }
 
  // 🎯 穿透資料庫快取死結：強制使用 lean() 清空 Mongoose 內部物件快取，100% 直連讀取當前最新儲存的 25 點通行證
-  const dbUser = await User.findById(sessionUserId).lean();
-    if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
-|| res.end();
+ const dbUser = await User.findById(sessionUserId).lean();
+ if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
  
  const nowtime = new Date();
  // 1. 驗證 30 天月費訂閱特權
@@ -380,6 +379,7 @@ if (isMainThread) {
     const pickLimit = parseInt(limitOutput) || 5;
     
     const isNoConditions = (
+
         (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
         (cfg.f3_on !== true && cfg.f3_on !== 'true') && (cfg.f4_on !== true && cfg.f4_on !== 'true') &&
         (cfg.f5_on !== true && cfg.f5_on !== 'true') && (cfg.f6_on !== true && cfg.f6_on !== 'true') &&
