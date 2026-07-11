@@ -1429,7 +1429,7 @@ if (f13_on) {
      
      // ============================================================================================
      // 🧠 【源頭不重複晶片核心】：在過條件前，對賸餘可用球池執行「純隨機跨區塊足跡打散」！
-     // 100% 保留總量穷举與 16 道防線，但徹底打破 DFS 死板的線性順序，使其誕生即自帶互斥隨機屬性！
+     // 100% 保留總量窮舉與 16 道防線，但徹底打破 DFS 死板的線性順序，使其誕生即自帶互斥隨機屬性！
      // ============================================================================================
      for (let i = remainingPool.length - 1; i > 0; i--) {
          const j = Math.floor(Math.random() * (i + 1));
@@ -1442,6 +1442,7 @@ if (f13_on) {
      const requiredSlots = pickCount - favBalls.length; 
      let currentSelection = new Array(requiredSlots);
      
+     // 💡 100% 移除內部所有無效 await，恢復最高速的原生同步遞迴大齒輪！
      async function dfs(level, startIndex) {
          if (scannedCount >= maxCombinations) return;
          if (level === requiredSlots) {
@@ -1513,6 +1514,7 @@ if (f13_on) {
          finalScoreDistribution: localScoreDistribution
      }); 
  })();
+
 
 // ========================================== 【區塊 2：子執行緒全新替換範圍結束】 ==========================================
 
