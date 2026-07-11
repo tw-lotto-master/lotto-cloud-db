@@ -1318,14 +1318,14 @@ if (f13_on) {
      return healthScore;
  }
 
- // ⚡ 【反向打撈核心】：當生存池充盈時，200槽主動開閘，對池內具備天然隨機互斥基因的精英名單進行貪婪反向打撈
+ // ⚡ 【反向打撈核心】：100% 對齊原廠 favBalls 與 pickCount 變數！
  function executeReverseHarvest() {
-     const isF1Enabled = (cfg && cfg.vip_on === true);
+     const isF1Enabled = (cfg && cfg.f1_on === true);
      const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0; 
      const maxLottoBalls = (lottoType === "49_6") ? 49 : 39;
      const remainingBallCount = Math.max(1, maxLottoBalls - f1Kills);
      const favCount = favBalls.length;
-     const ballsPerCombination = (lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
+     const ballsPerCombination = (lottoType === "49_6") ? Math.max(4, pickCount - favCount) : Math.max(3, pickCount - favCount);
      
      let maxCombsPerUnit = Math.floor(remainingBallCount / ballsPerCombination);
      if (!isF1Enabled) {
@@ -1350,7 +1350,7 @@ if (f13_on) {
                  // 延遲物件創建：被撈走錄用的瞬間，才耗費 CPU 生成字串與 nodeItem 物件
                  const formatted = candidate.comb.map(n => String(n).padStart(2, '0')).join(', ');
                  const nodeItem = {
-                     score: Math.max(250, candidate.score + 150), // 100% 保持 500 分黃金狀態
+                     score: Math.max(250, candidate.score + 150), // 100% 保持 500 分高分狀態
                      noise: candidate.noise,
                      finalScore: candidate.finalScore + 150,
                      comb: candidate.comb,
@@ -1379,7 +1379,7 @@ if (f13_on) {
 
      if (healthScore < 250) return; // 未達標當場釋放，0 記憶體負擔
 
-     // 🚀 【生態池蓄水】：將通過 16 道條件並高分的名單灌入具備「源頭互斥隨機排列」的中繼站
+     // 🚀 【生態池蓄水】：100% 對齊原廠 favBalls 變數名稱！
      const pureCombs = combination.filter(ball => !favBalls.includes(ball));
      let currentCombMask = 0;
      for (let i = 0; i < pureCombs.length; i++) {
@@ -1404,7 +1404,7 @@ if (f13_on) {
      }
  }
  // ============================================================================================
- // 🚀 【2026 終極完全體 B：全量 DFS ─── 源頭隨機互斥區塊映射導航晶片】 🚀
+ // 🚀 【2026 終極完全體 B：100% 原廠欄位對齊 ─── 源頭隨機互斥區塊映射導航晶片】 🚀
  // ============================================================================================
  async function triggerChunkFlush() {
      if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations) {
@@ -1428,7 +1428,7 @@ if (f13_on) {
      const remainingPool = basePool.filter(ball => !favSet.has(ball)); 
      
      // ============================================================================================
-     // 🧠 【源頭不重複晶片核心】：在過條件前，對賸餘可用球池執行「純隨機跨區塊足跡打散」！
+     // 🧠 【源頭不重複晶片核心】：100% 對齊原廠變數，在過條件前執行「純隨機跨區塊足跡打散」！
      // 100% 保留總量窮舉與 16 道防線，但徹底打破 DFS 死板的線性順序，使其誕生即自帶互斥隨機屬性！
      // ============================================================================================
      for (let i = remainingPool.length - 1; i > 0; i--) {
@@ -1439,11 +1439,11 @@ if (f13_on) {
      }
 
      const pLen = remainingPool.length; 
-     const requiredSlots = pickCount - favBalls.length; 
+     const requiredSlots = pickCount - favBalls.length; // 🎯 100% 對齊原創 pickCount 與 favBalls
      let currentSelection = new Array(requiredSlots);
      
-     // 💡 100% 移除內部所有無效 await，恢復最高速的原生同步遞迴大齒輪！
-     async function dfs(level, startIndex) {
+     // 💡 100% 保持您原汁原味的原生同步遞迴大齒輪，內部絕無任何無效 await 煞車！
+     function dfsSync(level, startIndex) {
          if (scannedCount >= maxCombinations) return;
          if (level === requiredSlots) {
              scannedCount++; 
@@ -1451,17 +1451,19 @@ if (f13_on) {
              // 號碼生成後重新排序，確保符合 16 道防線與基礎評分期待的格式
              let combination = [...favBalls, ...currentSelection].sort((a, b) => a - b);
              processAndLocalPK(combination);
-             await triggerChunkFlush(); 
+             
+             // 🎯 以不卡住迴圈的非同步背景排隊方式回報進度，絕不阻斷同步大齒輪生牌！
+             triggerChunkFlush(); 
              return;
          }
          for (let i = startIndex; i < pLen; i++) { 
              currentSelection[level] = remainingPool[i]; 
-             await dfs(level + 1, i + 1); 
+             dfsSync(level + 1, i + 1); 
          }
      }
      
-     // 🎬 100% 老老實實執行 1398 萬組或 57 萬組的全量海選 DFS 遞迴，絕不作弊省略！
-     await dfs(0, 0);
+     // 🎬 100% 老老實實執行 1398 萬組或 57 萬組的全量海選同步 DFS 遞迴，絕不省略！
+     dfsSync(0, 0);
 
      // 🏁 全量海選竣工的最後一刻，將生存池內剩餘的所有隨機互斥精英進行最終末梢清倉打撈
      executeReverseHarvest();
@@ -1497,7 +1499,7 @@ if (f13_on) {
      }
 
      // ============================================================================================
-     // 📤 【100% 原始通道直通回傳】保持與原後台完美對接，消滅所有大括號殘缺黑洞！
+     // 📤 【100% 原汁原味通道回傳】接口欄位對位無瑕疵，消滅所有大括號殘缺黑洞！
      // ============================================================================================
      parentPort.postMessage({ 
          type: 'TOTAL_SCAN_PROGRESS', 
@@ -1514,6 +1516,7 @@ if (f13_on) {
          finalScoreDistribution: localScoreDistribution
      }); 
  })();
+
 
 
 // ========================================== 【區塊 2：子執行緒全新替換範圍結束】 ==========================================
