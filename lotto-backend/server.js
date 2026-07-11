@@ -1420,8 +1420,10 @@ async function triggerChunkFlush() {
     // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
 
-    // ─── 階段三：【智慧自癒撈取引擎】200 個槽位主動進池子圈出不重複滿足組 ───
+   // ========================================== 【區塊 2-2：終極完美互斥與零重複過濾引擎】 ==========================================
+    // ─── 階段三：【終極自癒撈取引擎】200 個槽位主動進池子圈出不重複滿足組 ───
     const WORKER_TOTAL_SLOTS = 200;
+    const slotBitmasks = new Float64Array(WORKER_TOTAL_SLOTS);
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
     const pureBallsPerComb = mainPickCount - favCount; 
@@ -1438,9 +1440,24 @@ async function triggerChunkFlush() {
 
             const node = reservoirPool[i];
             
-            // 核心互斥碰撞：大組內部 100% 絕對號碼隔離、0% 重複
-            if ((currentSlotMask & node.mask) === 0) {
-                currentSlotMask |= node.mask; 
+            // 核心互斥碰撞：大組內部 100% 絕對號碼隔離、0% 重複 (使用 64 位元安全浮點數碰撞)
+            // 由於 JavaScript 的 Float64Array 進行 & 運算會退回 32 位元溢出，這裡必須手寫安全大數 & 判斷
+            let isCollide = false;
+            for (let b = 0; b < node.comb.length; b++) {
+                if (safeFavBalls.includes(node.comb[b])) continue; // 排除喜愛號
+                // 利用除法和取模，精確判斷當前槽位的第 bit 位是否已經被霸佔
+                if (Math.floor(currentSlotMask / Math.pow(2, node.comb[b])) % 2 === 1) {
+                    isCollide = true;
+                    break;
+                }
+            }
+
+            if (!isCollide) {
+                // 100% 確定不重複，錄入當前大組的動態足跡牆
+                for (let b = 0; b < node.comb.length; b++) {
+                    if (safeFavBalls.includes(node.comb[b])) continue;
+                    currentSlotMask += Math.pow(2, node.comb[b]);
+                }
                 currentSlotPickedIndices.push(i); 
             }
 
@@ -1457,7 +1474,9 @@ async function triggerChunkFlush() {
                 
                 const node = reservoirPool[idx];
                 const currentNoise = Math.random() * 0.9999;
-                const formatted = node.comb.map(n => String(n).padStart(2, '0')).join(', ');
+                // 在最前面加上 "\n"，強迫第一個數字直接從下一行開始排版
+const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
+
                 
                 slotMachine[s].items.push({
                     score: Math.max(250, node.score + 150),
