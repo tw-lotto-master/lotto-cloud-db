@@ -1415,11 +1415,12 @@ async function triggerChunkFlush() {
         if (totalGeneratedCount >= maxCombinations) return;
         if (level === mainPickCount) {
             // 用極速位元左移壓成一個二進制遮罩數字
-           let mask = 0;
+          let mask = 0;
 for (let i = 0; i < mainPickCount; i++) {
-    mask += Math.pow(2, currentSelection[i]); // 使用 Math.pow 完美支援 1~49 碼安全空間
+    mask |= (1 << currentSelection[i]);
 }
 fullMaskPool[totalGeneratedCount] = mask;
+
             totalGeneratedCount++;
             return;
         }
@@ -1464,7 +1465,7 @@ fullMaskPool[totalGeneratedCount] = mask;
         // 從二進制遮罩中，極速還原成 5 或 6 顆真實彩球號碼（純數學運算，極快）
         let ballIdx = 0;
         for (let bit = 1; bit <= 49; bit++) {
-            if (Math.floor(currentMask / Math.pow(2, bit)) % 2 === 1) {
+            if ((currentMask & (1 << bit)) !== 0) {
                 tempCombination[ballIdx++] = bit;
                 if (ballIdx === mainPickCount) break;
             }
@@ -1542,8 +1543,9 @@ fullMaskPool[totalGeneratedCount] = mask;
         // 3. 進入滿足生存池，立刻被 200 個槽位「集中互斥選取」
         // 計算剔除喜愛號後的互斥遮罩（完全相容原本底層機制）
         const pureCombs = tempCombination.filter(ball => !favBalls.includes(ball));
-        let pureMask = 0;
-for (let b = 0; b < pureCombs.length; b++) { pureMask += Math.pow(2, pureCombs[b]); }
+       let pureMask = 0;
+for (let b = 0; b < pureCombs.length; b++) { pureMask |= (1 << pureCombs[b]); }
+
 
 
         // 集中式互斥填充：前面的大組沒塞滿 8 組前，後面的號碼優先幫忙補滿
