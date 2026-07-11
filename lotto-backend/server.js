@@ -722,11 +722,9 @@ function compileLeaderboardToOutput() {
  leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
  const finalPickSize = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 100));
  let hardwareCleanBoard = leaderBoard.slice(0, finalPickSize);
- // 
- ============================================================================================
+
  // 【2026 剩餘球數動態大組拓樸補丁】：精準解析前端是否有排除地雷號、勾選喜愛號 🧠
- // 
- ============================================================================================
+ 
  const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
  const isF1Enabled = (cfg && cfg.f1_on === true);
  const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0; 
@@ -741,9 +739,9 @@ function compileLeaderboardToOutput() {
  maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7;
  }
  if (maxCombsPerUnit < 1) maxCombsPerUnit = 1; // 安全防禦底線
- // ============================================================================================
+ 
  // 🚀 【核心優化重構：多大組動態分流完全互斥晶片】 🚀
- // ============================================================================================
+ 
  // 用一個陣列來管理所有大組的狀態。結構：[{ usedNumbers: Set, count: 0, items: [] }, ...]
  const units = [{ usedNumbers: new Set(), count: 0, items: [] }];
  for (let i = 0; i < hardwareCleanBoard.length; i++) {
@@ -794,9 +792,9 @@ function compileLeaderboardToOutput() {
  units.push(newUnit);
  }
  }
- // ============================================================================================
+ 
  // 扁平化重組輸出：依照大組順序(Unit 1 -> Unit 2 -> ...)依序倒出，並在組內按分數由高到低排序
- // ============================================================================================
+ 
  let finalIndexCounter = 1;
  for (let u = 0; u < units.length; u++) {
  const currentUnit = units[u];
