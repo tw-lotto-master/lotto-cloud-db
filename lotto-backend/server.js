@@ -1435,27 +1435,45 @@ async function triggerChunkFlush() {
     // ─── 階段二：30 萬生存池全局洗牌打散 ───
     shuffleArray(reservoirPool);
 
-    // ─── 階段三：【完全遵照您的意志】200 個槽位主動去 30 萬池子裡撈不重複組數 ───
+       // ─── 階段三：【大組主動圈出滿足組】200 個槽位獨立進池子撈滿由剩餘球數決定的互斥組 ───
     const WORKER_TOTAL_SLOTS = 200;
-    const slotBitmasks = new Float64Array(WORKER_TOTAL_SLOTS);
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
     const pureBallsPerComb = mainPickCount - favCount; 
+    // 由剩餘球數決定的極限組數上限（49碼預設8組，539預設7組）
     const maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
 
-    // 200 個槽位輪流出擊，去池子裡撈取 100% 互斥的號碼
-    let totalPickedCombs = 0;
-    const targetRequiredCount = 200 * maxGroupLimitPerSlot; // 最大飽和交卷組數
+    // 用一個 Uint8Array 記錄 30 萬生存池中，哪些號碼已經被前人整組圈走了
+    const usedNodeFlags = new Uint8Array(reservoirPool.length);
 
     for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
+        // 每一個大組槽出擊時，初始化一個專屬於自己大組內部的「互斥位元遮罩防線」
+        let currentSlotMask = 0;
+        const currentSlotPickedIndices = []; // 暫存這一次嘗試圈出的黃金島索引
+
         for (let i = 0; i < reservoirPool.length; i++) {
+            if (usedNodeFlags[i] === 1) continue; // 已經被其他大組圈走的孤島，永久不能碰
+
             const node = reservoirPool[i];
             
-            // 條件：當前槽位沒滿 8 組，且池子裡的號碼與當前槽位現有號碼完全不重複 (0% 重複率)
-            if (slotMachine[s].items.length < maxGroupLimitPerSlot && (slotBitmasks[s] & node.mask) === 0) {
-                slotBitmasks[s] |= node.mask; // 烙印互斥二進制足跡
+            // 關鍵互斥判定：這組號碼與「當前大組目前已經撈到的號碼」碰撞率為 0%
+            if ((currentSlotMask & node.mask) === 0) {
+                currentSlotMask |= node.mask; // 擴張當前大組的二進制足跡牆
+                currentSlotPickedIndices.push(i); // 暫時牽手保留
+            }
+
+            // 完美的動態終止線：只要當前大組「成功圈滿了由剩餘球數決定的組數（如 8 組）」
+            if (currentSlotPickedIndices.length === maxGroupLimitPerSlot) {
+                break; // 功德圓滿，立刻跳出這 30 萬池子，不再往下盲目翻閱！
+            }
+        }
+
+        // 審查生還結果：只有當這一大組「真正成功在池子裡湊齊了 8 組完全互斥的號碼」，才放行錄取！
+        if (currentSlotPickedIndices.length === maxGroupLimitPerSlot) {
+            for (let idx of currentSlotPickedIndices) {
+                usedNodeFlags[idx] = 1; // 物理標記：這 8 組號碼正式從生存池中蒸發，其他大組不得再碰
                 
-                // 確定選中了！這時候才生成漂亮排版與完整物件
+                const node = reservoirPool[idx];
                 const currentNoise = Math.random() * 0.9999;
                 const formatted = node.comb.map(n => String(n).padStart(2, '0')).join(', ');
                 
@@ -1465,40 +1483,40 @@ async function triggerChunkFlush() {
                     finalScore: node.score + currentNoise + 150,
                     comb: node.comb,
                     mask: node.mask,
-                    formatted
+                    formatted,
+                    unit: s + 1 // 物理鎖定大組編號，絕不跳號
                 });
-                totalPickedCombs++;
             }
-            // 如果該槽位成功撈滿了 8 組互斥名單，提早跳出，換下一個槽位去池子裡撈
-            if (slotMachine[s].items.length >= maxGroupLimitPerSlot) break;
+        } else {
+            // 如果這個大組槽翻遍了剩下的 30 萬池子，結果只湊到了 5 組或 6 組，沒辦法完美滿足 8 組的要求
+            // 那這一大組就「宣告自癒流產」，不錄入任何一組，把號碼留給下一個大組去湊，寧缺勿濫！
+            currentSlotPickedIndices.length = 0; 
         }
     }
 
-    // ─── 階段四：交卷 ───
+    // ─── 階段四：交卷通道（100% 格式安全咬合） ───
     const localLeaderBoard = [];
     try {
-        const sortedSlots = slotMachine
-            .filter(slot => slot && slot.items && slot.items.length > 0)
-            .sort((a, b) => b.items.length - a.items.length);
-        
         let assignedUnitCounter = 1;
-        for (let s = 0; s < sortedSlots.length; s++) {
-            const currentSlot = sortedSlots[s];
-            currentSlot.items.sort((a, b) => b.finalScore - a.finalScore);
-            
-            for (let j = 0; j < currentSlot.items.length; j++) {
-                const item = currentSlot.items[j];
-                item.unit = assignedUnitCounter;
-                localLeaderBoard.push(item);
-            }
-            if (currentSlot.items.length > 0) {
+        for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
+            const currentSlot = slotMachine[s];
+            if (currentSlot && currentSlot.items && currentSlot.items.length > 0) {
+                // 同大組內的 8 個小組，按照加權分數由高到低優雅排列
+                currentSlot.items.sort((a, b) => b.finalScore - a.finalScore);
+                
+                for (let j = 0; j < currentSlot.items.length; j++) {
+                    const item = currentSlot.items[j];
+                    item.unit = assignedUnitCounter; // 重新刷上連續無斷層的大組編號標籤
+                    localLeaderBoard.push(item);
+                }
                 assignedUnitCounter++;
             }
         }
     } catch (restoreErr) {
-        console.error("[Worker 終極撈取自癒槽晶片異常] ", restoreErr.message);
+        console.error("[Worker 滿足組主動撈取晶片異常] ", restoreErr.message);
     }
 
+    // 數據通道安全交卷
     parentPort.postMessage({
         type: 'TOTAL_SCAN_PROGRESS',
         scanned: scannedCount,
@@ -1514,7 +1532,7 @@ async function triggerChunkFlush() {
         finalScoreDistribution: localScoreDistribution
     });
 })();
-// ========================================== 【區塊 2：終極主動撈取引擎結束】 ==========================================
+// ========================================== 【區塊 2：主動圈出滿足組引擎全部結束】 ==========================================
 
 }
 
