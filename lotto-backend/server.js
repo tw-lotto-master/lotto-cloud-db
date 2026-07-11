@@ -703,68 +703,38 @@ worker.on('message', (msg) => {
 function compileLeaderboardToOutput() {
     finalOutputCombs.length = 0; 
     
-    // 此處的 leaderBoard 即為子執行緒完成海選碰撞後傳回的 slotMachine 陣列
-    if (!leaderBoard || leaderBoard.length === 0) return;
+    // 此處接收的是已經由 Worker 完美轉換排序好的原始陣列
+    if (!leaderBoard || !Array.isArray(leaderBoard) || leaderBoard.length === 0) return;
     
     try {
         const isSmartMode = (cfg && cfg.vipMode === 'smart');
-        const targetCount = Math.min(100, Math.max(1, Number(cfg.count) || 15)); // 前端要解鎖的總小組數
+        // 精確對齊前端解鎖組數（例如 15 組）
+        const targetCount = Math.min(100, Math.max(1, Number(cfg.count) || 15)); 
 
-        // 如果不是智能 VIP 模式，走舊有的一般輸出流程
-        if (!isSmartMode) {
-            // 若為傳統陣列，直接打印輸出
-            if (Array.isArray(leaderBoard) && leaderBoard[0]?.comb) {
-                leaderBoard.forEach((item, index) => {
-                    const indexStr = String(index + 1).padStart(2, '0');
-                    finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
-                });
-            }
-            return;
-        }
-
-        // ============================================================================================
-        // 🚀 【填滿優先出牌拓樸】：掃描 200 個不重複槽，誰塞得最滿，誰就優先出牌！
-        // ============================================================================================
-        // 過濾掉完全沒裝號碼的空槽，並根據槽內成功收容的「小組數量」進行由大到小的降序排序
-        const activeSlots = leaderBoard
-            .filter(slot => slot && slot.items && slot.items.length > 0)
-            .sort((a, b) => b.items.length - a.items.length);
-
-        let finalIndexCounter = 1;
-        let currentDisplayUnit = 1; // 重新定義前端展示的大組編號
-
-        // 依序倒出填得最滿的儲存槽
-        for (let s = 0; s < activeSlots.length; s++) {
-            if (finalIndexCounter > targetCount) break; // 滿足用戶解鎖的組數（例如 15 組）就完美結案
-
-            const currentSlot = activeSlots[s];
+        // 🚀 【100% 原生接口直通出牌】：直接讀取 Worker 還原好、填得最滿的黃金名單
+        for (let i = 0; i < leaderBoard.length; i++) {
+            if (i >= targetCount) break; // 填滿用戶要的 15 組立刻結案
             
-            // 同一個槽（大組）內的小組，按分數由高到低進行精準微調排序
-            currentSlot.items.sort((a, b) => b.finalScore - a.finalScore);
+            const item = leaderBoard[i];
+            if (!item) continue;
 
-            for (let j = 0; j < currentSlot.items.length; j++) {
-                if (finalIndexCounter > targetCount) break;
-
-                const item = currentSlot.items[j];
-                const indexStr = String(finalIndexCounter).padStart(2, '0');
-
-                // 完美輸出：完全不重複的大組，且分數 100% 保持在 500 分的精英狀態！
-                finalOutputCombs.push(
-                    "第 [" + indexStr + "] 組 (第 " + currentDisplayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n"
-                );
-                finalIndexCounter++;
-            }
+            const indexStr = String(i + 1).padStart(2, '0');
             
-            // 只要這個槽有成功輸出任何一組號碼，下一個槽就定義為下一個新大組
-            if (currentSlot.items.length > 0) {
-                currentDisplayUnit++;
+            if (!isSmartMode) {
+                // 如果是傳統普通模式，一律歸類在第 1 大組
+                finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
+            } else {
+                // 💎 如果是智能 VIP 模式，直接調用 Worker 在 200 槽裡幫我們打好的實體大組編號 (item.unit)
+                // 100% 保持 500 分，且完美大組互斥，榨乾剩餘球數！
+                const displayUnit = item.unit !== undefined ? item.unit : 1;
+                finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
             }
         }
-
     } catch (err) {
-        console.error("[儲存槽終極物理隔離晶片異常] ", err.message);
+        console.error("[主緒直通出牌解碼器異常] ", err.message);
     }
 }
+
 
 
 
