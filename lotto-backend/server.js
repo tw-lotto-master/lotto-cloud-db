@@ -1445,7 +1445,7 @@ if (f13_on) {
      // 🚀 【2026 終極自癒：強行破壁 async 閉合引信】 🚀
  // 用一個局部非同步外殼，當場鎖死並消化 await dfs(0, 0) 的非同步狀態，100% 瓦解開機語法衝突！
  
-      dfs(0, 0);
+     await dfs(0, 0);
   
      executeReverseHarvest();
 
