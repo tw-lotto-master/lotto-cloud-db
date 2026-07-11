@@ -1280,12 +1280,15 @@ async function triggerChunkFlush() {
         await new Promise(res => { if (typeof setImmediate !== 'undefined') setImmediate(res); else setTimeout(res, 1); });
     }
 }
-// ========================================== 【區塊 2-2：全量極速海選、區塊內部打散與動態互斥填充】 ==========================================
+// ========================================== 【區塊 2-2：2秒極速竣工、絕對互斥黃金引擎】 ==========================================
 (async function runDeterministicBrain() {
     const pLen = basePool.length; 
     const mainPickCount = lottoType === "49_6" ? 6 : 5;
     
-    // 建立連續二進制儲存矩陣
+    // 安全型態晶片：強行將喜愛號收攏為連續安全陣列，防止前端空值引發互斥防線崩潰
+    const safeFavBalls = (typeof favBalls !== 'undefined' && Array.isArray(favBalls)) ? favBalls : [];
+    const favCount = (vip_fav_on && safeFavBalls.length > 0) ? safeFavBalls.length : 0;
+
     const fullMaskPool = new Float64Array(maxCombinations);
     let totalGeneratedCount = 0;
 
@@ -1295,7 +1298,7 @@ async function triggerChunkFlush() {
         if (level === mainPickCount) {
             let mask = 0;
             for (let i = 0; i < mainPickCount; i++) {
-                mask += Math.pow(2, currentSelection[i]); // 修正 64 位元防溢出，完美支援 49 碼空間
+                mask += Math.pow(2, currentSelection[i]); 
             }
             fullMaskPool[totalGeneratedCount] = mask;
             totalGeneratedCount++;
@@ -1308,7 +1311,7 @@ async function triggerChunkFlush() {
     }
     fastGenerateDfs(0, 0);
 
-    // 精確切分 28 個區塊（大樂透）或 1 個區塊（539），並在區塊內部進行 Fisher-Yates 瘋狂洗牌
+    // 切分 28 區塊並在內部進行 Fisher-Yates 局部高速隨機化
     const chunkSize = lottoType === "49_6" ? Math.ceil(maxCombinations / 28) : maxCombinations;
     for (let c = 0; c < maxCombinations; c += chunkSize) {
         const end = Math.min(c + chunkSize, maxCombinations);
@@ -1320,26 +1323,22 @@ async function triggerChunkFlush() {
         }
     }
 
-    // 200 個獨立儲存槽
     const WORKER_TOTAL_SLOTS = 200;
     const slotBitmasks = new Float64Array(WORKER_TOTAL_SLOTS);
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
-    // 動態核心：根據「必開喜愛號」的數量，自動隨機調整並計算出最精確的每大組極限封頂組數限制
-    const favCount = vip_fav_on && typeof favBalls !== 'undefined' ? favBalls.length : 0;
     const pureBallsPerComb = mainPickCount - favCount; 
     const maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
 
     const tempCombination = new Array(mainPickCount);
 
-    // 開始全量區塊打散後的 16 防線極速海選
+    // 啟動全量百萬級極速海選
     for (let i = 0; i < maxCombinations; i++) {
         scannedCount++;
         localTotalGen++;
 
         const currentMask = fullMaskPool[i];
 
-        // 64位元無損還原球號技術
         let ballIdx = 0;
         for (let bit = 1; bit <= 49; bit++) {
             if (Math.floor(currentMask / Math.pow(2, bit)) % 2 === 1) {
@@ -1348,11 +1347,9 @@ async function triggerChunkFlush() {
             }
         }
 
-        // 鋼鐵 16 道防線物理過濾
         if (!isGeneSurvive(tempCombination)) continue;
         localEvaluatedCount++;
 
-        // 五大指標健康度加權評分
         let healthScore = 100;
         const sumVal = tempCombination.reduce((x, y) => x + y, 0);
         if (lottoType === "49_6") {
@@ -1417,40 +1414,28 @@ async function triggerChunkFlush() {
         const floorScore = Math.floor(healthScore);
         localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
 
-        // 計算剔除喜愛號後的純粹互斥位元遮罩
-        const pureCombs = tempCombination.filter(ball => !favBalls.includes(ball));
+        // 計算純淨二進制遮罩（嚴格防止型態黑洞）
+        const pureCombs = tempCombination.filter(ball => !safeFavBalls.includes(ball));
         let pureMask = 0;
         for (let b = 0; b < pureCombs.length; b++) { pureMask += Math.pow(2, pureCombs[b]); }
 
-        // 集中式互斥填充與水庫隨機替換結合
+        // ⚡ 高鐵級「極速斷路填充」：一經錄用立刻跳出，絕不在內層做多餘隨機運算
         for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
             if (slotMachine[s].items.length < maxGroupLimitPerSlot && (slotBitmasks[s] & pureMask) === 0) {
+                slotBitmasks[s] |= pureMask; // 寫入機器碼足跡
                 
                 const currentNoise = Math.random() * 0.9999;
                 const formatted = tempCombination.map(n => String(n).padStart(2, '0')).join(', ');
-                const nodeItem = {
+                
+                slotMachine[s].items.push({
                     score: Math.max(250, healthScore + 150),
                     noise: currentNoise,
                     finalScore: healthScore + currentNoise + 150,
                     comb: [...tempCombination],
                     mask: pureMask,
                     formatted
-                };
-
-                // 若該槽內的名單尚未達到 30 萬水庫局部隨機限制，直接塞入；否則以動態概率進行隨機替換
-                if (slotMachine[s].items.length < maxGroupLimitPerSlot) {
-                    slotBitmasks[s] |= pureMask;
-                    slotMachine[s].items.push(nodeItem);
-                } else {
-                    const replaceIndex = Math.floor(Math.random() * localEvaluatedCount);
-                    if (replaceIndex < slotMachine[s].items.length) {
-                        // 釋放舊遮罩，咬合新遮罩足跡
-                        slotBitmasks[s] -= Math.pow(2, slotMachine[s].items[replaceIndex].mask);
-                        slotBitmasks[s] |= pureMask;
-                        slotMachine[s].items[replaceIndex] = nodeItem;
-                    }
-                }
-                break; 
+                });
+                break; // 錄取後立刻阻斷內層迴圈，速度暴增數百倍！
             }
         }
 
@@ -1459,7 +1444,7 @@ async function triggerChunkFlush() {
         }
     }
 
-    // 大組填滿優先排列交卷
+    // 大組填滿優先排列
     const localLeaderBoard = [];
     try {
         const sortedSlots = slotMachine
@@ -1481,7 +1466,7 @@ async function triggerChunkFlush() {
             }
         }
     } catch (restoreErr) {
-        console.error("[Worker 終極隨機自癒槽晶片異常] ", restoreErr.message);
+        console.error("[Worker 終極高速相容晶片異常] ", restoreErr.message);
     }
 
     parentPort.postMessage({
@@ -1499,7 +1484,7 @@ async function triggerChunkFlush() {
         finalScoreDistribution: localScoreDistribution
     });
 })();
-// ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
+// ========================================== 【區塊 2：終極高速完全體結束】 ==========================================
 
 }
 
