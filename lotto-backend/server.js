@@ -1257,7 +1257,7 @@ function shuffleArray(array) {
 }
 
 // ─── 階段一：極速隨機互斥海選蓄水池配置 ───
-const MAX_POOL_SIZE = 20000;       // 蓄水池上限，儲存 15000~20000 筆黃金組合
+const MAX_POOL_SIZE = 300000;       // 蓄水池上限，儲存 15000~20000 筆黃金組合
 const poolArray = [];              // 生存池陣列
 const localScoreDistribution = {}; // 監控統計
 let localEvaluatedCount = 0;       // 通過16道防線並參與評分的真實總數
