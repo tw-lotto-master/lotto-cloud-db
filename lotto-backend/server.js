@@ -257,26 +257,45 @@ app.post('/api/user/single-unlock', async (req, res) => {
 
 
 
-// ─── 雲端收藏夾儲存與拉取 API ───
+// ─── 雲端收藏夾儲存 API：全面重構為「100% 物理擦除覆蓋」 ───
 app.post('/api/tickets/save', authenticateToken, async (req, res) => {
-  try {
-    const ticketsData = req.body.tickets || req.body.ticket;
-    if (!ticketsData) return res.status(400).json({ success: false, message: '無效的號碼憑證' });
-    const dbUser = await User.findById(req.user.userId);
-    if (!dbUser) return res.status(404).json({ success: false, message: '操盤手帳號不存在' });
-    if (!dbUser.savedTickets) dbUser.savedTickets = [];
-    const target = Array.isArray(ticketsData) ? ticketsData : [ticketsData];
-    target.forEach(t => {
-      const content = typeof t === 'object' ? t.content : t;
-      if (!dbUser.savedTickets.some(item => (typeof item === 'object' ? item.content : item) === content)) {
-        dbUser.savedTickets.push({ content, id: `TK-${Date.now()}-${Math.floor(Math.random() * 1000)}`, createdAt: new Date() });
-      }
-    });
-    dbUser.markModified('savedTickets');
-    await dbUser.save();
-    return res.json({ success: true, message: '成功同步至雲端收藏夾！', savedTickets: dbUser.savedTickets });
-  } catch (err) { return res.status(500).json({ success: false, message: '雲端同步失敗' }); }
+ try {
+ const ticketsData = req.body.tickets || req.body.ticket;
+ if (!ticketsData) return res.status(400).json({ success: false, message: '無效的號碼憑證' });
+ 
+ const dbUser = await User.findById(req.user.userId);
+ if (!dbUser) return res.status(404).json({ success: false, message: '操盤手帳號不存在' });
+ 
+ // ─── 🎯 【除蟲核心】：直接強行清空舊陣列，不進行任何 push 拼接 ───
+ dbUser.savedTickets = []; 
+
+ // 將前端傳過來的最新名單（不論是字串還是陣列）洗淨格式化後存入
+ const target = Array.isArray(ticketsData) ? ticketsData : [ticketsData];
+ target.forEach((t, idx) => {
+ const content = typeof t === 'object' ? t.content : t;
+ if (content && String(content).trim().length > 0) {
+ dbUser.savedTickets.push({
+ content: String(content).trim(),
+ id: `TK-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
+ createdAt: new Date()
+ });
+ }
+ });
+ 
+ dbUser.markModified('savedTickets');
+ await dbUser.save(); // 強制回寫，完成雲端淨化覆蓋
+ 
+ return res.json({ 
+ success: true, 
+ message: '成功覆蓋並同步至雲端收藏夾！舊紀錄已完全抹除。', 
+ savedTickets: dbUser.savedTickets 
+ });
+ } catch (err) { 
+ console.error("[雲端同步攔截報錯]：", err.message);
+ return res.status(500).json({ success: false, message: '雲端同步失敗' }); 
+ }
 });
+
 
 async function listSavedTickets(req, res) {
   const rawAuth = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token);
