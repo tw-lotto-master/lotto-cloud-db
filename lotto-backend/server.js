@@ -1261,7 +1261,6 @@ if (f13_on) {
  const SEED_POOL_MAX = 500;
  const seedPool = [];
 
- let localTotalGen = 0; 
  let localEvaluatedCount = 0;
  const localScoreDistribution = {};
 
