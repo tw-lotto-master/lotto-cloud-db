@@ -1399,21 +1399,124 @@ async function triggerChunkFlush() {
         await new Promise(res => { if (typeof setImmediate !== 'undefined') setImmediate(res); else setTimeout(res, 1); });
     }
 }
-// ========================================== 【區塊 2-2：DFS 執行、二次打散與滾動封頂交卷】 ==========================================
+// ========================================== 【區塊 2-2：完全體全量海選與單槽互斥封頂引擎】 ==========================================
 (async function runDeterministicBrain() {
     const pLen = randomizedRemainingPool.length;
     const requiredSlots = mainPickCount - favBalls.length;
     let currentSelection = new Array(requiredSlots);
 
+    // 隨機水庫抽樣與全量海選引擎
     async function dfs(level, startIndex) {
-        // 如果蓄水池已經塞滿 20000 筆，直接啟動 Short-circuit 熔斷收卷，不需要死板跑完 1398 萬組
-        if (scannedCount >= maxCombinations || poolArray.length >= MAX_POOL_SIZE) return;
+        // 100% 尊重全量掃描，絕對不提早中斷退場
+        if (scannedCount >= maxCombinations) return;
         
         if (level === requiredSlots) {
             scannedCount++; 
             localTotalGen++;
             let combination = [...favBalls, ...currentSelection].sort((a, b) => a - b);
-            evaluateAndAccumulate(combination);
+            
+            // 執行 16 道防線審查與評分
+            if (isGeneSurvive(combination)) {
+                localEvaluatedCount++;
+                let healthScore = 100;
+
+                // 項目 A：號碼總和評分
+                const sumVal = combination.reduce((x, y) => x + y, 0);
+                if (lottoType === "49_6") {
+                    if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
+                    else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20;
+                    else healthScore -= 50;
+                } else {
+                    if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
+                    else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
+                    else healthScore -= 50;
+                }
+
+                // 項目 B：奇偶比例評分
+                let oddsCount = 0;
+                for (let i = 0; i < combination.length; i++) { if ((combination[i] & 1) === 1) oddsCount++; }
+                if (lottoType === "49_6") {
+                    if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
+                    else if (oddsCount === 3) healthScore += 30;
+                    else healthScore -= 50;
+                } else {
+                    if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
+                    else healthScore -= 50;
+                }
+
+                // 項目 C：大小比例評分
+                const midPoint = lottoType === "49_6" ? 25 : 20;
+                let bigCount = 0;
+                for (let i = 0; i < combination.length; i++) { if (combination[i] >= midPoint) bigCount++; }
+                if (lottoType === "49_6") {
+                    if (bigCount === 2 || bigCount === 4) healthScore += 50;
+                    else if (bigCount === 3) healthScore += 30;
+                    else healthScore -= 50;
+                } else {
+                    if (bigCount === 2 || bigCount === 3) healthScore += 50;
+                    else healthScore -= 50;
+                }
+
+                // 項目 D：連續號牆評分
+                let currentSeq = 1, maxSeq = 1, totalPairs = 0;
+                for (let m = 1; m < combination.length; m++) {
+                    if (combination[m] === combination[m - 1] + 1) {
+                        currentSeq++; totalPairs++;
+                        if (currentSeq > maxSeq) maxSeq = currentSeq;
+                    } else { currentSeq = 1; }
+                }
+                if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
+                else if (maxSeq === 1) healthScore += 30;
+                else healthScore -= 50;
+
+                // 項目 E：除三餘數路分佈評分
+                let r0 = 0, r1 = 0, r2 = 0;
+                for (let i = 0; i < combination.length; i++) {
+                    const rem = combination[i] % 3;
+                    if (rem === 0) r0++; else if (rem === 1) r1++; else r2++;
+                }
+                if (lottoType === "49_6") {
+                    if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
+                    else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
+                } else {
+                    if ((r0 === 2 && r1 === 2 && r2 === 1) || (r0 === 2 && r1 === 1 && r2 === 2) || (r0 === 1 && r1 === 2 && r2 === 2)) healthScore += 50;
+                    else healthScore -= 50;
+                }
+
+                // 250分精英池篩選
+                if (healthScore >= 250) {
+                    const floorScore = Math.floor(healthScore);
+                    localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
+
+                    const pureCombs = combination.filter(ball => !favBalls.includes(ball));
+                    let currentCombMask = 0;
+                    for (let i = 0; i < pureCombs.length; i++) { currentCombMask += Math.pow(2, pureCombs[i]); }
+
+                    const currentNoise = Math.random() * 0.9999;
+                    const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
+                    
+                    const nodeItem = {
+                        score: Math.max(250, healthScore + 150),
+                        noise: currentNoise,
+                        finalScore: healthScore + currentNoise + 150,
+                        comb: combination,
+                        mask: currentCombMask,
+                        formatted
+                    };
+
+                    // 水庫抽樣核心：前 20000 筆直接存入；之後的號碼以隨機概率替換舊號碼，確保全局大號碼也能被抽到
+                    if (poolArray.length < MAX_POOL_SIZE) {
+                        poolArray.push(nodeItem);
+                    } else {
+                        const replaceIndex = Math.floor(Math.random() * localEvaluatedCount);
+                        if (replaceIndex < MAX_POOL_SIZE) {
+                            poolArray[replaceIndex] = nodeItem;
+                        }
+                    }
+                }
+            }
+            
+            // 這裡會正常觸發進度排空，列印原本正常的防線擊殺日誌
             await triggerChunkFlush(); 
             return;
         }
@@ -1423,65 +1526,47 @@ async function triggerChunkFlush() {
         }
     }
 
-    // 啟動全量隨機互斥 DFS 遞迴生長
+    // 老老實實執行 1398 萬組全量海選遞迴
     await dfs(0, 0);
 
-    // ─── 階段二：生存池完全隨機二次打散 ───
-    // 徹底粉碎任何遞迴殘留的時間軸順序，打亂開頭號碼，將大小球混合至均勻的極致
+    // ─── 階段二：生存池全局打散 ───
     shuffleArray(poolArray);
 
-    // ─── 階段三：200個槽位輪流滾動（Round-Robin）抓取與剩餘球數物理封頂 ───
+    // ─── 階段三：單槽集中完全互斥填充機制（由剩餘球數決定大組） ───
     const WORKER_TOTAL_SLOTS = 200;
     const slotBitmasks = new Float64Array(WORKER_TOTAL_SLOTS);
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
-    const maxGroupLimitPerSlot = lottoType === "49_6" ? 8 : 7; // 由剩餘球數決定大組上限 (49碼限8組，539碼限7組)
+    const maxGroupLimitPerSlot = lottoType === "49_6" ? 8 : 7; // 大樂透一組限滿8組，539限滿7組
 
-    let currentSlotPointer = 0; // 輪流滾動槽位指標
-
-    // 開始抽取這兩萬筆打散後的精英號碼
+    // 放棄輪流滾動，改回集中填充：第 1 大組必須塞滿 8 組完全互斥的名單，榨乾剩餘球數後，才允許塞入下一個大組
     for (let i = 0; i < poolArray.length; i++) {
         const targetNode = poolArray[i];
-        let attemptSlotsCount = 0;
-        let matchedAndSaved = false;
-
-        // 預設從 currentSlotPointer 開始，最多輪流詢問 200 個槽位一圈
-        while (attemptSlotsCount < WORKER_TOTAL_SLOTS) {
-            const s = (currentSlotPointer + attemptSlotsCount) % WORKER_TOTAL_SLOTS;
-            
-            // 檢查條件：1. 該大組尚未達到剩餘球數的極限封頂組數。 2. 二進制碰撞與運算為0（完全互斥）
+        
+        for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
+            // 條件：該槽未滿 8 組，且與該槽現有彩球二進制碰撞率為 0%
             if (slotMachine[s].items.length < maxGroupLimitPerSlot && (slotBitmasks[s] & targetNode.mask) === 0) {
-                // 錄用錄取！
                 slotBitmasks[s] |= targetNode.mask;
                 slotMachine[s].items.push(targetNode);
-                
-                // 成功抓取後，指標往前推進，實現真正的輪流（Round-Robin），讓所有槽位同時開花
-                currentSlotPointer = (s + 1) % WORKER_TOTAL_SLOTS;
-                matchedAndSaved = true;
-                break;
+                break; // 成功塞入當前最靠前的大組槽，立刻跳出，確保前面大組優先填滿
             }
-            attemptSlotsCount++;
         }
-        // 如果當前號碼問了 200 個槽都因為碰撞或封頂塞不下，就釋放給下一組，減輕記憶體死鎖壓力
     }
 
-    // ─── 階段四：大組填滿優先度重排列 ───
+    // ─── 階段四：大組填滿優先度重排列與交卷 ───
     const localLeaderBoard = [];
     try {
-        // 依照「哪個大組槽被填得最滿（組數最多）」由大到小進行降序排列
         const sortedSlots = slotMachine
             .filter(slot => slot && slot.items && slot.items.length > 0)
-            .sort((a, b) => b.items.length - a.items.length);
+            .sort((a, b) => b.items.length - a.items.length); // 保留填得最滿的大組優先出牌
         
         let assignedUnitCounter = 1;
         for (let s = 0; s < sortedSlots.length; s++) {
             const currentSlot = sortedSlots[s];
-            
-            // 同大組內的小組再按照加權後的精英分數由高到低優雅排列
             currentSlot.items.sort((a, b) => b.finalScore - a.finalScore);
             
             for (let j = 0; j < currentSlot.items.length; j++) {
                 const item = currentSlot.items[j];
-                item.unit = assignedUnitCounter; // 精確注入實體大組編號，供前端及主執行緒無縫解碼
+                item.unit = assignedUnitCounter; // 實體注入連續編號
                 localLeaderBoard.push(item);
             }
             if (currentSlot.items.length > 0) {
@@ -1489,10 +1574,10 @@ async function triggerChunkFlush() {
             }
         }
     } catch (restoreErr) {
-        console.error("[Worker 線上儲存槽隨機滾動相容還原晶片異常] ", restoreErr.message);
+        console.error("[Worker 線上儲存槽格式相容還原晶片異常] ", restoreErr.message);
     }
 
-    // ─── 數據通道安全交卷 ───
+    // 數據通道安全交卷
     parentPort.postMessage({
         type: 'TOTAL_SCAN_PROGRESS',
         scanned: scannedCount,
@@ -1503,15 +1588,12 @@ async function triggerChunkFlush() {
     });
     parentPort.postMessage({
         type: 'FINAL_SURVIVE_DELIVERY',
-        leaderBoard: localLeaderBoard, // 吐回完美相容的原始格式，但內容已被打散、輪流互斥且剩餘球數精確封頂
+        leaderBoard: localLeaderBoard, 
         finalEvaluatedCount: localEvaluatedCount,
         finalScoreDistribution: localScoreDistribution
     });
 })();
 // ========================================== 【區塊 2：完全體核心引擎全部結束】 ==========================================
-
-
-// ========================================== 【區塊 2：子執行緒全新替換範圍結束】 ==========================================
 
 
 }
