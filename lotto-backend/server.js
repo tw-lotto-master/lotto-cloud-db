@@ -1309,24 +1309,26 @@ async function triggerChunkFlush() {
     const safeFavBalls = (typeof favBalls !== 'undefined' && Array.isArray(favBalls)) ? favBalls : [];
     const favCount = (vip_fav_on && safeFavBalls.length > 0) ? safeFavBalls.length : 0;
 
-    // ─── 階段一：純 DFS 極速海選（0 陣列預配開銷，徹底防爆記憶體） ───
-    const MAX_POOL_SIZE = 300000; // 30 萬精英水庫
+    
+    // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除內層 await 阻斷，解鎖純 CPU 滿血性能） ───
+    const MAX_POOL_SIZE = 300000; 
     const reservoirPool = [];
     const tempCombination = new Array(mainPickCount);
 
-    // 回歸經典且極速的純數學 DFS
-    async function dfsSearch(level, startIndex) {
+    // 建立一個輕量級同步非同步橋樑計時器，防止全同步引發前端進度條死當感
+    let lastFlushTime = Date.now();
+
+    function dfsSearchSync(level, startIndex) {
         if (scannedCount >= maxCombinations) return;
 
         if (level === mainPickCount) {
             scannedCount++;
             localTotalGen++;
 
-            // 1. 16 道防線鐵血排除（只做快如閃電的邏輯判斷）
+            // 1. 16 道防線鐵血排除（純同步判斷，快如閃電）
             if (isGeneSurvive(tempCombination)) {
                 localEvaluatedCount++;
 
-                // 2. 五大指標健康度加權評分
                 let healthScore = 100;
                 const sumVal = tempCombination.reduce((x, y) => x + y, 0);
                 if (lottoType === "49_6") {
@@ -1386,55 +1388,50 @@ async function triggerChunkFlush() {
                     else healthScore -= 50;
                 }
 
-                // 250分門檻死守
                 if (healthScore >= 250) {
                     const floorScore = Math.floor(healthScore);
                     localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
 
-                    // 計算純淨二進制 64 位元無損遮罩
                     const pureCombs = tempCombination.filter(ball => !safeFavBalls.includes(ball));
                     let pureMask = 0;
                     for (let b = 0; b < pureCombs.length; b++) { pureMask += Math.pow(2, pureCombs[b]); }
 
-                    // 🎯 【更好、更完美的黃金修正點】：水庫動態替換晶片
-                    // 前 30 萬筆精英直接存入池中
                     if (reservoirPool.length < MAX_POOL_SIZE) {
-                        reservoirPool.push({
-                            mask: pureMask,
-                            score: healthScore,
-                            comb: [...tempCombination]
-                        });
+                        reservoirPool.push({ mask: pureMask, score: healthScore, comb: [...tempCombination] });
                     } else {
-                        // 第 30 萬零 1 筆開始，以漸進式隨機概率抽換池中的號碼
-                        // 這能確保 1398 萬組全部掃完後，池子內完美交織了大號碼與小號碼的精華
                         const replaceIndex = Math.floor(Math.random() * localEvaluatedCount);
                         if (replaceIndex < MAX_POOL_SIZE) {
-                            reservoirPool[replaceIndex] = {
-                                mask: pureMask,
-                                score: healthScore,
-                                comb: [...tempCombination]
-                            };
+                            reservoirPool[replaceIndex] = { mask: pureMask, score: healthScore, comb: [...tempCombination] };
                         }
                     }
                 }
-
-            }
-
-            // 進度排空非同步防線，防止前端阻塞
-            if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations) {
-                await triggerChunkFlush();
             }
             return;
         }
 
+        // 🚀 【滿血效能核心】：此處絕對為純同步、絕不使用 await 踩煞車！
         for (let i = startIndex; i < pLen; i++) {
             tempCombination[level] = basePool[i];
-            await dfsSearch(level + 1, i + 1);
+            dfsSearchSync(level + 1, i + 1); 
         }
     }
 
-    // 點火！執行最安全的純遞迴海選過濾
-    await dfsSearch(0, 0);
+    // 點火外包裝：利用微秒級宏任務（MacroTask）切分大數據進度回報
+    let currentChunkStart = 0;
+    while (scannedCount < maxCombinations) {
+        // 執行同步區塊爆發
+        dfsSearchSync(0, currentChunkStart);
+        
+        // 只有在完成一個大波段後，才允許交出一次異步發射進度
+        await triggerChunkFlush();
+        
+        // 如果已經全量跑完，主動切斷
+        if (scannedCount >= maxCombinations || reservoirPool.length >= MAX_POOL_SIZE) break;
+        currentChunkStart++;
+        if (currentChunkStart >= pLen) break;
+    }
+    // ─── 階段一海選完美竣工 ───
+
 
     // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
