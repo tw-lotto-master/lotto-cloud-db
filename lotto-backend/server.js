@@ -1509,15 +1509,8 @@ if (f13_on) {
          finalScoreDistribution: localScoreDistribution
      }); 
  })(); 
-
-
-
-
-
-
+}
 // ========================================== 【區塊 2：子執行緒全新替換範圍結束】 ==========================================
-
-
 }
 
 const PORT = process.env.PORT || 3000;
