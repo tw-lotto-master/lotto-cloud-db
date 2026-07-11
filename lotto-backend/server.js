@@ -719,40 +719,55 @@ function compileLeaderboardToOutput() {
  });
  return;
  }
- leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
- const finalPickSize = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 100));
- let hardwareCleanBoard = leaderBoard.slice(0, finalPickSize);
-
- // 【2026 剩餘球數動態大組拓樸補丁】：精準解析前端是否有排除地雷號、勾選喜愛號 🧠
  
+ // 1. 將子緒發回的數千組超大原料庫，按分數由高到低精準排序
+ leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
+ const targetCount = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 15));
+ 
+ // 2. 動態計算每大組的實體組數上限
  const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
  const isF1Enabled = (cfg && cfg.f1_on === true);
  const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0; 
- // 計算排除地雷號之後的「真實剩餘可用球數」
  const remainingBallCount = Math.max(1, maxLottoBalls - f1Kills);
- // 動態計算喜愛號彈性分母
  const favCount = favNums.length;
  const ballsPerCombination = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
- // 依照剩餘球數/每組球數，動態算出每大組理論上「最多只能容納幾組」！
+ 
  let maxCombsPerUnit = Math.floor(remainingBallCount / ballsPerCombination);
  if (!isF1Enabled) {
- maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7;
+ maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7; // 大樂透黃金上限 8 組
  }
- if (maxCombsPerUnit < 1) maxCombsPerUnit = 1; // 安全防禦底線
- 
- // 🚀 【核心優化重構：多大組動態分流完全互斥晶片】 🚀
- 
- // 用一個陣列來管理所有大組的狀態。結構：[{ usedNumbers: Set, count: 0, items: [] }, ...]
- const units = [{ usedNumbers: new Set(), count: 0, items: [] }];
- for (let i = 0; i < hardwareCleanBoard.length; i++) {
- let item = hardwareCleanBoard[i];
+ if (maxCombsPerUnit < 1) maxCombsPerUnit = 1; 
+
+ // ============================================================================================
+ // 🚀 【貪婪大組匹配晶片】：有了充足原料，由高分往下掃描，強行把每個大組塞滿 8 組！
+ // ============================================================================================
+ const units = [];
+ const finalSelectedItems = [];
+ const globalPickedKeys = new Set();
+
+ let currentUnitIndex = 0;
+ // 初始化第一個大組
+ units.push({ usedNumbers: new Set(), count: 0, items: [] });
+
+ // 只要還沒塞滿前端要的總組數（例如 15 組），就持續進行大數據貪婪匹配
+ while (finalSelectedItems.length < targetCount) {
+ let foundInThisRound = false;
+ const currentUnit = units[currentUnitIndex];
+
+ // 從高分到低分遍歷多達 5000 組的超大高分原料池
+ for (let i = 0; i < leaderBoard.length; i++) {
+ // 當前大組如果已經達到 8 組（或上限值），立刻封印，預備開新大組
+ if (currentUnit.count >= maxCombsPerUnit) break;
+ if (finalSelectedItems.length >= targetCount) break;
+
+ let item = leaderBoard[i];
  if (!item || !item.comb) continue;
+ const combKey = item.comb.join(',');
+ if (globalPickedKeys.has(combKey)) continue; // 絕不重複交付
+
  const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
- let placed = false;
- // 遍歷當前已建立的所有大組，尋找第一個「完全不衝突且未滿」的大組放進去
- for (let u = 0; u < units.length; u++) {
- const currentUnit = units[u];
- // 檢查這組號碼跟目前大組內已使用的球是否有重疊
+ 
+ // 嚴格檢查這組號碼是否跟「當前這個大組」已選號碼發生碰撞
  let hasOverlap = false;
  for (const ball of pureCombs) {
  if (currentUnit.usedNumbers.has(ball)) {
@@ -760,55 +775,49 @@ function compileLeaderboardToOutput() {
  break;
  }
  }
- // 額外連鎖防護：檢查是否跟目前大組的上一組完全一模一樣
- let isDuplicate = false;
- if (currentUnit.items.length > 0) {
- const lastItem = currentUnit.items[currentUnit.items.length - 1];
- if (item.comb.join(',') === lastItem.comb.join(',')) {
- isDuplicate = true;
- }
- }
- // 如果既沒有號碼重疊、也沒有跟上一組重複，且該大組容量還沒滿，就完美收容！
- if (!hasOverlap && !isDuplicate && currentUnit.count < maxCombsPerUnit) {
+
+ // 如果完全不衝突，立刻貪婪錄用，留在這個大組！
+ if (!hasOverlap) {
  pureCombs.forEach(ball => currentUnit.usedNumbers.add(ball));
  currentUnit.count++;
- // 100% 保持它原有的高分，並注入加分獎勵（如原代碼+150），絕不扣分
- item.score = Math.max(250, item.score + 150);
+ 
+ item.score = Math.max(250, item.score + 150); // 完美維持高分推薦
  item.finalScore = item.score + (item.noise || 0);
+ item.assignedUnit = currentUnitIndex + 1;
+ 
  currentUnit.items.push(item);
- placed = true;
- break; // 成功放入，跳出大組尋找迴圈
+ finalSelectedItems.push(item);
+ globalPickedKeys.add(combKey);
+ foundInThisRound = true; // 標記當前大組成功收容新成員
  }
  }
- // 如果所有既存的大組都裝不下（發生號碼碰撞或已滿），則自動為它「滿血開闢全新大組」！
- if (!placed) {
- const newUnit = {
- usedNumbers: new Set(pureCombs),
- count: 1,
- items: [item]
- };
- item.score = Math.max(250, item.score + 150);
- item.finalScore = item.score + (item.noise || 0);
- units.push(newUnit);
+
+ // 兩種情況需要開闢下一大組：
+ // 1. 當前大組已經完美塞滿了 8 組名牌
+ // 2. 把 5000 組高分池全掃完了，當前大組依然湊不出完全互斥的號碼（剩餘球數榨乾了）
+ if (currentUnit.count >= maxCombsPerUnit || !foundInThisRound) {
+ if (finalSelectedItems.length >= targetCount) break;
+ // 滿血開闢全新大組，重置球池
+ units.push({ usedNumbers: new Set(), count: 0, items: [] });
+ currentUnitIndex++;
  }
  }
- 
- // 扁平化重組輸出：依照大組順序(Unit 1 -> Unit 2 -> ...)依序倒出，並在組內按分數由高到低排序
- 
+
+ // ============================================================================================
+ // 扁平化重組輸出：依大組順序(第1大組->第2大組)漂亮印出，每組組內按高分降序排列
+ // ============================================================================================
  let finalIndexCounter = 1;
  for (let u = 0; u < units.length; u++) {
  const currentUnit = units[u];
- // 組內按最終分數降序排列，確保排頭是最完美的精準推薦
+ if (!currentUnit.items || currentUnit.items.length === 0) continue;
  currentUnit.items.sort((a, b) => b.finalScore - a.finalScore);
  for (let j = 0; j < currentUnit.items.length; j++) {
  const item = currentUnit.items[j];
  const indexStr = String(finalIndexCounter).padStart(2, '0');
- const displayUnit = u + 1; // 大組編號從 1 開始
- finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
+ finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + item.assignedUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
  finalIndexCounter++;
  }
  }
- hardwareCleanBoard = null;
  } catch (err) {
  console.error("[理論大組終極物理隔離晶片異常] ", err.message);
  }
@@ -1326,25 +1335,20 @@ if (f13_on) {
  };
  const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 575757);
  
- let localTotalGen = 0; 
- let localLeaderBoard = []; // 蓄水池陣列：這裡永遠只精準保留全榜分數最高的前 N 組贏家
- const pickLimit = Math.min(100, Math.max(1, Number(cfg.count) || 100));
- 
- // 🚀 【核心監控變數】統計通過 16 道過濾條件並參與評分的真實總數，以及 250分以上的統計
- let localEvaluatedCount = 0;
- const localScoreDistribution = {};
+ // ========================================== 【子執行緒全新優化替換：高分原料池滿血擴容】 ==========================================
+let localTotalGen = 0; 
+let localLeaderBoard = []; 
+// 🎯 核心修正：將子緒蓄水池物理容量放大至 5000 組，為不重複大組提供源源不絕的高分原料
+const SEED_POOL_LIMIT = 5000; 
+let localEvaluatedCount = 0;
+const localScoreDistribution = {};
 
- function processAndLocalPK(combination) {
- // 1. 生存審查門檻：如果沒通過勾選的 16 道條件，直接回傳，不參與評分
+function processAndLocalPK(combination) {
  if (!isGeneSurvive(combination)) return;
- 
- // 2. 累計進入評分生存池的總組數（完全不受組數限制，幾百萬組都會通過這裡！）
  localEvaluatedCount++;
  
- // 3. 計算基礎健康評分（全面物理強制全開，無視前端勾選狀態！）
  let healthScore = 100; 
- 
- // ─── 項目 A：強制全量進行【號碼總和評分】 ───
+ // ─── 項目 A：號碼總和評分 ───
  const sumVal = combination.reduce((x, y) => x + y, 0);
  if (lottoType === "49_6") { 
  if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
@@ -1355,12 +1359,9 @@ if (f13_on) {
  else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
  else healthScore -= 50;
  }
-
- // ─── 項目 B：強制全量進行【奇偶比例評分】 ───
+ // ─── 項目 B：奇偶比例評分 ───
  let oddsCount = 0; 
- for (let i = 0; i < combination.length; i++) {
- if ((combination[i] & 1) === 1) oddsCount++;
- }
+ for (let i = 0; i < combination.length; i++) { if ((combination[i] & 1) === 1) oddsCount++; }
  if (lottoType === "49_6") {
  if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
  else if (oddsCount === 3) healthScore += 30;
@@ -1369,13 +1370,10 @@ if (f13_on) {
  if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
  else healthScore -= 50;
  }
-
- // ─── 項目 C：強制全量進行【大小比例評分】 ───
+ // ─── 項目 C：大小比例評分 ───
  const midPoint = lottoType === "49_6" ? 25 : 20;
  let bigCount = 0; 
- for (let i = 0; i < combination.length; i++) {
- if (combination[i] >= midPoint) bigCount++;
- }
+ for (let i = 0; i < combination.length; i++) { if (combination[i] >= midPoint) bigCount++; }
  if (lottoType === "49_6") {
  if (bigCount === 2 || bigCount === 4) healthScore += 50;
  else if (bigCount === 3) healthScore += 30;
@@ -1384,28 +1382,18 @@ if (f13_on) {
  if (bigCount === 2 || bigCount === 3) healthScore += 50;
  else healthScore -= 50;
  }
-
- // ─── 項目 D：強制全量進行【連續號牆評分】 ───
+ // ─── 項目 D：連續號牆評分 ───
  let currentSeq = 1, maxSeq = 1, totalPairs = 0; 
  for (let m = 1; m < combination.length; m++) {
- if (combination[m] === combination[m - 1] + 1) { 
- currentSeq++; 
- totalPairs++; 
- if (currentSeq > maxSeq) maxSeq = currentSeq; 
- } else {
- currentSeq = 1;
- }
+ if (combination[m] === combination[m - 1] + 1) { currentSeq++; totalPairs++; if (currentSeq > maxSeq) maxSeq = currentSeq; }
+ else { currentSeq = 1; }
  }
  if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
  else if (maxSeq === 1) healthScore += 30;
  else healthScore -= 50;
-
- // ─── 項目 E：強制全量進行【除三餘數路分佈評分】 ───
+ // ─── 項目 E：除三餘數評分 ───
  let r0 = 0, r1 = 0, r2 = 0; 
- for (let i = 0; i < combination.length; i++) {
- const rem = combination[i] % 3; 
- if (rem === 0) r0++; else if (rem === 1) r1++; else r2++; 
- }
+ for (let i = 0; i < combination.length; i++) { const rem = combination[i] % 3; if (rem === 0) r0++; else if (rem === 1) r1++; else r2++; }
  if (lottoType === "49_6") {
  if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
  else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
@@ -1413,34 +1401,29 @@ if (f13_on) {
  if ((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) healthScore += 50;
  else healthScore -= 50;
  }
- 
- // 📊 【後台監控統計】精確捕捉五項全開評分下，250 分以上各分數段的出現頻次
+
  if (healthScore >= 250) {
  const floorScore = Math.floor(healthScore);
  localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
  }
- 
- // 🎯 【隨機基準點提權機制】為此合格組注入獨一無二的「微擾動隨機因子 (0~0.9999)」
- // 徹底瓦解死鎖僵局！保證所有合格組在相同的 5 項基礎分下，能憑藉擾動值公平竞争
+
  const currentNoise = Math.random() * 0.9999;
  const finalWeightedScore = healthScore + currentNoise;
- 
  const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
  const nodeItem = { score: healthScore, noise: currentNoise, finalScore: finalWeightedScore, comb: combination, formatted };
- 
- // 🏆 【蓄水池流式生死鬥演算法】贏的留下，輸的當場銷毀，不限生存池總大小
- if (localLeaderBoard.length < pickLimit) {
+
+ // 使用優張擴容後的上限進行生死鬥
+ if (localLeaderBoard.length < SEED_POOL_LIMIT) {
  localLeaderBoard.push(nodeItem);
- if (localLeaderBoard.length === pickLimit) {
- localLeaderBoard.sort((a, b) => a.finalScore - b.finalScore);
- }
+ if (localLeaderBoard.length === SEED_POOL_LIMIT) { localLeaderBoard.sort((a, b) => a.finalScore - b.finalScore); }
  } else {
  if (finalWeightedScore > localLeaderBoard[0].finalScore) {
- localLeaderBoard[0] = nodeItem; // 淘汰守門員
- localLeaderBoard.sort((a, b) => a.finalScore - b.finalScore); // 重新校準最低分位
+ localLeaderBoard[0] = nodeItem;
+ localLeaderBoard.sort((a, b) => a.finalScore - b.finalScore);
  }
  }
 }
+
 
 // ========================================== 【第二處：子執行緒回報降載優化替換】 ==========================================
  async function triggerChunkFlush() {
