@@ -1281,6 +1281,7 @@ async function triggerChunkFlush() {
     }
 }
 // ========================================== 【區塊 2-2：完全體槽位主動撈取與秒級極速過濾引擎】 ==========================================
+// ========================================== 【區塊 2-2：記憶體安全回歸、全量極速海選與主動撈取引擎】 ==========================================
 (async function runDeterministicBrain() {
     const pLen = basePool.length; 
     const mainPickCount = lottoType === "49_6" ? 6 : 5;
@@ -1289,158 +1290,141 @@ async function triggerChunkFlush() {
     const safeFavBalls = (typeof favBalls !== 'undefined' && Array.isArray(favBalls)) ? favBalls : [];
     const favCount = (vip_fav_on && safeFavBalls.length > 0) ? safeFavBalls.length : 0;
 
-    // 階段一預配空間：1398萬組或57萬組的二進制儲存矩陣
-    const fullMaskPool = new Float64Array(maxCombinations);
-    let totalGeneratedCount = 0;
-
-    let currentSelection = new Array(mainPickCount);
-    function fastGenerateDfs(level, startIndex) {
-        if (totalGeneratedCount >= maxCombinations) return;
-        if (level === mainPickCount) {
-            let mask = 0;
-            for (let i = 0; i < mainPickCount; i++) {
-                mask += Math.pow(2, currentSelection[i]); 
-            }
-            fullMaskPool[totalGeneratedCount] = mask;
-            totalGeneratedCount++;
-            return;
-        }
-        for (let i = startIndex; i < pLen; i++) {
-            currentSelection[level] = basePool[i];
-            fastGenerateDfs(level + 1, i + 1);
-        }
-    }
-    fastGenerateDfs(0, 0);
-
-    // 區塊隨機化打散（保留28個區塊，打破相似組）
-    const chunkSize = lottoType === "49_6" ? Math.ceil(maxCombinations / 28) : maxCombinations;
-    for (let c = 0; c < maxCombinations; c += chunkSize) {
-        const end = Math.min(c + chunkSize, maxCombinations);
-        for (let i = end - 1; i > c; i--) {
-            const j = c + Math.floor(Math.random() * (i - c + 1));
-            const temp = fullMaskPool[i];
-            fullMaskPool[i] = fullMaskPool[j];
-            fullMaskPool[j] = temp;
-        }
-    }
-
-    // ─── 階段一：純粹海選蓄水池（只過濾防線，絕不在內層碰槽位） ───
+    // ─── 階段一：純 DFS 極速海選（0 陣列預配開銷，徹底防爆記憶體） ───
     const MAX_POOL_SIZE = 300000; // 30 萬精英水庫
     const reservoirPool = [];
     const tempCombination = new Array(mainPickCount);
 
-    for (let i = 0; i < maxCombinations; i++) {
-        scannedCount++;
-        localTotalGen++;
+    // 回歸經典且極速的純數學 DFS
+    async function dfsSearch(level, startIndex) {
+        if (scannedCount >= maxCombinations) return;
 
-        const currentMask = fullMaskPool[i];
+        if (level === mainPickCount) {
+            scannedCount++;
+            localTotalGen++;
 
-        // 64位元還原
-        let ballIdx = 0;
-        for (let bit = 1; bit <= 49; bit++) {
-            if (Math.floor(currentMask / Math.pow(2, bit)) % 2 === 1) {
-                tempCombination[ballIdx++] = bit;
-                if (ballIdx === mainPickCount) break;
+            // 1. 16 道防線鐵血排除（只做快如閃電的邏輯判斷）
+            if (isGeneSurvive(tempCombination)) {
+                localEvaluatedCount++;
+
+                // 2. 五大指標健康度加權評分
+                let healthScore = 100;
+                const sumVal = tempCombination.reduce((x, y) => x + y, 0);
+                if (lottoType === "49_6") {
+                    if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
+                    else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20;
+                    else healthScore -= 50;
+                } else {
+                    if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
+                    else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
+                    else healthScore -= 50;
+                }
+
+                let oddsCount = 0;
+                for (let b = 0; b < mainPickCount; b++) { if ((tempCombination[b] & 1) === 1) oddsCount++; }
+                if (lottoType === "49_6") {
+                    if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
+                    else if (oddsCount === 3) healthScore += 30;
+                    else healthScore -= 50;
+                } else {
+                    if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
+                    else healthScore -= 50;
+                }
+
+                const midPoint = lottoType === "49_6" ? 25 : 20;
+                let bigCount = 0;
+                for (let b = 0; b < mainPickCount; b++) { if (tempCombination[b] >= midPoint) bigCount++; }
+                if (lottoType === "49_6") {
+                    if (bigCount === 2 || bigCount === 4) healthScore += 50;
+                    else if (bigCount === 3) healthScore += 30;
+                    else healthScore -= 50;
+                } else {
+                    if (bigCount === 2 || bigCount === 3) healthScore += 50;
+                    else healthScore -= 50;
+                }
+
+                let currentSeq = 1, maxSeq = 1, totalPairs = 0;
+                for (let m = 1; m < mainPickCount; m++) {
+                    if (tempCombination[m] === tempCombination[m - 1] + 1) {
+                        currentSeq++; totalPairs++;
+                        if (currentSeq > maxSeq) maxSeq = currentSeq;
+                    } else { currentSeq = 1; }
+                }
+                if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
+                else if (maxSeq === 1) healthScore += 30;
+                else healthScore -= 50;
+
+                let r0 = 0, r1 = 0, r2 = 0;
+                for (let b = 0; b < mainPickCount; b++) {
+                    const rem = tempCombination[b] % 3;
+                    if (rem === 0) r0++; else if (rem === 1) r1++; else r2++;
+                }
+                if (lottoType === "49_6") {
+                    if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
+                    else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
+                } else {
+                    if ((r0 === 2 && r1 === 2 && r2 === 1) || (r0 === 2 && r1 === 1 && r2 === 2) || (r0 === 1 && r1 === 2 && r2 === 2)) healthScore += 50;
+                    else healthScore -= 50;
+                }
+
+                // 250分門檻死守
+                if (healthScore >= 250) {
+                    const floorScore = Math.floor(healthScore);
+                    localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
+
+                    // 計算純淨二進制 64 位元無損遮罩
+                    const pureCombs = tempCombination.filter(ball => !safeFavBalls.includes(ball));
+                    let pureMask = 0;
+                    for (let b = 0; b < pureCombs.length; b++) { pureMask += Math.pow(2, pureCombs[b]); }
+
+                    // 🎯 【更好、更完美的黃金修正點】：水庫動態替換晶片
+                    // 前 30 萬筆精英直接存入池中
+                    if (reservoirPool.length < MAX_POOL_SIZE) {
+                        reservoirPool.push({
+                            mask: pureMask,
+                            score: healthScore,
+                            comb: [...tempCombination]
+                        });
+                    } else {
+                        // 第 30 萬零 1 筆開始，以漸進式隨機概率抽換池中的號碼
+                        // 這能確保 1398 萬組全部掃完後，池子內完美交織了大號碼與小號碼的精華
+                        const replaceIndex = Math.floor(Math.random() * localEvaluatedCount);
+                        if (replaceIndex < MAX_POOL_SIZE) {
+                            reservoirPool[replaceIndex] = {
+                                mask: pureMask,
+                                score: healthScore,
+                                comb: [...tempCombination]
+                            };
+                        }
+                    }
+                }
+
             }
+
+            // 進度排空非同步防線，防止前端阻塞
+            if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations) {
+                await triggerChunkFlush();
+            }
+            return;
         }
 
-        // 16 道防線鐵血擊殺
-        if (!isGeneSurvive(tempCombination)) continue;
-        localEvaluatedCount++;
-
-        // 五大指標評分
-        let healthScore = 100;
-        const sumVal = tempCombination.reduce((x, y) => x + y, 0);
-        if (lottoType === "49_6") {
-            if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
-            else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20;
-            else healthScore -= 50;
-        } else {
-            if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
-            else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
-            else healthScore -= 50;
-        }
-
-        let oddsCount = 0;
-        for (let b = 0; b < mainPickCount; b++) { if ((tempCombination[b] & 1) === 1) oddsCount++; }
-        if (lottoType === "49_6") {
-            if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
-            else if (oddsCount === 3) healthScore += 30;
-            else healthScore -= 50;
-        } else {
-            if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
-            else healthScore -= 50;
-        }
-
-        const midPoint = lottoType === "49_6" ? 25 : 20;
-        let bigCount = 0;
-        for (let b = 0; b < mainPickCount; b++) { if (tempCombination[b] >= midPoint) bigCount++; }
-        if (lottoType === "49_6") {
-            if (bigCount === 2 || bigCount === 4) healthScore += 50;
-            else if (bigCount === 3) healthScore += 30;
-            else healthScore -= 50;
-        } else {
-            if (bigCount === 2 || bigCount === 3) healthScore += 50;
-            else healthScore -= 50;
-        }
-
-        let currentSeq = 1, maxSeq = 1, totalPairs = 0;
-        for (let m = 1; m < mainPickCount; m++) {
-            if (tempCombination[m] === tempCombination[m - 1] + 1) {
-                currentSeq++; totalPairs++;
-                if (currentSeq > maxSeq) maxSeq = currentSeq;
-            } else { currentSeq = 1; }
-        }
-        if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
-        else if (maxSeq === 1) healthScore += 30;
-        else healthScore -= 50;
-
-        let r0 = 0, r1 = 0, r2 = 0;
-        for (let b = 0; b < mainPickCount; b++) {
-            const rem = tempCombination[b] % 3;
-            if (rem === 0) r0++; else if (rem === 1) r1++; else r2++;
-        }
-        if (lottoType === "49_6") {
-            if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
-            else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
-        } else {
-            if ((r0 === 2 && r1 === 2 && r2 === 1) || (r0 === 2 && r1 === 1 && r2 === 2) || (r0 === 1 && r1 === 2 && r2 === 2)) healthScore += 50;
-            else healthScore -= 50;
-        }
-
-        if (healthScore < 250) continue;
-
-        const floorScore = Math.floor(healthScore);
-        localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
-
-        // 計算純淨二進制遮罩
-        const pureCombs = tempCombination.filter(ball => !safeFavBalls.includes(ball));
-        let pureMask = 0;
-        for (let b = 0; b < pureCombs.length; b++) { pureMask += Math.pow(2, pureCombs[b]); }
-
-        // 只將最核心的數據存入 30 萬生存池，絕不建立垃圾物件
-        if (reservoirPool.length < MAX_POOL_SIZE) {
-            reservoirPool.push({
-                mask: pureMask,
-                score: healthScore,
-                comb: [...tempCombination]
-            });
-        }
-
-        if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations) {
-            await triggerChunkFlush();
+        for (let i = startIndex; i < pLen; i++) {
+            tempCombination[level] = basePool[i];
+            await dfsSearch(level + 1, i + 1);
         }
     }
 
-    // ─── 階段二：30 萬生存池全局洗牌打散 ───
+    // 點火！執行最安全的純遞迴海選過濾
+    await dfsSearch(0, 0);
+
+    // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
 
-       // ─── 階段三：【智慧自癒撈取引擎】200 個槽位主動撈取，優先衝刺極限組，失敗則自動退讓錄取 ───
+    // ─── 階段三：【智慧自癒撈取引擎】200 個槽位主動進池子圈出不重複滿足組 ───
     const WORKER_TOTAL_SLOTS = 200;
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
     const pureBallsPerComb = mainPickCount - favCount; 
-    // 由剩餘球數決定的極限上限（大樂透預設8組，539預設7組）
     const maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
 
     const usedNodeFlags = new Uint8Array(reservoirPool.length);
@@ -1460,14 +1444,13 @@ async function triggerChunkFlush() {
                 currentSlotPickedIndices.push(i); 
             }
 
-            // 完美達標，提早關閘
+            // 完美達標組數，換下一個槽
             if (currentSlotPickedIndices.length === maxGroupLimitPerSlot) {
                 break; 
             }
         }
 
-        // 🎯 智慧自癒寬容機制：大組不強求100%完美8組（因為隨機卡位機率太低）
-        // 只要這一個大組在池子裡成功湊出了 4 組以上（含）的「絕對互斥組合」，我們就承認這座黃金孤島，100% 錄取！
+        // 🎯 智慧自癒寬容機制：大組優先滿足極限，若因號碼卡位停在 4 組以上（含）也大方承認錄取
         if (currentSlotPickedIndices.length >= 4) {
             for (let idx of currentSlotPickedIndices) {
                 usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎號碼
@@ -1483,19 +1466,17 @@ async function triggerChunkFlush() {
                     comb: node.comb,
                     mask: node.mask,
                     formatted,
-                    unit: s + 1 // 物理綁定大組
+                    unit: s + 1 // 物理鎖定大組
                 });
             }
         } else {
-            // 如果連 4 組互斥都湊不出來，才宣告流產
             currentSlotPickedIndices.length = 0; 
         }
     }
 
-    // ─── 階段四：交卷通道（大組填滿降序優化） ───
+    // ─── 階段四：交卷通道（大組填滿降序排列） ───
     const localLeaderBoard = [];
     try {
-        // 依照「哪個大組槽實際幫用戶抓到的互斥組數最多（最接近極限封頂）」由大到小降序排列
         const sortedSlots = slotMachine
             .filter(slot => slot && slot.items && slot.items.length > 0)
             .sort((a, b) => b.items.length - a.items.length);
@@ -1515,7 +1496,7 @@ async function triggerChunkFlush() {
             }
         }
     } catch (restoreErr) {
-        console.error("[Worker 智慧自癒撈取交卷還原異常] ", restoreErr.message);
+        console.error("[Worker 終極安全自癒交卷異常] ", restoreErr.message);
     }
 
     // 數據通道安全交卷
@@ -1535,6 +1516,7 @@ async function triggerChunkFlush() {
     });
 })();
 // ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
+
 
 }
 
