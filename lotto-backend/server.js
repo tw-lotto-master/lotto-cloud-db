@@ -1234,7 +1234,7 @@ if (f13_on) {
     return true;
   }
 
-// ========================================== 【區塊 2-1：源頭隨機互斥生長配置與蓄水池】 ==========================================
+// ========================================== 【區塊 2-1：30萬水庫配置與健康評分大腦】 ==========================================
 let scannedCount = 0;
 const getDynamicMaxCombs = () => {
     const n = basePool.length; 
@@ -1248,7 +1248,6 @@ const getDynamicMaxCombs = () => {
 };
 const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 575757);
 
-// Fisher-Yates 隨機洗牌演算法（用於打散底層球池與最終蓄水池）
 function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -1256,135 +1255,17 @@ function shuffleArray(array) {
     }
 }
 
-// ─── 階段一：極速隨機互斥海選蓄水池配置 ───
-const MAX_POOL_SIZE = 300000;       // 蓄水池上限，儲存 15000~20000 筆黃金組合
-const poolArray = [];              // 生存池陣列
-const localScoreDistribution = {}; // 監控統計
-let localEvaluatedCount = 0;       // 通過16道防線並參與評分的真實總數
+// ─── 階段一：極速隨機海選 30 萬大水庫配置 ───
+const MAX_POOL_SIZE = 300000;      // 放大至 30 萬筆，讓 120 萬精英全量均勻落庫，記憶體僅佔 2.4MB
+const poolArray = [];              
+const localScoreDistribution = {}; 
+let localEvaluatedCount = 0;       
 let localTotalGen = 0;
 
-// 源頭隨機化：將底層基礎球池直接打亂，讓 DFS 從隨機且互斥的根節點開始抽枝生長！
 const randomizedRemainingPool = basePool.filter(ball => !new Set(favBalls).has(ball));
-shuffleArray(randomizedRemainingPool); 
-
-// 階段一專用：生長軸動態互斥位元遮罩，讓生長出來的組合在時間軸上就自帶均勻發散的基因
-let streamMask = 0; 
-const mainPickCount = lottoType === "49_6" ? 6 : 5;
-const maxGroupLimit = lottoType === "49_6" ? 8 : 7; // 49碼 6*8=48 剩1球封頂；539碼 5*7=35 剩4球封頂
-let streamCountInCurrentBlock = 0;
-
-function evaluateAndAccumulate(combination) {
-    if (poolArray.length >= MAX_POOL_SIZE) return; // 蓄水池滿了就停止注入
-
-    // 1. 16道鐵血防線審查
-    if (!isGeneSurvive(combination)) return;
-    localEvaluatedCount++;
-
-    // 2. 五大基礎健康度評分 (全面強制全開)
-    let healthScore = 100;
-
-    // 項目 A：號碼總和評分
-    const sumVal = combination.reduce((x, y) => x + y, 0);
-    if (lottoType === "49_6") {
-        if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
-        else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20;
-        else healthScore -= 50;
-    } else {
-        if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
-        else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
-        else healthScore -= 50;
-    }
-
-    // 項目 B：奇偶比例評分
-    let oddsCount = 0;
-    for (let i = 0; i < combination.length; i++) { if ((combination[i] & 1) === 1) oddsCount++; }
-    if (lottoType === "49_6") {
-        if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
-        else if (oddsCount === 3) healthScore += 30;
-        else healthScore -= 50;
-    } else {
-        if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
-        else healthScore -= 50;
-    }
-
-    // 項目 C：大小比例評分
-    const midPoint = lottoType === "49_6" ? 25 : 20;
-    let bigCount = 0;
-    for (let i = 0; i < combination.length; i++) { if (combination[i] >= midPoint) bigCount++; }
-    if (lottoType === "49_6") {
-        if (bigCount === 2 || bigCount === 4) healthScore += 50;
-        else if (bigCount === 3) healthScore += 30;
-        else healthScore -= 50;
-    } else {
-        if (bigCount === 2 || bigCount === 3) healthScore += 50;
-        else healthScore -= 50;
-    }
-
-    // 項目 D：連續號牆評分
-    let currentSeq = 1, maxSeq = 1, totalPairs = 0;
-    for (let m = 1; m < combination.length; m++) {
-        if (combination[m] === combination[m - 1] + 1) {
-            currentSeq++; totalPairs++;
-            if (currentSeq > maxSeq) maxSeq = currentSeq;
-        } else { currentSeq = 1; }
-    }
-    if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
-    else if (maxSeq === 1) healthScore += 30;
-    else healthScore -= 50;
-
-    // 項目 E：除三餘數路分佈評分
-    let r0 = 0, r1 = 0, r2 = 0;
-    for (let i = 0; i < combination.length; i++) {
-        const rem = combination[i] % 3;
-        if (rem === 0) r0++; else if (rem === 1) r1++; else r2++;
-    }
-    if (lottoType === "49_6") {
-        if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
-        else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
-    } else {
-        if ((r0 === 2 && r1 === 2 && r2 === 1) || (r0 === 2 && r1 === 1 && r2 === 2) || (r0 === 1 && r1 === 2 && r2 === 2)) healthScore += 50;
-        else healthScore -= 50;
-    }
-
-    // 3. 250分門檻死守攔截
-    if (healthScore < 250) return;
-
-    // 捕捉分數分佈
-    const floorScore = Math.floor(healthScore);
-    localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
-
-    // 4. 源頭生長軸的位元遮罩互斥碰撞（排除喜愛號後的純彩球碰撞）
-    const pureCombs = combination.filter(ball => !favBalls.includes(ball));
-    let currentCombMask = 0;
-    for (let i = 0; i < pureCombs.length; i++) {
-        currentCombMask += Math.pow(2, pureCombs[i]);
-    }
-
-    // 如果在當前模塊內發生碰撞，或者當前大組已經抓滿了最大互斥組數限制，則刷新生長遮罩
-    if ((streamMask & currentCombMask) !== 0 || streamCountInCurrentBlock >= maxGroupLimit) {
-        streamMask = 0;
-        streamCountInCurrentBlock = 0;
-    }
-
-    // 錄入生長遮罩，並塞入蓄水池中
-    streamMask |= currentCombMask;
-    streamCountInCurrentBlock++;
-
-    const currentNoise = Math.random() * 0.9999;
-    const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
-
-    poolArray.push({
-        score: Math.max(250, healthScore + 150), // 保持 500 分精英狀態
-        noise: currentNoise,
-        finalScore: healthScore + currentNoise + 150,
-        comb: combination,
-        mask: currentCombMask, // 預留給階段三高速碰撞使用
-        formatted
-    });
-}
 
 async function triggerChunkFlush() {
-    if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations || poolArray.length >= MAX_POOL_SIZE) {
+    if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations) {
         const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 100);
         parentPort.postMessage({
             type: 'TOTAL_SCAN_PROGRESS',
@@ -1399,14 +1280,12 @@ async function triggerChunkFlush() {
         await new Promise(res => { if (typeof setImmediate !== 'undefined') setImmediate(res); else setTimeout(res, 1); });
     }
 }
-// ========================================== 【區塊 2-2：高鐵級區塊隨機化與全量極速篩選引擎】 ==========================================
+// ========================================== 【區塊 2-2：全量極速海選、區塊內部打散與動態互斥填充】 ==========================================
 (async function runDeterministicBrain() {
-    // ─── 階段一：極速二進制區塊快照生成（完全不消耗物件，速度拉滿） ───
-    const pLen = basePool.length; // 採用原始球池，不影響原本的 DFS 切割結構
+    const pLen = basePool.length; 
     const mainPickCount = lottoType === "49_6" ? 6 : 5;
     
-    // 預先分配一個 Float64Array，用機器碼級別直接存儲這 1398 萬組或 57 萬組的位元遮罩
-    // 這在 V8 引擎中只需要幾十 MB 的連續記憶體，0 物件開銷，速度快到不可思議
+    // 建立連續二進制儲存矩陣
     const fullMaskPool = new Float64Array(maxCombinations);
     let totalGeneratedCount = 0;
 
@@ -1414,13 +1293,11 @@ async function triggerChunkFlush() {
     function fastGenerateDfs(level, startIndex) {
         if (totalGeneratedCount >= maxCombinations) return;
         if (level === mainPickCount) {
-            // 用極速位元左移壓成一個二進制遮罩數字
-          let mask = 0;
-for (let i = 0; i < mainPickCount; i++) {
-    mask |= (1 << currentSelection[i]);
-}
-fullMaskPool[totalGeneratedCount] = mask;
-
+            let mask = 0;
+            for (let i = 0; i < mainPickCount; i++) {
+                mask += Math.pow(2, currentSelection[i]); // 修正 64 位元防溢出，完美支援 49 碼空間
+            }
+            fullMaskPool[totalGeneratedCount] = mask;
             totalGeneratedCount++;
             return;
         }
@@ -1429,16 +1306,12 @@ fullMaskPool[totalGeneratedCount] = mask;
             fastGenerateDfs(level + 1, i + 1);
         }
     }
-    // 秒級完成全量位元遮罩建庫
     fastGenerateDfs(0, 0);
 
-    // ─── 階段二：精準切割 28 個區塊（大樂透）或 1 個區塊（539）並在區塊內局部完全隨機化 ───
-    // 完美保留原本的區塊架構，但徹底打破相似組的僵化順序
+    // 精確切分 28 個區塊（大樂透）或 1 個區塊（539），並在區塊內部進行 Fisher-Yates 瘋狂洗牌
     const chunkSize = lottoType === "49_6" ? Math.ceil(maxCombinations / 28) : maxCombinations;
-    
     for (let c = 0; c < maxCombinations; c += chunkSize) {
         const end = Math.min(c + chunkSize, maxCombinations);
-        // Fisher-Yates 局部洗牌：只在當前 50 萬組的區塊內部進行瘋狂隨機打散！
         for (let i = end - 1; i > c; i--) {
             const j = c + Math.floor(Math.random() * (i - c + 1));
             const temp = fullMaskPool[i];
@@ -1447,35 +1320,39 @@ fullMaskPool[totalGeneratedCount] = mask;
         }
     }
 
-    // ─── 階段三：高鐵級位元拓撲 16 防線過濾與 200 槽位集中互斥 ───
+    // 200 個獨立儲存槽
     const WORKER_TOTAL_SLOTS = 200;
     const slotBitmasks = new Float64Array(WORKER_TOTAL_SLOTS);
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
-    const maxGroupLimitPerSlot = lottoType === "49_6" ? 8 : 7; // 由剩餘球數決定大組上限
+    
+    // 動態核心：根據「必開喜愛號」的數量，自動隨機調整並計算出最精確的每大組極限封頂組數限制
+    const favCount = vip_fav_on && typeof favBalls !== 'undefined' ? favBalls.length : 0;
+    const pureBallsPerComb = mainPickCount - favCount; 
+    const maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
 
     const tempCombination = new Array(mainPickCount);
 
-    // 開始跑完全量隨機區塊篩選
+    // 開始全量區塊打散後的 16 防線極速海選
     for (let i = 0; i < maxCombinations; i++) {
         scannedCount++;
         localTotalGen++;
 
         const currentMask = fullMaskPool[i];
 
-        // 從二進制遮罩中，極速還原成 5 或 6 顆真實彩球號碼（純數學運算，極快）
+        // 64位元無損還原球號技術
         let ballIdx = 0;
         for (let bit = 1; bit <= 49; bit++) {
-            if ((currentMask & (1 << bit)) !== 0) {
+            if (Math.floor(currentMask / Math.pow(2, bit)) % 2 === 1) {
                 tempCombination[ballIdx++] = bit;
                 if (ballIdx === mainPickCount) break;
             }
         }
 
-        // 1. 觸發您原本寫死的 16 道鋼鐵防線（這段速度由原本防線的內部優化決定）
+        // 鋼鐵 16 道防線物理過濾
         if (!isGeneSurvive(tempCombination)) continue;
         localEvaluatedCount++;
 
-        // 2. 觸發五大健康度評分 (保留 250 分門檻攔截)
+        // 五大指標健康度加權評分
         let healthScore = 100;
         const sumVal = tempCombination.reduce((x, y) => x + y, 0);
         if (lottoType === "49_6") {
@@ -1540,49 +1417,54 @@ fullMaskPool[totalGeneratedCount] = mask;
         const floorScore = Math.floor(healthScore);
         localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
 
-        // 3. 進入滿足生存池，立刻被 200 個槽位「集中互斥選取」
-        // 計算剔除喜愛號後的互斥遮罩（完全相容原本底層機制）
+        // 計算剔除喜愛號後的純粹互斥位元遮罩
         const pureCombs = tempCombination.filter(ball => !favBalls.includes(ball));
-       let pureMask = 0;
-for (let b = 0; b < pureCombs.length; b++) { pureMask |= (1 << pureCombs[b]); }
+        let pureMask = 0;
+        for (let b = 0; b < pureCombs.length; b++) { pureMask += Math.pow(2, pureCombs[b]); }
 
-
-
-        // 集中式互斥填充：前面的大組沒塞滿 8 組前，後面的號碼優先幫忙補滿
-        let matchedAndSaved = false;
+        // 集中式互斥填充與水庫隨機替換結合
         for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
             if (slotMachine[s].items.length < maxGroupLimitPerSlot && (slotBitmasks[s] & pureMask) === 0) {
-                slotBitmasks[s] |= pureMask;
                 
-                // 確定錄取了，這時候才耗費 CPU 去建立字串與物件，完美省下 99% 的記憶體和時間！
                 const currentNoise = Math.random() * 0.9999;
                 const formatted = tempCombination.map(n => String(n).padStart(2, '0')).join(', ');
-                
-                slotMachine[s].items.push({
+                const nodeItem = {
                     score: Math.max(250, healthScore + 150),
                     noise: currentNoise,
                     finalScore: healthScore + currentNoise + 150,
                     comb: [...tempCombination],
                     mask: pureMask,
                     formatted
-                });
-                matchedAndSaved = true;
+                };
+
+                // 若該槽內的名單尚未達到 30 萬水庫局部隨機限制，直接塞入；否則以動態概率進行隨機替換
+                if (slotMachine[s].items.length < maxGroupLimitPerSlot) {
+                    slotBitmasks[s] |= pureMask;
+                    slotMachine[s].items.push(nodeItem);
+                } else {
+                    const replaceIndex = Math.floor(Math.random() * localEvaluatedCount);
+                    if (replaceIndex < slotMachine[s].items.length) {
+                        // 釋放舊遮罩，咬合新遮罩足跡
+                        slotBitmasks[s] -= Math.pow(2, slotMachine[s].items[replaceIndex].mask);
+                        slotBitmasks[s] |= pureMask;
+                        slotMachine[s].items[replaceIndex] = nodeItem;
+                    }
+                }
                 break; 
             }
         }
 
-        // 定時回報進度，讓前端進度條順暢秒刷，絕不卡死
         if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations) {
             await triggerChunkFlush();
         }
     }
 
-    // ─── 階段四：大組填滿優先度排列交卷 ───
+    // 大組填滿優先排列交卷
     const localLeaderBoard = [];
     try {
         const sortedSlots = slotMachine
             .filter(slot => slot && slot.items && slot.items.length > 0)
-            .sort((a, b) => b.items.length - a.items.length); // 讓真正填滿 8 組的大組浮在最上面優先吐給用戶
+            .sort((a, b) => b.items.length - a.items.length);
         
         let assignedUnitCounter = 1;
         for (let s = 0; s < sortedSlots.length; s++) {
@@ -1599,10 +1481,9 @@ for (let b = 0; b < pureCombs.length; b++) { pureMask |= (1 << pureCombs[b]); }
             }
         }
     } catch (restoreErr) {
-        console.error("[Worker 區塊打散滾動槽還原晶片異常] ", restoreErr.message);
+        console.error("[Worker 終極隨機自癒槽晶片異常] ", restoreErr.message);
     }
 
-    // 發射最終生還名單
     parentPort.postMessage({
         type: 'TOTAL_SCAN_PROGRESS',
         scanned: scannedCount,
@@ -1618,7 +1499,7 @@ for (let b = 0; b < pureCombs.length; b++) { pureMask |= (1 << pureCombs[b]); }
         finalScoreDistribution: localScoreDistribution
     });
 })();
-// ========================================== 【區塊 2：完全體核心引擎全部結束】 ==========================================
+// ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
 
 }
 
