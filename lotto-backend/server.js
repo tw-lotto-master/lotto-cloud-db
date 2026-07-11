@@ -1461,25 +1461,66 @@ function processAndLocalPK(combination) {
  }
  for (let i = startIndex; i < pLen; i++) { currentSelection[level] = remainingPool[i]; await dfs(level + 1, i + 1); }
  }
- await dfs(0, 0);
- 
- localLeaderBoard.reverse(); // 倒序反轉，使最高分在前交付給主緒
- 
- parentPort.postMessage({ 
- type: 'TOTAL_SCAN_PROGRESS', 
- scanned: scannedCount, 
- maxTotal: maxCombinations, 
- total: scannedCount, 
- stats: Array.from(killStats), 
- totalGen: localTotalGen 
- });
- parentPort.postMessage({ 
- type: 'FINAL_SURVIVE_DELIVERY', 
- leaderBoard: localLeaderBoard,
- finalEvaluatedCount: localEvaluatedCount,
- finalScoreDistribution: localScoreDistribution
- }); 
- })();
+     await dfs(0, 0);
+
+    // ============================================================================================
+    // 🔄 【2026 儲存槽大組填滿優先 ─── 完美還原最原始 localLeaderBoard 格式晶片】 🔄
+    // ============================================================================================
+    const localLeaderBoard = []; // 🧠 建立最原本名稱與格式的空陣列容器
+    try {
+        // 1. 篩選出有裝號碼的槽，並按照「誰裝得最滿(小組數最多)」由大到小降序排列
+        const sortedSlots = slotMachine
+            .filter(slot => slot && slot.items && slot.items.length > 0)
+            .sort((a, b) => b.items.length - a.items.length);
+
+        let assignedUnitCounter = 1;
+
+        // 2. 將排好順序的槽依序解開，把精華號碼倒進最原始的陣列中
+        for (let s = 0; s < sortedSlots.length; s++) {
+            const currentSlot = sortedSlots[s];
+            
+            // 槽內的小組按分數由高到低進行優雅排序
+            currentSlot.items.sort((a, b) => b.finalScore - a.finalScore);
+
+            for (let j = 0; j < currentSlot.items.length; j++) {
+                const item = currentSlot.items[j];
+                
+                // 💡 把大組編號直接寫入物件的 unit 欄位，確保主執行緒與前端完全相容
+                item.unit = assignedUnitCounter; 
+                
+                // 推進原本的陣列中
+                localLeaderBoard.push(item);
+            }
+            
+            // 只要這個槽有輸出號碼，大組編號就往後跳一組
+            if (currentSlot.items.length > 0) {
+                assignedUnitCounter++;
+            }
+        }
+    } catch (restoreErr) {
+        console.error("[Worker 舊格式相容還原晶片異常] ", restoreErr.message);
+    }
+
+    // ============================================================================================
+    // 📤 【對應最原本接口的數據回傳】維持 100% 原封不動的傳輸通道，消滅所有 ReferenceError 報錯！
+    // ============================================================================================
+    parentPort.postMessage({ 
+        type: 'TOTAL_SCAN_PROGRESS', 
+        scanned: scannedCount, 
+        maxTotal: maxCombinations, 
+        total: scannedCount, 
+        stats: Array.from(killStats), 
+        totalGen: localTotalGen 
+    });
+
+    parentPort.postMessage({ 
+        type: 'FINAL_SURVIVE_DELIVERY', 
+        leaderBoard: localLeaderBoard, // 🎯 吐回原汁原味的陣列，內容已被儲存槽完美互斥且排序好！
+        finalEvaluatedCount: localEvaluatedCount,
+        finalScoreDistribution: localScoreDistribution
+    }); 
+})();
+
 // ========================================== 【區塊 2：子執行緒全新替換範圍結束】 ==========================================
 
 
