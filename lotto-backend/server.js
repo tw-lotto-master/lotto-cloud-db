@@ -1260,7 +1260,6 @@ if (f13_on) {
      items: []
  }));
 
- let localTotalGen = 0; 
  // 【核心監控變數】100% 保留！統計通過 16 道過濾條件並參與評分的真實總數，以及 250分以上的統計
  let localEvaluatedCount = 0;
  const localScoreDistribution = {};
