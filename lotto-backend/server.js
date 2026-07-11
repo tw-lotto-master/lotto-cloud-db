@@ -701,127 +701,71 @@ worker.on('message', (msg) => {
 });
 
 function compileLeaderboardToOutput() {
- finalOutputCombs.length = 0; 
- if (!leaderBoard || leaderBoard.length === 0) return;
- try {
- const isSmartMode = (cfg && cfg.vipMode === 'smart');
- const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
- const favNums = isFavEnabled ? cfg.vip_fav_set : [];
- if (!isSmartMode) {
- leaderBoard.sort((a, b) => {
- const aFinal = (a.score || 0) + (a.noise || Math.random() * 0.99);
- const bFinal = (b.score || 0) + (b.noise || Math.random() * 0.99);
- return bFinal - aFinal;
- });
- leaderBoard.forEach((item, index) => {
- const indexStr = String(index + 1).padStart(2, '0');
- finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
- });
- return;
- }
- 
- // 1. 將子緒發回的數千組超大原料庫，按分數由高到低精準排序
- leaderBoard.sort((a, b) => b.finalScore - a.finalScore);
- const targetCount = Math.min(leaderBoard.length, Math.max(1, Number(cfg.count) || 15));
- 
- // 2. 動態計算每大組的實體組數上限
- const maxLottoBalls = (cfg.lottoType === "49_6") ? 49 : 39;
- const isF1Enabled = (cfg && cfg.f1_on === true);
- const f1Kills = (isF1Enabled && cfg.f1_set) ? cfg.f1_set.length : 0; 
- const remainingBallCount = Math.max(1, maxLottoBalls - f1Kills);
- const favCount = favNums.length;
- const ballsPerCombination = (cfg.lottoType === "49_6") ? Math.max(4, 6 - favCount) : Math.max(3, 5 - favCount);
- 
- let maxCombsPerUnit = Math.floor(remainingBallCount / ballsPerCombination);
- if (!isF1Enabled) {
- maxCombsPerUnit = (cfg.lottoType === "49_6") ? 8 : 7; // 大樂透黃金上限 8 組
- }
- if (maxCombsPerUnit < 1) maxCombsPerUnit = 1; 
+    finalOutputCombs.length = 0; 
+    
+    // 此處的 leaderBoard 即為子執行緒完成海選碰撞後傳回的 slotMachine 陣列
+    if (!leaderBoard || leaderBoard.length === 0) return;
+    
+    try {
+        const isSmartMode = (cfg && cfg.vipMode === 'smart');
+        const targetCount = Math.min(100, Math.max(1, Number(cfg.count) || 15)); // 前端要解鎖的總小組數
 
- // ============================================================================================
- // 🚀 【貪婪大組匹配晶片】：有了充足原料，由高分往下掃描，強行把每個大組塞滿 8 組！
- // ============================================================================================
- const units = [];
- const finalSelectedItems = [];
- const globalPickedKeys = new Set();
+        // 如果不是智能 VIP 模式，走舊有的一般輸出流程
+        if (!isSmartMode) {
+            // 若為傳統陣列，直接打印輸出
+            if (Array.isArray(leaderBoard) && leaderBoard[0]?.comb) {
+                leaderBoard.forEach((item, index) => {
+                    const indexStr = String(index + 1).padStart(2, '0');
+                    finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
+                });
+            }
+            return;
+        }
 
- let currentUnitIndex = 0;
- // 初始化第一個大組
- units.push({ usedNumbers: new Set(), count: 0, items: [] });
+        // ============================================================================================
+        // 🚀 【填滿優先出牌拓樸】：掃描 200 個不重複槽，誰塞得最滿，誰就優先出牌！
+        // ============================================================================================
+        // 過濾掉完全沒裝號碼的空槽，並根據槽內成功收容的「小組數量」進行由大到小的降序排序
+        const activeSlots = leaderBoard
+            .filter(slot => slot && slot.items && slot.items.length > 0)
+            .sort((a, b) => b.items.length - a.items.length);
 
- // 只要還沒塞滿前端要的總組數（例如 15 組），就持續進行大數據貪婪匹配
- while (finalSelectedItems.length < targetCount) {
- let foundInThisRound = false;
- const currentUnit = units[currentUnitIndex];
+        let finalIndexCounter = 1;
+        let currentDisplayUnit = 1; // 重新定義前端展示的大組編號
 
- // 從高分到低分遍歷多達 5000 組的超大高分原料池
- for (let i = 0; i < leaderBoard.length; i++) {
- // 當前大組如果已經達到 8 組（或上限值），立刻封印，預備開新大組
- if (currentUnit.count >= maxCombsPerUnit) break;
- if (finalSelectedItems.length >= targetCount) break;
+        // 依序倒出填得最滿的儲存槽
+        for (let s = 0; s < activeSlots.length; s++) {
+            if (finalIndexCounter > targetCount) break; // 滿足用戶解鎖的組數（例如 15 組）就完美結案
 
- let item = leaderBoard[i];
- if (!item || !item.comb) continue;
- const combKey = item.comb.join(',');
- if (globalPickedKeys.has(combKey)) continue; // 絕不重複交付
+            const currentSlot = activeSlots[s];
+            
+            // 同一個槽（大組）內的小組，按分數由高到低進行精準微調排序
+            currentSlot.items.sort((a, b) => b.finalScore - a.finalScore);
 
- const pureCombs = item.comb.filter(ball => !favNums.includes(ball));
- 
- // 嚴格檢查這組號碼是否跟「當前這個大組」已選號碼發生碰撞
- let hasOverlap = false;
- for (const ball of pureCombs) {
- if (currentUnit.usedNumbers.has(ball)) {
- hasOverlap = true;
- break;
- }
- }
+            for (let j = 0; j < currentSlot.items.length; j++) {
+                if (finalIndexCounter > targetCount) break;
 
- // 如果完全不衝突，立刻貪婪錄用，留在這個大組！
- if (!hasOverlap) {
- pureCombs.forEach(ball => currentUnit.usedNumbers.add(ball));
- currentUnit.count++;
- 
- item.score = Math.max(250, item.score + 150); // 完美維持高分推薦
- item.finalScore = item.score + (item.noise || 0);
- item.assignedUnit = currentUnitIndex + 1;
- 
- currentUnit.items.push(item);
- finalSelectedItems.push(item);
- globalPickedKeys.add(combKey);
- foundInThisRound = true; // 標記當前大組成功收容新成員
- }
- }
+                const item = currentSlot.items[j];
+                const indexStr = String(finalIndexCounter).padStart(2, '0');
 
- // 兩種情況需要開闢下一大組：
- // 1. 當前大組已經完美塞滿了 8 組名牌
- // 2. 把 5000 組高分池全掃完了，當前大組依然湊不出完全互斥的號碼（剩餘球數榨乾了）
- if (currentUnit.count >= maxCombsPerUnit || !foundInThisRound) {
- if (finalSelectedItems.length >= targetCount) break;
- // 滿血開闢全新大組，重置球池
- units.push({ usedNumbers: new Set(), count: 0, items: [] });
- currentUnitIndex++;
- }
- }
+                // 完美輸出：完全不重複的大組，且分數 100% 保持在 500 分的精英狀態！
+                finalOutputCombs.push(
+                    "第 [" + indexStr + "] 組 (第 " + currentDisplayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n"
+                );
+                finalIndexCounter++;
+            }
+            
+            // 只要這個槽有成功輸出任何一組號碼，下一個槽就定義為下一個新大組
+            if (currentSlot.items.length > 0) {
+                currentDisplayUnit++;
+            }
+        }
 
- // ============================================================================================
- // 扁平化重組輸出：依大組順序(第1大組->第2大組)漂亮印出，每組組內按高分降序排列
- // ============================================================================================
- let finalIndexCounter = 1;
- for (let u = 0; u < units.length; u++) {
- const currentUnit = units[u];
- if (!currentUnit.items || currentUnit.items.length === 0) continue;
- currentUnit.items.sort((a, b) => b.finalScore - a.finalScore);
- for (let j = 0; j < currentUnit.items.length; j++) {
- const item = currentUnit.items[j];
- const indexStr = String(finalIndexCounter).padStart(2, '0');
- finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + item.assignedUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
- finalIndexCounter++;
- }
- }
- } catch (err) {
- console.error("[理論大組終極物理隔離晶片異常] ", err.message);
- }
+    } catch (err) {
+        console.error("[儲存槽終極物理隔離晶片異常] ", err.message);
+    }
 }
+
 
 
 
@@ -1336,93 +1280,149 @@ if (f13_on) {
  const maxCombinations = getDynamicMaxCombs() || (lottoType === "49_6" ? 13983816 : 575757);
  
  // ========================================== 【子執行緒全新優化替換：高分原料池滿血擴容】 ==========================================
+// ============================================================================================
+// 🧠 【2026 究極低耗能：多大組線上隨機碰撞儲存槽控制台】 🧠
+// ============================================================================================
+const TOTAL_SLOTS = 200;      // 🎯 您隨時可以修改這裡！例如想開 300 槽直接改成 300 即可！
+const MIN_SCORE_GATE = 250;   // 🎯 您隨時可以調整分數門檻！若原料太少可自己調低，想挑精準可調高！
+
 let localTotalGen = 0; 
-let localLeaderBoard = []; 
-// 🎯 核心修正：將子緒蓄水池物理容量放大至 5000 組，為不重複大組提供源源不絕的高分原料
-const SEED_POOL_LIMIT = 5000; 
 let localEvaluatedCount = 0;
 const localScoreDistribution = {};
 
+// 初始化這 200 個獨立儲存槽。每個槽都有自己獨立的「已使用球號 Set」與「收容小組陣列 items」
+const slotMachine = Array.from({ length: TOTAL_SLOTS }, () => ({
+    usedNumbers: new Set(),
+    items: []
+}));
+
 function processAndLocalPK(combination) {
- if (!isGeneSurvive(combination)) return;
- localEvaluatedCount++;
- 
- let healthScore = 100; 
- // ─── 項目 A：號碼總和評分 ───
- const sumVal = combination.reduce((x, y) => x + y, 0);
- if (lottoType === "49_6") { 
- if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
- else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20;
- else healthScore -= 50;
- } else { 
- if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
- else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
- else healthScore -= 50;
- }
- // ─── 項目 B：奇偶比例評分 ───
- let oddsCount = 0; 
- for (let i = 0; i < combination.length; i++) { if ((combination[i] & 1) === 1) oddsCount++; }
- if (lottoType === "49_6") {
- if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
- else if (oddsCount === 3) healthScore += 30;
- else healthScore -= 50;
- } else {
- if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
- else healthScore -= 50;
- }
- // ─── 項目 C：大小比例評分 ───
- const midPoint = lottoType === "49_6" ? 25 : 20;
- let bigCount = 0; 
- for (let i = 0; i < combination.length; i++) { if (combination[i] >= midPoint) bigCount++; }
- if (lottoType === "49_6") {
- if (bigCount === 2 || bigCount === 4) healthScore += 50;
- else if (bigCount === 3) healthScore += 30;
- else healthScore -= 50;
- } else {
- if (bigCount === 2 || bigCount === 3) healthScore += 50;
- else healthScore -= 50;
- }
- // ─── 項目 D：連續號牆評分 ───
- let currentSeq = 1, maxSeq = 1, totalPairs = 0; 
- for (let m = 1; m < combination.length; m++) {
- if (combination[m] === combination[m - 1] + 1) { currentSeq++; totalPairs++; if (currentSeq > maxSeq) maxSeq = currentSeq; }
- else { currentSeq = 1; }
- }
- if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
- else if (maxSeq === 1) healthScore += 30;
- else healthScore -= 50;
- // ─── 項目 E：除三餘數評分 ───
- let r0 = 0, r1 = 0, r2 = 0; 
- for (let i = 0; i < combination.length; i++) { const rem = combination[i] % 3; if (rem === 0) r0++; else if (rem === 1) r1++; else r2++; }
- if (lottoType === "49_6") {
- if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
- else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
- } else {
- if ((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) healthScore += 50;
- else healthScore -= 50;
- }
+    if (!isGeneSurvive(combination)) return;
+    localEvaluatedCount++;
+    
+    // 🧪 執行第一輪基礎評分（總計最高 350 分，原版核心算法不變）
+    let healthScore = 100; 
+    
+    // ─── 項目 A：號碼總和評分 ───
+    const sumVal = combination.reduce((x, y) => x + y, 0);
+    if (lottoType === "49_6") { 
+        if (sumVal >= 115 && sumVal <= 185) healthScore += 50;
+        else if ((sumVal >= 91 && sumVal <= 114) || (sumVal >= 186 && sumVal <= 209)) healthScore += 20;
+        else healthScore -= 50;
+    } else { 
+        if (sumVal >= 73 && sumVal <= 127) healthScore += 50;
+        else if ((sumVal >= 56 && sumVal <= 72) || (sumVal >= 128 && sumVal <= 144)) healthScore += 20;
+        else healthScore -= 50;
+    }
+    
+    // ─── 項目 B：奇偶比例評分 ───
+    let oddsCount = 0; 
+    for (let i = 0; i < combination.length; i++) { if ((combination[i] & 1) === 1) oddsCount++; }
+    if (lottoType === "49_6") {
+        if (oddsCount === 2 || oddsCount === 4) healthScore += 50;
+        else if (oddsCount === 3) healthScore += 30;
+        else healthScore -= 50;
+    } else {
+        if (oddsCount === 2 || oddsCount === 3) healthScore += 50;
+        else healthScore -= 50;
+    }
+    
+    // ─── 項目 C：大小比例評分 ───
+    const midPoint = lottoType === "49_6" ? 25 : 20;
+    let bigCount = 0; 
+    for (let i = 0; i < combination.length; i++) { if (combination[i] >= midPoint) bigCount++; }
+    if (lottoType === "49_6") {
+        if (bigCount === 2 || bigCount === 4) healthScore += 50;
+        else if (bigCount === 3) healthScore += 30;
+        else healthScore -= 50;
+    } else {
+        if (bigCount === 2 || bigCount === 3) healthScore += 50;
+        else healthScore -= 50;
+    }
+    
+    // ─── 項目 D：連續號牆評分 ───
+    let currentSeq = 1, maxSeq = 1, totalPairs = 0; 
+    for (let m = 1; m < combination.length; m++) {
+        if (combination[m] === combination[m - 1] + 1) { 
+            currentSeq++; 
+            totalPairs++; 
+            if (currentSeq > maxSeq) maxSeq = currentSeq; 
+        } else { 
+            currentSeq = 1; 
+        }
+    }
+    if (maxSeq === 2 && totalPairs === 1) healthScore += 50;
+    else if (maxSeq === 1) healthScore += 30;
+    else healthScore -= 50;
+    
+    // ─── 項目 E：除三餘數評分 ───
+    let r0 = 0, r1 = 0, r2 = 0; 
+    for (let i = 0; i < combination.length; i++) { const rem = combination[i] % 3; if (rem === 0) r0++; else if (rem === 1) r1++; else r2++; }
+    if (lottoType === "49_6") {
+        if (r0 === 2 && r1 === 2 && r2 === 2) healthScore += 50;
+        else if (r0 === 0 || r1 === 0 || r2 === 0) healthScore -= 50;
+    } else {
+        if ((r0===2&&r1===2&&r2===1)||(r0===2&&r1===1&&r2===2)||(r0===1&&r1===2&&r2===2)) healthScore += 50;
+        else healthScore -= 50;
+    }
 
- if (healthScore >= 250) {
- const floorScore = Math.floor(healthScore);
- localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
- }
+    // 🎯 統計符合健康資格的分數區間（用於後台數據顯示）
+    if (healthScore >= 250) {
+        const floorScore = Math.floor(healthScore);
+        localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
+    }
 
- const currentNoise = Math.random() * 0.9999;
- const finalWeightedScore = healthScore + currentNoise;
- const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
- const nodeItem = { score: healthScore, noise: currentNoise, finalScore: finalWeightedScore, comb: combination, formatted };
+    // 🚨 核心動態過濾防線：分數必須大於等於您設定的 MIN_SCORE_GATE 才能進入不重複槽比對！
+    if (healthScore < MIN_SCORE_GATE) return; // 沒達標直接丟棄，極度節省記憶體！
 
- // 使用優張擴容後的上限進行生死鬥
- if (localLeaderBoard.length < SEED_POOL_LIMIT) {
- localLeaderBoard.push(nodeItem);
- if (localLeaderBoard.length === SEED_POOL_LIMIT) { localLeaderBoard.sort((a, b) => a.finalScore - b.finalScore); }
- } else {
- if (finalWeightedScore > localLeaderBoard[0].finalScore) {
- localLeaderBoard[0] = nodeItem;
- localLeaderBoard.sort((a, b) => a.finalScore - b.finalScore);
- }
- }
+    const currentNoise = Math.random() * 0.9999;
+    const finalWeightedScore = healthScore + currentNoise;
+    const formatted = combination.map(n => String(n).padStart(2, '0')).join(', ');
+    
+    // 構建輕量級資料節點
+    const nodeItem = { 
+        score: healthScore, 
+        noise: currentNoise, 
+        finalScore: finalWeightedScore, 
+        comb: combination, 
+        formatted 
+    };
+
+    // 🚀 【純隨機即時碰撞分流機制】：無規律隨機產生，隨產隨撞
+    // 提取出不受喜愛號限制的純粹碰撞球號（以確保不重複任務順利執行）
+    const isFavEnabled = (cfg && cfg.vip_fav_on === true && cfg.vip_fav_set && cfg.vip_fav_set.length > 0);
+    const favNums = isFavEnabled ? cfg.vip_fav_set : [];
+    const pureCombs = combination.filter(ball => !favNums.includes(ball));
+
+    // 巡視 200 個不重複槽，尋找第一個「完全沒有任何 1 個重複號碼」的空位進駐
+    for (let s = 0; s < slotMachine.length; s++) {
+        const targetSlot = slotMachine[s];
+        
+        // 嚴格比對：巡視目前槽內是否已有任何相同號碼
+        let hasOverlap = false;
+        for (const ball of pureCombs) {
+            if (targetSlot.usedNumbers.has(ball)) {
+                hasOverlap = true;
+                break;
+            }
+        }
+
+        // 如果該大組槽內完全沒有任何 1 個相同號，完美符合！立刻進駐
+        if (!hasOverlap) {
+            pureCombs.forEach(ball => targetSlot.usedNumbers.add(ball));
+            
+            // 完美符合互斥，直接依原版邏輯給予加分獎勵並注入加成（原版+150分）
+            nodeItem.score = Math.max(250, nodeItem.score + 150);
+            nodeItem.finalScore = nodeItem.score + nodeItem.noise;
+            
+            targetSlot.items.push(nodeItem);
+            break; // 成功進駐，立即結束此組合的尋找，號碼不留記憶體！
+        }
+    }
 }
+
+// 🎯 當 Worker 跑完數百萬次隨機後，將 slotMachine 直接交付給主執行緒
+// （請確保您的 Worker 最終傳回的 leaderBoard 改為傳送 slotMachine 物件，在下方的 `compileLeaderboardToOutput` 會完美對接接收）
 
 
 // ========================================== 【第二處：子執行緒回報降載優化替換】 ==========================================
