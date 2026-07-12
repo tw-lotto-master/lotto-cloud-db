@@ -575,8 +575,17 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         }, 480000);
 
         // 🌟 核心修正：將前端傳入的歷史資料庫作為 passedHistoryDB 精確指派進去，對齊底層！
-       const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
-workers.push(worker);
+              // ========================================== 【主執行緒修復：打包喜愛號送入子執行緒】 ==========================================
+        // 核心修正：將前端傳入的歷史資料庫與經過清洗後的 favBalls 一併塞入 workerData，對齊底層！
+        const worker = new Worker(__filename, { 
+            workerData: { 
+                cfg, 
+                passedHistoryDB: globalHistoryDB || [], 
+                favBalls: (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true') && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [],
+                threadId: 0 
+            } 
+        });
+        workers.push(worker);
 
 // == ✨ 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感） ==
 try {
@@ -825,11 +834,19 @@ if (!isMainThread) {
     });
   }
   
-  const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
-  const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : []);
-  const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
-  const favBalls = vip_fav_on && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
-  let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
+      // ========================================== 【子執行緒修復：防禦解碼喜愛號型態黑洞】 ==========================================
+    const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
+    const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : []);
+    
+    const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
+    
+    // 雙防線自癒：優先讀取主執行緒送進來的實體陣列，若無則從傳入的 cfg 中再度強制還原
+    let rawFav = workerData.favBalls || (vip_fav_on && cfg.vip_fav_set ? cfg.vip_fav_set : []);
+    const favBalls = Array.isArray(rawFav) ? rawFav.map(Number) : (typeof rawFav === 'string' ? rawFav.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n)) : []);
+    
+    let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
+    // ==============================================================================================================================
+
   
   const filters = [];
 
