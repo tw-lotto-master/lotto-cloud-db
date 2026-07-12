@@ -776,7 +776,9 @@ function compileLeaderboardToOutput() {
                 // 💎 如果是智能 VIP 模式，直接調用 Worker 在線上 200 槽裡幫我們完美打好的實體大組編號 (item.unit)
                 // 100% 保持在 500 分精英狀態，且完美大組互斥，榨乾賸餘可用球數！
                 const displayUnit = item.unit !== undefined ? item.unit : 1;
-                finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
+ // 🎯 【終極自癒】：直接調用子執行緒在線上圈選滿足組時產出的純淨 formatted 字串，徹底取消並擊殺綁定 01 的殘留 Bug！
+ finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
+
             }
         }
     } catch (err) {
