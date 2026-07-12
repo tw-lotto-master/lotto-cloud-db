@@ -1551,10 +1551,10 @@ async function triggerChunkFlush() {
                 usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎號碼
                 
                 const node = reservoirPool[idx];
-                const currentNoise = Math.random() * 0.9999;
- // 🎯 【終極自癒】：精確過濾掉陣列開頭被污染的 1 號（若 1 號非用戶自選的地雷排除號或特定號），強制回歸純淨真實球號換行！
- const safeCleanComb = node.comb.filter((n, idx) => !(idx === 0 && n === 1 && !safeFavBalls.includes(1)));
- const formatted = "\n" + safeCleanComb.map(n => String(n).padStart(2, '0')).join(', ');
+                 const currentNoise = Math.random() * 0.9999;
+ // 🎯 【滿血回歸】：老老實實用最純粹的 node.comb，原汁原味恢復 6 顆球（大樂透）與 5 顆球（539）！
+ const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
+
 
                 
                 slotMachine[s].items.push({
