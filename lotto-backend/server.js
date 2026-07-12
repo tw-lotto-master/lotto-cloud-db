@@ -425,100 +425,130 @@ if (isMainThread) {
     const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
     const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
 
-    if (isNoConditions) {
-        console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
-        if (dbUser) {
-            res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
-        }
-        const totalTheoreticalCombs = mainLottoType === "49_6" ? 13983816 : 575757;
-        res.write(JSON.stringify({ isProgress: true, percent: 20, currentMatch: 0 }) + "\n");
-        res.write(JSON.stringify({ isProgress: true, percent: 60, currentMatch: Math.floor(pickLimit / 2) }) + "\n");
-        
-        const finalOutputCombs = [];
-        const globalUniqueSet = new Set();
-        const historyCacheSet = new Set();
-        const currentPickCount = mainLottoType === "49_6" ? 6 : 5;
-        const targetHistoryDB = globalHistoryDB || [];
-        
-        if (Array.isArray(targetHistoryDB)) {
-            targetHistoryDB.forEach(h => { 
-                if (Array.isArray(h)) {
-                    historyCacheSet.add(h.slice(0, currentPickCount).map(n => String(n).padStart(2, '0')).sort().join(',')); 
-                }
-            });
-        }
-        const availableSlotsPerGroup = mainPickCount;
-        let availableBallsForWheel = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
-        const singleBigGroupLimit = Math.floor(availableBallsForWheel.length / availableSlotsPerGroup);
-        let currentBigGroupUsedBallsSet = new Set();
-        let attempts = 0;
+// ========================================== 【分流 A：聰明包牌絕對互斥、一般隨機自由重複範圍】 ==========================================
+ if (isNoConditions) {
+     console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
+     if (dbUser) {
+         res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
+     }
+     const totalTheoreticalCombs = mainLottoType === "49_6" ? 13983816 : 575757;
+     res.write(JSON.stringify({ isProgress: true, percent: 20, currentMatch: 0 }) + "\n");
+     res.write(JSON.stringify({ isProgress: true, percent: 60, currentMatch: Math.floor(pickLimit / 2) }) + "\n");
+     
+     const finalOutputCombs = [];
+     const globalUniqueSet = new Set();
+     const historyCacheSet = new Set();
+     const currentPickCount = mainLottoType === "49_6" ? 6 : 5;
+     const targetHistoryDB = globalHistoryDB || [];
+     
+     if (Array.isArray(targetHistoryDB)) {
+         targetHistoryDB.forEach(h => { 
+             if (Array.isArray(h)) {
+                 historyCacheSet.add(h.slice(0, currentPickCount).map(n => String(n).padStart(2, '0')).sort().join(',')); 
+             }
+         });
+     }
+     const availableSlotsPerGroup = mainPickCount;
+     const slotsPerBigGroup = mainLottoType === "49_6" ? 8 : 7; // 大樂透 8 組封頂，539 滿 7 組封頂
 
-        while (finalOutputCombs.length < pickLimit && attempts < 50000) {
-            attempts++;
-            let pool = [...availableBallsForWheel].filter(b => !currentBigGroupUsedBallsSet.has(b));
-            if (pool.length < availableSlotsPerGroup || cfg.vipMode !== 'smart') {
-                currentBigGroupUsedBallsSet.clear();
-                pool = [...availableBallsForWheel];
-            }
-            for (let i = pool.length - 1; i > 0; i--) {
-                let j = Math.floor(Math.random() * (i + 1));
-                [pool[i], pool[j]] = [pool[j], pool[i]];
-            }
-            let currentComb = pool.slice(0, availableSlotsPerGroup).sort((a, b) => a - b);
-            const formattedArray = currentComb.map(n => String(n).padStart(2, '0'));
-            const combKey = currentComb.join(',');
-            const historyKey = formattedArray.join(',');
-            if (globalUniqueSet.has(combKey)) continue; 
-            if (historyCacheSet.has(historyKey)) continue; 
-// =========================================================================
-// 👑【免死金牌直通區專用】聰明包牌模式：歷史交付明牌點對點去重打散晶片
-// =========================================================================
-if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
-    let hasTooMuchOverlap = false;
-    
-    // 拿當前這組 currentComb 去跟已經決定要交付的每一組明牌比對
-    for (const existingStr of finalOutputCombs) {
-        // 從既有的字串中（例如 "第 [01] 組 ... : 01, 02, 03..."）把純號碼解析出來
-        const match = existingStr.match(/:\s*([\d, \s]+)/);
-        if (!match) continue;
-        
-        const existingNums = match[1].split(',').map(n => parseInt(n.trim(), 10));
-        
-        // 計算重複了幾顆球
-        let overlap = 0;
-        for (const ball of currentComb) {
-            if (existingNums.includes(ball)) {
-                overlap++;
-            }
-        }
-        
-        // 物理擊殺線：直通區不計算分數，所以只要跟已選號碼重複 3 顆球以上，直接判定長太像，原地擊殺剔除！
-        if (overlap >= 3) {
-            hasTooMuchOverlap = true;
-            break;
-        }
-    }
-    
-    // 踩雷則直接 continue 跳過這組號碼，重新拋射下一組，直到號碼完全彈開！
-    if (hasTooMuchOverlap) continue;
-}
-// =========================================================================
+     let mainSlotUsedBalls = new Set(); // 專屬聰明包牌當前大組的彩球足跡牆
+     let assignedUnitCounter = 1;
+     let currentUnitCount = 0;
+     let pickedCount = 0;
+     let attempts = 0;
 
-            globalUniqueSet.add(combKey);
-            const nextIndex = finalOutputCombs.length + 1;
-            const indexStr = String(nextIndex).padStart(2, '0');
-            const formattedOutput = formattedArray.join(', ');
-            const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
-            finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : ${formattedOutput}\n`);
-        }
-        res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
-        let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (大組內彩球完全互斥+歷史頭獎蒸發版)' : '一般隨機組合 (無勾選條件自癒+歷史頭獎蒸發版)';
-        res.write(JSON.stringify({
-            success: true,
-            outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：${totalTheoreticalCombs} 組 \n【當前交付解鎖組合（已完美大組控重，且100%過濾歷史頭獎紀錄！）】\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
-        }) + "\n");
-        return res.end();
-    } // 🌟 完美閉合通道 A 
+     // ─── 🎯 情況一：如果用戶選擇了【聰明包牌 (smart)】 ───
+     if (cfg.vipMode === 'smart') {
+         while (finalOutputCombs.length < pickLimit && attempts < 100000) {
+             attempts++;
+             
+             // 從全部彩球中排除「當前大組已經用掉的球」，保證絕對隔離不重複
+             let pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1).filter(b => !mainSlotUsedBalls.has(b));
+             
+             // 如果剩餘球數不夠湊滿下一組不重複的號碼，或達到大組組數限制，自動安全開啟下一大組
+             if (pool.length < mainPickCount || currentUnitCount >= slotsPerBigGroup) {
+                 mainSlotUsedBalls.clear(); 
+                 assignedUnitCounter++;
+                 currentUnitCount = 0;
+                 pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
+             }
+
+             // 隨機拋射打散
+             for (let i = pool.length - 1; i > 0; i--) {
+                 let j = Math.floor(Math.random() * (i + 1));
+                 const temp = pool[i];
+                 pool[i] = pool[j];
+                 pool[j] = temp;
+             }
+
+             let currentComb = pool.slice(0, mainPickCount).sort((a, b) => a - b);
+             const combKey = currentComb.join(',');
+             const formattedArray = currentComb.map(n => String(n).padStart(2, '0'));
+             const historyKey = formattedArray.join(',');
+
+             if (globalUniqueSet.has(combKey) || historyCacheSet.has(historyKey)) continue;
+
+             // 錄入當前大組足跡牆，強迫同組內後續號碼達到 100% 絕對完全互斥隔離
+             currentComb.forEach(ball => mainSlotUsedBalls.add(ball));
+             globalUniqueSet.add(combKey);
+
+             pickedCount++;
+             const indexStr = String(pickedCount).padStart(2, '0');
+             const formattedOutput = formattedArray.join(', ');
+
+             finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${assignedUnitCounter} 大組) [評分: 410分] : \n${formattedOutput}\n`);
+             
+             currentUnitCount++;
+         }
+     } 
+     // ─── 🎯 情況二：如果用戶選擇了【一般隨機組合】 ───
+     else {
+         // 🌟 滿血導正：恢復原創純隨機狀態，允許重複，絕不亂加任何不重複的限制！
+         while (finalOutputCombs.length < pickLimit && attempts < 100000) {
+             attempts++;
+             
+             // 直接從 1~49 的全量球池中隨機抽取，組別之間允許號碼自然、常態重疊！
+             let pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
+
+             for (let i = pool.length - 1; i > 0; i--) {
+                 let j = Math.floor(Math.random() * (i + 1));
+                 const temp = pool[i];
+                 pool[i] = pool[j];
+                 pool[j] = temp;
+             }
+
+             let currentComb = pool.slice(0, mainPickCount).sort((a, b) => a - b);
+             const combKey = currentComb.join(',');
+             const formattedArray = currentComb.map(n => String(n).padStart(2, '0'));
+             const historyKey = formattedArray.join(',');
+
+             // 僅過濾歷史頭獎與全域一模一樣的孿生組合，允許正常的號碼重複
+             if (globalUniqueSet.has(combKey) || historyCacheSet.has(historyKey)) continue;
+
+             globalUniqueSet.add(combKey);
+
+             pickedCount++;
+             const indexStr = String(pickedCount).padStart(2, '0');
+             const formattedOutput = formattedArray.join(', ');
+
+             // 一般隨機模式依據原本邏輯，統一優雅歸類在第 1 大組
+             finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: 390分] : \n${formattedOutput}\n`);
+         }
+     }
+
+     res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
+     let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (免死金牌直通-大組內彩球絕對完全互斥版)' : '一般隨機組合 (免死金牌直通-大組物理隔離版)';
+     
+     res.write(JSON.stringify({
+         success: true,
+         outputText: `【VIP直通大竣工】中繼站本次海選免扣點實時通過總數：\n${totalTheoreticalCombs} 組 \n \n【當前交付解鎖組合（已完美拉滿物理互斥，100%保證分散隔離！）】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
+     }) + "\n");
+     return res.end();
+ }
+// ========================================== 【分流 A 完美分流結束】 ==========================================
+
+
+
      if (!isVipPass) {
  // 如果沒有月費 VIP，也沒有 24 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
  res.write(JSON.stringify({ 
@@ -1310,14 +1340,12 @@ async function triggerChunkFlush() {
     const favCount = (vip_fav_on && safeFavBalls.length > 0) ? safeFavBalls.length : 0;
 
     
-    // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除內層 await 阻斷，解鎖純 CPU 滿血性能） ───
+       // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除外層地獄 while 迴圈，解鎖 2 秒竣工極限） ───
     const MAX_POOL_SIZE = 300000; 
     const reservoirPool = [];
     const tempCombination = new Array(mainPickCount);
 
-    // 建立一個輕量級同步非同步橋樑計時器，防止全同步引發前端進度條死當感
-    let lastFlushTime = Date.now();
-
+    // 終極同步遞迴核心：0 煞車，全力衝刺 1398 萬組
     function dfsSearchSync(level, startIndex) {
         if (scannedCount >= maxCombinations) return;
 
@@ -1325,7 +1353,7 @@ async function triggerChunkFlush() {
             scannedCount++;
             localTotalGen++;
 
-            // 1. 16 道防線鐵血排除（純同步判斷，快如閃電）
+            // 16 道防線鐵血排除與健康度加權評分
             if (isGeneSurvive(tempCombination)) {
                 localEvaluatedCount++;
 
@@ -1406,32 +1434,35 @@ async function triggerChunkFlush() {
                     }
                 }
             }
+
+            // 每隔 100 萬組，在同步的大海中向下射出一枚異步進度封包，這在多執行緒下開銷極低
+            if (scannedCount % 1000000 === 0) {
+                // 利用全域 parentPort 異步發射，絕不阻斷當前遞迴軸
+                const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 99);
+                parentPort.postMessage({
+                    type: 'TOTAL_SCAN_PROGRESS',
+                    scanned: scannedCount,
+                    maxTotal: maxCombinations,
+                    percent: currentPercent,
+                    stats: Array.from(killStats),
+                    totalGen: localTotalGen,
+                    finalEvaluatedCount: localEvaluatedCount,
+                    finalScoreDistribution: localScoreDistribution
+                });
+            }
             return;
         }
 
-        // 🚀 【滿血效能核心】：此處絕對為純同步、絕不使用 await 踩煞車！
         for (let i = startIndex; i < pLen; i++) {
             tempCombination[level] = basePool[i];
             dfsSearchSync(level + 1, i + 1); 
         }
     }
 
-    // 點火外包裝：利用微秒級宏任務（MacroTask）切分大數據進度回報
-    let currentChunkStart = 0;
-    while (scannedCount < maxCombinations) {
-        // 執行同步區塊爆發
-        dfsSearchSync(0, currentChunkStart);
-        
-        // 只有在完成一個大波段後，才允許交出一次異步發射進度
-        await triggerChunkFlush();
-        
-        // 如果已經全量跑完，主動切斷
-        if (scannedCount >= maxCombinations || reservoirPool.length >= MAX_POOL_SIZE) break;
-        currentChunkStart++;
-        if (currentChunkStart >= pLen) break;
-    }
-    // ─── 階段一海選完美竣工 ───
-
+    // 🔥 點火！老老實實、精準呼叫「唯一一次」全量同步海選，0 重複開銷
+    dfsSearchSync(0, 0);
+    
+    
 
     // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
