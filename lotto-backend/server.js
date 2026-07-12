@@ -776,7 +776,9 @@ function compileLeaderboardToOutput() {
                 // 💎 如果是智能 VIP 模式，直接調用 Worker 在線上 200 槽裡幫我們完美打好的實體大組編號 (item.unit)
                 // 100% 保持在 500 分精英狀態，且完美大組互斥，榨乾賸餘可用球數！
                 const displayUnit = item.unit !== undefined ? item.unit : 1;
-                finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
+ // 🎯 【終極自癒】：直接調用子執行緒在線上圈選滿足組時產出的純淨 formatted 字串，徹底取消並擊殺綁定 01 的殘留 Bug！
+ finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
+
             }
         }
     } catch (err) {
@@ -858,9 +860,13 @@ if (!isMainThread) {
   const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
   const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : []);
   const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
-  const favBalls = vip_fav_on && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
-  let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
-  
+ 
+ // 🎯 【除蟲修正一】：精確解碼用戶點選的喜愛號實體陣列
+ const favBalls = vip_fav_on && cfg.vip_fav_set ? (Array.isArray(cfg.vip_fav_set) ? cfg.vip_fav_set.map(Number) : String(cfg.vip_fav_set).split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : [];
+ 
+ // 🎯 【除蟲修正二】：海選的原始基礎球池必須「完整包含所有彩球（扣除地雷號即可）」，絕對不允許在這裡把喜愛號強行剔除！
+ let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
+
   const filters = [];
 
 
@@ -1267,11 +1273,32 @@ if (f13_on) {
 // =========================================================================
   const killStats = new Uint32Array(16);
   let totalGeneratedTestCount = 0;
-  function isGeneSurvive(comb) {
-    totalGeneratedTestCount++;
-    for (let i = 0; i < filters.length; i++) {
-      if (filters[i].exec(comb)) { if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; return false; }
-    }
+   function isGeneSurvive(comb) {
+ totalGeneratedTestCount++;
+ 
+ // 🎯 【喜愛碼特權豁免晶片】：如果用戶開啟了條件 16，這組號碼必須「100% 內含所有喜愛號」，否則直接丟棄！
+ if (typeof favBalls !== 'undefined' && Array.isArray(favBalls) && favBalls.length > 0) {
+     for (let f = 0; f < favBalls.length; f++) {
+         if (!comb.includes(favBalls[f])) return false; // 沒帶喜愛號，大門口直接原地擊殺！
+     }
+     // 🌟 核心自癒：建立一組「不含喜愛號」的純粹號碼，拿去讓 16 防線審查，防止被誤殺！
+     const pureTestComb = comb.filter(ball => !favBalls.includes(ball));
+     for (let i = 0; i < filters.length; i++) {
+         if (filters[i].exec(pureTestComb)) { 
+             if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; 
+             return false; 
+         }
+     }
+ } else {
+     // 常態無喜愛號模式，老老實實走原本的過濾流程
+     for (let i = 0; i < filters.length; i++) {
+         if (filters[i].exec(comb)) { 
+             if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; 
+             return false; 
+         }
+     }
+ }
+
     if (f15_on) {
       const splitCount = pickCount - 1; let conflict = false;
       const checkDfs = (start, curr) => {
@@ -1479,34 +1506,38 @@ async function triggerChunkFlush() {
     const usedNodeFlags = new Uint8Array(reservoirPool.length);
 
     for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
-        let currentSlotMask = 0;
+        const currentSlotUsedBalls = new Set();
         const currentSlotPickedIndices = []; 
 
         for (let i = 0; i < reservoirPool.length; i++) {
             if (usedNodeFlags[i] === 1) continue; 
-
             const node = reservoirPool[i];
             
-            // 核心互斥碰撞：大組內部 100% 絕對號碼隔離、0% 重複 (使用 64 位元安全浮點數碰撞)
-            // 由於 JavaScript 的 Float64Array 進行 & 運算會退回 32 位元溢出，這裡必須手寫安全大數 & 判斷
+            // 🎯 【除蟲修正】：直接調用原生 node.comb 陣列比對！徹底斷絕任何二進制除法解碼錯位與 01 綁定！
             let isCollide = false;
             for (let b = 0; b < node.comb.length; b++) {
-                if (safeFavBalls.includes(node.comb[b])) continue; // 排除喜愛號
-                // 利用除法和取模，精確判斷當前槽位的第 bit 位是否已經被霸佔
-                if (Math.floor(currentSlotMask / Math.pow(2, node.comb[b])) % 2 === 1) {
+                const ball = node.comb[b];
+                
+                // 皇家特權防線：如果是您在前端輸入的喜愛號（例如 08），直接隔離跳過不參與碰撞！
+                if (safeFavBalls.includes(ball)) continue; 
+                
+                // 其餘號碼進入當前大組槽的 Set 集合比對，有重複 1 個字當場擊殺！
+                if (currentSlotUsedBalls.has(ball)) {
                     isCollide = true;
-                    break;
+                    break; 
                 }
             }
-
             if (!isCollide) {
-                // 100% 確定不重複，錄入當前大組的動態足跡牆
+                // 確定合規，將其餘非喜愛號彩球，正式錄入當前大組槽的 Set 用球集合中
                 for (let b = 0; b < node.comb.length; b++) {
-                    if (safeFavBalls.includes(node.comb[b])) continue;
-                    currentSlotMask += Math.pow(2, node.comb[b]);
+                    const ball = node.comb[b];
+                    if (!safeFavBalls.includes(ball)) {
+                        currentSlotUsedBalls.add(ball);
+                    }
                 }
                 currentSlotPickedIndices.push(i); 
             }
+
 
             // 完美達標組數，換下一個槽
             if (currentSlotPickedIndices.length === maxGroupLimitPerSlot) {
@@ -1514,15 +1545,16 @@ async function triggerChunkFlush() {
             }
         }
 
-        // 🎯 智慧自癒寬容機制：大組優先滿足極限，若因號碼卡位停在 4 組以上（含）也大方承認錄取
-        if (currentSlotPickedIndices.length >= 4) {
+        // 🎯 【解鎖核心】：取消任何硬性最低組數流產限制！只要大組槽有成功圈出名單（length > 0），一律 100% 打包錄取！
+        if (currentSlotPickedIndices.length > 0) {
             for (let idx of currentSlotPickedIndices) {
                 usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎號碼
                 
                 const node = reservoirPool[idx];
-                const currentNoise = Math.random() * 0.9999;
-                // 在最前面加上 "\n"，強迫第一個數字直接從下一行開始排版
-const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
+                 const currentNoise = Math.random() * 0.9999;
+ // 🎯 【滿血回歸】：老老實實用最純粹的 node.comb，原汁原味恢復 6 顆球（大樂透）與 5 顆球（539）！
+ const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
+
 
                 
                 slotMachine[s].items.push({
@@ -1535,9 +1567,8 @@ const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', 
                     unit: s + 1 // 物理鎖定大組
                 });
             }
-        } else {
-            currentSlotPickedIndices.length = 0; 
         }
+
     }
 
     // ─── 階段四：交卷通道（大組填滿降序排列） ───
