@@ -425,7 +425,7 @@ if (isMainThread) {
     const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
     const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
 
-   // ========================================== 【分流 A：100% 完整無省略點對點局部替換範圍】 ==========================================
+// ========================================== 【分流 A：100% 完整無省略大組完美切換替換範圍】 ==========================================
  if (isNoConditions) {
      console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
      if (dbUser) {
@@ -453,14 +453,19 @@ if (isMainThread) {
      const singleBigGroupLimit = Math.floor(availableBallsForWheel.length / availableSlotsPerGroup);
 
      let currentBigGroupUsedBallsSet = new Set();
+     let currentUnitCombs = []; // 🎯 【核心修正點】：用來存放「當前這一個大組內部」已經生出來的號碼陣列
+     let assignedUnitCounter = 1;
+     let currentUnitCount = 0;
      let attempts = 0;
+
      while (finalOutputCombs.length < pickLimit && attempts < 80000) {
          attempts++;
          let pool = [...availableBallsForWheel].filter(b => !currentBigGroupUsedBallsSet.has(b));
          
-         // 如果剩餘可用彩球不足一組，或是用戶不是選聰明包牌，則重置該大組用球牆，重新輪替下一大組
+         // 如果剩餘可用彩球不足一組，或是用戶不是選聰明包牌，則重置該大組用球牆，並清空大組內部對決容器
          if (pool.length < availableSlotsPerGroup || cfg.vipMode !== 'smart') {
              currentBigGroupUsedBallsSet.clear();
+             currentUnitCombs = []; // 🎯 【核心自癒】：換大組時，老老實實清空前一組的記憶！
              pool = [...availableBallsForWheel];
          }
          
@@ -483,17 +488,11 @@ if (isMainThread) {
          // =========================================================================
          // 【免死金牌直通區專用】聰明包牌模式：歷史交付明牌點對點去重打散晶片 👑
          // =========================================================================
-         if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
+         if (cfg.vipMode === 'smart' && currentUnitCombs.length > 0) {
              let hasTooMuchOverlap = false;
              
-             // 拿當前這組 currentComb 去跟已經決定要交付的每一組明牌進行鐵血比對
-             for (const existingStr of finalOutputCombs) {
-                 const match = existingStr.match(/:\s*([\d, \s]+)/);
-                 if (!match) continue;
-                 
-                 const existingNums = match[1].split(',').map(n => parseInt(n.trim(), 10));
-                 
-                 // 計算重複了幾顆球
+             // 🎯 【除蟲核心】：新號碼「只跟同大組內」的現有組合比對！絕不跨組卡位死鎖
+             for (const existingNums of currentUnitCombs) {
                  let overlap = 0;
                  for (let b = 0; b < currentComb.length; b++) {
                      if (existingNums.includes(currentComb[b])) {
@@ -501,29 +500,35 @@ if (isMainThread) {
                      }
                  }
                  
-                 // ⚡ 鐵血除蟲防線：落實剛性聰明包牌！只要重複 1 顆球以上，直接判定長太像，原地擊殺剔除！
+                 // 剛性隔離：同大組內只要重複 1 顆球以上，原地擊殺！
                  if (overlap >= 1) {
                      hasTooMuchOverlap = true;
                      break;
                  }
              }
              
-             // 踩雷則直接 continue 跳過這組號碼，重新拋射下一組，直到號碼在大組內 100% 完全互斥！
-             if (hasTooMuchOverlap) continue;
+             if (hasTooMuchOverlap) continue; // 踩雷重複，重新拋射
          }
          // =========================================================================
 
-         // 確定合規，將號碼錄入當前大組的已用球集合中，強迫後續彩球物理隔離
+         // 確定錄取，寫入本地與全域追蹤
          currentComb.forEach(ball => currentBigGroupUsedBallsSet.add(ball));
+         currentUnitCombs.push(currentComb); // 鎖定存入當前大組的生還成員中
          globalUniqueSet.add(combKey);
          
-         const nextIndex = finalOutputCombs.length + 1;
-         const indexStr = String(nextIndex).padStart(2, '0');
+         pickedCount++;
+         const indexStr = String(pickedCount).padStart(2, '0');
          const formattedOutput = formattedArray.join(', ');
          
-         // 精確計算大組實體編號：依照大樂透限滿 8 組（或539限滿7組）的物理容量，滿額自動切換到下一大組！
-         const currentUnit = Math.ceil(nextIndex / singleBigGroupLimit);
-         finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${currentUnit} 大組) : \n${formattedOutput}\n`);
+         finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${assignedUnitCounter} 大組) [評分: 410分] : \n${formattedOutput}\n`);
+         
+         currentUnitCount++;
+         if (currentUnitCount >= singleBigGroupLimit) {
+             currentBigGroupUsedBallsSet.clear();
+             currentUnitCombs = []; // 滿 8 組（大樂透）自動開啟全新第二大組，清空前組記憶
+             assignedUnitCounter++;
+             currentUnitCount = 0;
+         }
      }
 
      res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
@@ -534,8 +539,8 @@ if (isMainThread) {
          outputText: `【VIP純隨機大竣工】中繼站本次海選實時通過總數：\n${totalTheoreticalCombs} 組 \n \n【當前交付解鎖組合（已完美大組控重，且100%過濾歷史頭獎紀錄！）】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
      }) + "\n");
      return res.end();
- } // 完美閉合通道 A 🌟
-// ========================================== 【分流 A 完整範圍結束，無縫對齊主執行緒後續 VIP 特權判斷】 ==========================================
+ }
+// ========================================== 【分流 A 完整範圍結束】 ==========================================
 
      if (!isVipPass) {
  // 如果沒有月費 VIP，也沒有 24 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
