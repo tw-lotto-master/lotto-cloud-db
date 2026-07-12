@@ -1455,18 +1455,22 @@ async function triggerChunkFlush() {
     shuffleArray(reservoirPool);
 
    // ========================================== 【區塊 2-2：終極完美互斥與零重複過濾引擎】 ==========================================
-       // ─── 階段三：【Set集合實體互斥引擎】200 個槽位主動撈取，完美相容條件16（喜愛號） ───
+      // ─── 階段三：【智慧不流產 Set 互斥引擎】200 個槽位主動撈取，有多少吐多少，絕對不允許 0 組 ───
     const WORKER_TOTAL_SLOTS = 200;
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
     const pureBallsPerComb = mainPickCount - favCount; 
-    // 由剩餘球數決定的極限上限（大樂透預設8組，539預設7組）
-    const maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
+    // 由剩餘球數決定的極限上限上限，若有喜愛號則動態退讓
+    let maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
+    
+    // 剛性安全加固：若算出來超出常規，強制修正為安全基準值
+    if (maxGroupLimitPerSlot > 12 || maxGroupLimitPerSlot <= 0) {
+        maxGroupLimitPerSlot = lottoType === "49_6" ? 8 : 7;
+    }
 
     const usedNodeFlags = new Uint8Array(reservoirPool.length);
 
     for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
-        // 每一個大組槽建立一個專屬的實體彩球 Set 集合，用來記錄該大組「目前已經用掉了哪些號碼」
         const currentSlotUsedBalls = new Set();
         const currentSlotPickedIndices = []; 
 
@@ -1475,20 +1479,19 @@ async function triggerChunkFlush() {
 
             const node = reservoirPool[i];
             
-            // 核心互斥檢查：遍歷當前號碼的 6 顆球，看有沒有跟大組內已有的號碼重複（排除喜愛號）
+            // 實體號碼 100% 互斥核對
             let isCollide = false;
             for (let b = 0; b < node.comb.length; b++) {
                 const ball = node.comb[b];
-                if (safeFavBalls.includes(ball)) continue; // 喜愛號不參與互斥，直接跳過
+                if (safeFavBalls.includes(ball)) continue; // 喜愛號是皇家特權，直接跳過不參與碰撞
                 
                 if (currentSlotUsedBalls.has(ball)) {
                     isCollide = true;
-                    break; // 踩雷重複，直接擊殺
+                    break; 
                 }
             }
 
             if (!isCollide) {
-                // 100% 確定不重複，將這組號碼的非喜愛號球，全部錄入該大組的用球牆
                 for (let b = 0; b < node.comb.length; b++) {
                     const ball = node.comb[b];
                     if (!safeFavBalls.includes(ball)) {
@@ -1498,20 +1501,20 @@ async function triggerChunkFlush() {
                 currentSlotPickedIndices.push(i); 
             }
 
-            // 完美達標組數，換下一個槽
-            if (currentSlotPickedIndices.length === maxGroupLimitPerSlot) {
+            if (currentSlotPickedIndices.length >= maxGroupLimitPerSlot) {
                 break; 
             }
         }
 
-        // 智慧自癒寬容機制：大組優先滿足極限，若因號碼卡位（或勾選防線過多），只要湊滿 3 組以上就允許錄取
-        if (currentSlotPickedIndices.length >= 3) {
+        // 🎯 【解鎖核心】：取消任何最低組數限制（拔除流產機制）！
+        // 只要當前大組在剩下的池子裡有成功圈出組合（length > 0），一律視為合法，100% 打包錄取！
+        if (currentSlotPickedIndices.length > 0) {
             for (let idx of currentSlotPickedIndices) {
-                usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎號碼
+                usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎
                 
                 const node = reservoirPool[idx];
                 const currentNoise = Math.random() * 0.9999;
-                const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', '); // 保持第一個數字自動換行
+                const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', '); 
                 
                 slotMachine[s].items.push({
                     score: Math.max(250, node.score + 150),
@@ -1519,20 +1522,18 @@ async function triggerChunkFlush() {
                     finalScore: node.score + currentNoise + 150,
                     comb: node.comb,
                     formatted,
-                    unit: s + 1 // 物理鎖定大組
+                    unit: s + 1 
                 });
             }
-        } else {
-            currentSlotPickedIndices.length = 0; 
         }
     }
 
-    // ─── 階段四：交卷通道（大組填滿降序排列） ───
+    // ─── 階段四：交卷通道（按照大組實際捕獲的「飽和飽滿度」由高到低降序重排列） ───
     const localLeaderBoard = [];
     try {
         const sortedSlots = slotMachine
             .filter(slot => slot && slot.items && slot.items.length > 0)
-            .sort((a, b) => b.items.length - a.items.length);
+            .sort((a, b) => b.items.length - a.items.length); // 讓最飽滿、出牌數最多的大組排在最前面吐給前端
         
         let assignedUnitCounter = 1;
         for (let s = 0; s < sortedSlots.length; s++) {
@@ -1541,7 +1542,7 @@ async function triggerChunkFlush() {
             
             for (let j = 0; j < currentSlot.items.length; j++) {
                 const item = currentSlot.items[j];
-                item.unit = assignedUnitCounter; // 刷新賦予連續的大組標籤
+                item.unit = assignedUnitCounter; 
                 localLeaderBoard.push(item);
             }
             if (currentSlot.items.length > 0) {
@@ -1568,8 +1569,7 @@ async function triggerChunkFlush() {
         finalScoreDistribution: localScoreDistribution
     });
 })();
-// ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
-
+// ========================================== 【區塊 2：終極主動圈出滿足組引擎全部結束】 ==========================================
 
 }
 
