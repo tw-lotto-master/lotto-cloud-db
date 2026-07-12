@@ -858,9 +858,13 @@ if (!isMainThread) {
   const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
   const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : []);
   const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
-  const favBalls = vip_fav_on && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
-  let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
-  
+ 
+ // 🎯 【除蟲修正一】：精確解碼用戶點選的喜愛號實體陣列
+ const favBalls = vip_fav_on && cfg.vip_fav_set ? (Array.isArray(cfg.vip_fav_set) ? cfg.vip_fav_set.map(Number) : String(cfg.vip_fav_set).split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : [];
+ 
+ // 🎯 【除蟲修正二】：海選的原始基礎球池必須「完整包含所有彩球（扣除地雷號即可）」，絕對不允許在這裡把喜愛號強行剔除！
+ let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
+
   const filters = [];
 
 
@@ -1267,11 +1271,32 @@ if (f13_on) {
 // =========================================================================
   const killStats = new Uint32Array(16);
   let totalGeneratedTestCount = 0;
-  function isGeneSurvive(comb) {
-    totalGeneratedTestCount++;
-    for (let i = 0; i < filters.length; i++) {
-      if (filters[i].exec(comb)) { if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; return false; }
-    }
+   function isGeneSurvive(comb) {
+ totalGeneratedTestCount++;
+ 
+ // 🎯 【喜愛碼特權豁免晶片】：如果用戶開啟了條件 16，這組號碼必須「100% 內含所有喜愛號」，否則直接丟棄！
+ if (typeof favBalls !== 'undefined' && Array.isArray(favBalls) && favBalls.length > 0) {
+     for (let f = 0; f < favBalls.length; f++) {
+         if (!comb.includes(favBalls[f])) return false; // 沒帶喜愛號，大門口直接原地擊殺！
+     }
+     // 🌟 核心自癒：建立一組「不含喜愛號」的純粹號碼，拿去讓 16 防線審查，防止被誤殺！
+     const pureTestComb = comb.filter(ball => !favBalls.includes(ball));
+     for (let i = 0; i < filters.length; i++) {
+         if (filters[i].exec(pureTestComb)) { 
+             if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; 
+             return false; 
+         }
+     }
+ } else {
+     // 常態無喜愛號模式，老老實實走原本的過濾流程
+     for (let i = 0; i < filters.length; i++) {
+         if (filters[i].exec(comb)) { 
+             if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; 
+             return false; 
+         }
+     }
+ }
+
     if (f15_on) {
       const splitCount = pickCount - 1; let conflict = false;
       const checkDfs = (start, curr) => {
