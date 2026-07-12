@@ -425,7 +425,7 @@ if (isMainThread) {
     const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
     const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
 
-// ========================================== 【分流 A：100% 完整無省略點對點終極竣工範圍】 ==========================================
+// ========================================== 【分流 A：聰明包牌絕對互斥、一般隨機自由重複範圍】 ==========================================
  if (isNoConditions) {
      console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
      if (dbUser) {
@@ -451,7 +451,7 @@ if (isMainThread) {
      const availableSlotsPerGroup = mainPickCount;
      const slotsPerBigGroup = mainLottoType === "49_6" ? 8 : 7; // 大樂透 8 組封頂，539 滿 7 組封頂
 
-     let mainSlotUsedBalls = new Set(); // 專屬當前大組的彩球足跡牆
+     let mainSlotUsedBalls = new Set(); // 專屬聰明包牌當前大組的彩球足跡牆
      let assignedUnitCounter = 1;
      let currentUnitCount = 0;
      let pickedCount = 0;
@@ -462,19 +462,18 @@ if (isMainThread) {
          while (finalOutputCombs.length < pickLimit && attempts < 100000) {
              attempts++;
              
-             // 從全部 49 顆球（或39顆球）中，排除「當前大組已經用掉的球」
+             // 從全部彩球中排除「當前大組已經用掉的球」，保證絕對隔離不重複
              let pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1).filter(b => !mainSlotUsedBalls.has(b));
              
-             // 🌟 核心自癒臨界線：如果剩餘球數不夠湊滿下一組不重複的號碼（例如剩 7 顆以下）
-             // 代表當前大組已經完美榨乾！立刻強制重置足跡牆，換下一大組，絕不卡死在 7 組！
+             // 如果剩餘球數不夠湊滿下一組不重複的號碼，或達到大組組數限制，自動安全開啟下一大組
              if (pool.length < mainPickCount || currentUnitCount >= slotsPerBigGroup) {
-                 mainSlotUsedBalls.clear(); // 物理清空足跡，解放球池
+                 mainSlotUsedBalls.clear(); 
                  assignedUnitCounter++;
                  currentUnitCount = 0;
                  pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
              }
 
-             // 隨機拋射打散球池
+             // 隨機拋射打散
              for (let i = pool.length - 1; i > 0; i--) {
                  let j = Math.floor(Math.random() * (i + 1));
                  const temp = pool[i];
@@ -489,7 +488,7 @@ if (isMainThread) {
 
              if (globalUniqueSet.has(combKey) || historyCacheSet.has(historyKey)) continue;
 
-             // 錄入當前大組足跡牆，強迫後續號碼達到 100% 絕對完全互斥隔離
+             // 錄入當前大組足跡牆，強迫同組內後續號碼達到 100% 絕對完全互斥隔離
              currentComb.forEach(ball => mainSlotUsedBalls.add(ball));
              globalUniqueSet.add(combKey);
 
@@ -504,18 +503,12 @@ if (isMainThread) {
      } 
      // ─── 🎯 情況二：如果用戶選擇了【一般隨機組合】 ───
      else {
+         // 🌟 滿血導正：恢復原創純隨機狀態，允許重複，絕不亂加任何不重複的限制！
          while (finalOutputCombs.length < pickLimit && attempts < 100000) {
              attempts++;
              
-             // 一般隨機模式下，每大組內部各自獨立，球數不夠或滿額即重置
-             let pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1).filter(b => !mainSlotUsedBalls.has(b));
-             
-             if (pool.length < mainPickCount || currentUnitCount >= slotsPerBigGroup) {
-                 mainSlotUsedBalls.clear();
-                 assignedUnitCounter++;
-                 currentUnitCount = 0;
-                 pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
-             }
+             // 直接從 1~49 的全量球池中隨機抽取，組別之間允許號碼自然、常態重疊！
+             let pool = Array.from({ length: mainMaxBall }, (_, i) => i + 1);
 
              for (let i = pool.length - 1; i > 0; i--) {
                  let j = Math.floor(Math.random() * (i + 1));
@@ -529,18 +522,17 @@ if (isMainThread) {
              const formattedArray = currentComb.map(n => String(n).padStart(2, '0'));
              const historyKey = formattedArray.join(',');
 
+             // 僅過濾歷史頭獎與全域一模一樣的孿生組合，允許正常的號碼重複
              if (globalUniqueSet.has(combKey) || historyCacheSet.has(historyKey)) continue;
 
-             currentComb.forEach(ball => mainSlotUsedBalls.add(ball));
              globalUniqueSet.add(combKey);
 
              pickedCount++;
              const indexStr = String(pickedCount).padStart(2, '0');
              const formattedOutput = formattedArray.join(', ');
 
-             finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${assignedUnitCounter} 大組) [評分: 390分] : \n${formattedOutput}\n`);
-             
-             currentUnitCount++;
+             // 一般隨機模式依據原本邏輯，統一優雅歸類在第 1 大組
+             finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: 390分] : \n${formattedOutput}\n`);
          }
      }
 
@@ -553,7 +545,7 @@ if (isMainThread) {
      }) + "\n");
      return res.end();
  }
-// ========================================== 【分流 A 終極範圍完工結束】 ==========================================
+// ========================================== 【分流 A 完美分流結束】 ==========================================
 
 
 
