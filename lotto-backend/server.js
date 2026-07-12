@@ -1518,16 +1518,14 @@ async function triggerChunkFlush() {
             }
         }
 
-        // 🎯 智慧自癒寬容機制：大組優先滿足極限，若因號碼卡位停在 4 組以上（含）也大方承認錄取
-        if (currentSlotPickedIndices.length >= 4) {
+        // 🎯 【解鎖核心】：取消任何硬性最低組數流產限制！只要大組槽有成功圈出名單（length > 0），一律 100% 打包錄取！
+        if (currentSlotPickedIndices.length > 0) {
             for (let idx of currentSlotPickedIndices) {
                 usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎號碼
                 
                 const node = reservoirPool[idx];
                 const currentNoise = Math.random() * 0.9999;
-                // 在最前面加上 "\n"，強迫第一個數字直接從下一行開始排版
-const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
-
+                const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
                 
                 slotMachine[s].items.push({
                     score: Math.max(250, node.score + 150),
@@ -1539,9 +1537,8 @@ const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', 
                     unit: s + 1 // 物理鎖定大組
                 });
             }
-        } else {
-            currentSlotPickedIndices.length = 0; 
         }
+
     }
 
     // ─── 階段四：交卷通道（大組填滿降序排列） ───
