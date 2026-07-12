@@ -257,26 +257,45 @@ app.post('/api/user/single-unlock', async (req, res) => {
 
 
 
-// ─── 雲端收藏夾儲存與拉取 API ───
+// ─── 雲端收藏夾儲存 API：全面重構為「100% 物理擦除覆蓋」 ───
 app.post('/api/tickets/save', authenticateToken, async (req, res) => {
-  try {
-    const ticketsData = req.body.tickets || req.body.ticket;
-    if (!ticketsData) return res.status(400).json({ success: false, message: '無效的號碼憑證' });
-    const dbUser = await User.findById(req.user.userId);
-    if (!dbUser) return res.status(404).json({ success: false, message: '操盤手帳號不存在' });
-    if (!dbUser.savedTickets) dbUser.savedTickets = [];
-    const target = Array.isArray(ticketsData) ? ticketsData : [ticketsData];
-    target.forEach(t => {
-      const content = typeof t === 'object' ? t.content : t;
-      if (!dbUser.savedTickets.some(item => (typeof item === 'object' ? item.content : item) === content)) {
-        dbUser.savedTickets.push({ content, id: `TK-${Date.now()}-${Math.floor(Math.random() * 1000)}`, createdAt: new Date() });
-      }
-    });
-    dbUser.markModified('savedTickets');
-    await dbUser.save();
-    return res.json({ success: true, message: '成功同步至雲端收藏夾！', savedTickets: dbUser.savedTickets });
-  } catch (err) { return res.status(500).json({ success: false, message: '雲端同步失敗' }); }
+ try {
+ const ticketsData = req.body.tickets || req.body.ticket;
+ if (!ticketsData) return res.status(400).json({ success: false, message: '無效的號碼憑證' });
+ 
+ const dbUser = await User.findById(req.user.userId);
+ if (!dbUser) return res.status(404).json({ success: false, message: '操盤手帳號不存在' });
+ 
+ // ─── 🎯 【除蟲核心】：直接強行清空舊陣列，不進行任何 push 拼接 ───
+ dbUser.savedTickets = []; 
+
+ // 將前端傳過來的最新名單（不論是字串還是陣列）洗淨格式化後存入
+ const target = Array.isArray(ticketsData) ? ticketsData : [ticketsData];
+ target.forEach((t, idx) => {
+ const content = typeof t === 'object' ? t.content : t;
+ if (content && String(content).trim().length > 0) {
+ dbUser.savedTickets.push({
+ content: String(content).trim(),
+ id: `TK-${Date.now()}-${idx}-${Math.floor(Math.random() * 1000)}`,
+ createdAt: new Date()
+ });
+ }
+ });
+ 
+ dbUser.markModified('savedTickets');
+ await dbUser.save(); // 強制回寫，完成雲端淨化覆蓋
+ 
+ return res.json({ 
+ success: true, 
+ message: '成功覆蓋並同步至雲端收藏夾！舊紀錄已完全抹除。', 
+ savedTickets: dbUser.savedTickets 
+ });
+ } catch (err) { 
+ console.error("[雲端同步攔截報錯]：", err.message);
+ return res.status(500).json({ success: false, message: '雲端同步失敗' }); 
+ }
 });
+
 
 async function listSavedTickets(req, res) {
   const rawAuth = req.headers.authorization || req.headers.Authorization || req.query.token || (req.body && req.body.token);
@@ -1290,24 +1309,24 @@ async function triggerChunkFlush() {
     const safeFavBalls = (typeof favBalls !== 'undefined' && Array.isArray(favBalls)) ? favBalls : [];
     const favCount = (vip_fav_on && safeFavBalls.length > 0) ? safeFavBalls.length : 0;
 
-    // ─── 階段一：純 DFS 極速海選（0 陣列預配開銷，徹底防爆記憶體） ───
-    const MAX_POOL_SIZE = 300000; // 30 萬精英水庫
+    
+       // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除外層地獄 while 迴圈，解鎖 2 秒竣工極限） ───
+    const MAX_POOL_SIZE = 300000; 
     const reservoirPool = [];
     const tempCombination = new Array(mainPickCount);
 
-    // 回歸經典且極速的純數學 DFS
-    async function dfsSearch(level, startIndex) {
+    // 終極同步遞迴核心：0 煞車，全力衝刺 1398 萬組
+    function dfsSearchSync(level, startIndex) {
         if (scannedCount >= maxCombinations) return;
 
         if (level === mainPickCount) {
             scannedCount++;
             localTotalGen++;
 
-            // 1. 16 道防線鐵血排除（只做快如閃電的邏輯判斷）
+            // 16 道防線鐵血排除與健康度加權評分
             if (isGeneSurvive(tempCombination)) {
                 localEvaluatedCount++;
 
-                // 2. 五大指標健康度加權評分
                 let healthScore = 100;
                 const sumVal = tempCombination.reduce((x, y) => x + y, 0);
                 if (lottoType === "49_6") {
@@ -1367,55 +1386,53 @@ async function triggerChunkFlush() {
                     else healthScore -= 50;
                 }
 
-                // 250分門檻死守
                 if (healthScore >= 250) {
                     const floorScore = Math.floor(healthScore);
                     localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
 
-                    // 計算純淨二進制 64 位元無損遮罩
                     const pureCombs = tempCombination.filter(ball => !safeFavBalls.includes(ball));
                     let pureMask = 0;
                     for (let b = 0; b < pureCombs.length; b++) { pureMask += Math.pow(2, pureCombs[b]); }
 
-                    // 🎯 【更好、更完美的黃金修正點】：水庫動態替換晶片
-                    // 前 30 萬筆精英直接存入池中
                     if (reservoirPool.length < MAX_POOL_SIZE) {
-                        reservoirPool.push({
-                            mask: pureMask,
-                            score: healthScore,
-                            comb: [...tempCombination]
-                        });
+                        reservoirPool.push({ mask: pureMask, score: healthScore, comb: [...tempCombination] });
                     } else {
-                        // 第 30 萬零 1 筆開始，以漸進式隨機概率抽換池中的號碼
-                        // 這能確保 1398 萬組全部掃完後，池子內完美交織了大號碼與小號碼的精華
                         const replaceIndex = Math.floor(Math.random() * localEvaluatedCount);
                         if (replaceIndex < MAX_POOL_SIZE) {
-                            reservoirPool[replaceIndex] = {
-                                mask: pureMask,
-                                score: healthScore,
-                                comb: [...tempCombination]
-                            };
+                            reservoirPool[replaceIndex] = { mask: pureMask, score: healthScore, comb: [...tempCombination] };
                         }
                     }
                 }
-
             }
 
-            // 進度排空非同步防線，防止前端阻塞
-            if (scannedCount % 1000000 === 0 || scannedCount === maxCombinations) {
-                await triggerChunkFlush();
+            // 每隔 100 萬組，在同步的大海中向下射出一枚異步進度封包，這在多執行緒下開銷極低
+            if (scannedCount % 1000000 === 0) {
+                // 利用全域 parentPort 異步發射，絕不阻斷當前遞迴軸
+                const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 99);
+                parentPort.postMessage({
+                    type: 'TOTAL_SCAN_PROGRESS',
+                    scanned: scannedCount,
+                    maxTotal: maxCombinations,
+                    percent: currentPercent,
+                    stats: Array.from(killStats),
+                    totalGen: localTotalGen,
+                    finalEvaluatedCount: localEvaluatedCount,
+                    finalScoreDistribution: localScoreDistribution
+                });
             }
             return;
         }
 
         for (let i = startIndex; i < pLen; i++) {
             tempCombination[level] = basePool[i];
-            await dfsSearch(level + 1, i + 1);
+            dfsSearchSync(level + 1, i + 1); 
         }
     }
 
-    // 點火！執行最安全的純遞迴海選過濾
-    await dfsSearch(0, 0);
+    // 🔥 點火！老老實實、精準呼叫「唯一一次」全量同步海選，0 重複開銷
+    dfsSearchSync(0, 0);
+    
+    
 
     // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
