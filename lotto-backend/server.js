@@ -1454,16 +1454,18 @@ async function triggerChunkFlush() {
     // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
 
-   // ========================================== 【區塊 2-2：終極完美互斥與零重複過濾引擎】 ==========================================
-      // ─── 階段三：【智慧不流產 Set 互斥引擎】200 個槽位主動撈取，有多少吐多少，絕對不允許 0 組 ───
+ // ========================================== 【區塊 2-2：原創相容 ── 喜愛號原生隔離互斥引擎】 ==========================================
+    // ─── 階段三：【原生 favBalls 隔離引擎】200 個槽位主動撈取，直接調用全量認證完成之喜愛號 ───
     const WORKER_TOTAL_SLOTS = 200;
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
+    // 🎯 滿血合龍：直接、100% 老老實實使用您最外層由 1398 萬組 DFS 認證過濾好的全域變數 favBalls
+    const currentFavBallsArray = (typeof favBalls !== 'undefined' && Array.isArray(favBalls)) ? favBalls : [];
+    const favCount = currentFavBallsArray.length;
+
     const pureBallsPerComb = mainPickCount - favCount; 
-    // 由剩餘球數決定的極限上限上限，若有喜愛號則動態退讓
+    // 由賸餘可用球數決定的精確極限上限（大樂透扣除喜愛號後動態對齊）
     let maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
-    
-    // 剛性安全加固：若算出來超出常規，強制修正為安全基準值
     if (maxGroupLimitPerSlot > 12 || maxGroupLimitPerSlot <= 0) {
         maxGroupLimitPerSlot = lottoType === "49_6" ? 8 : 7;
     }
@@ -1471,6 +1473,7 @@ async function triggerChunkFlush() {
     const usedNodeFlags = new Uint8Array(reservoirPool.length);
 
     for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
+        // 每一個大組槽建立一個獨立的彩球足跡牆，用來記錄排除喜愛號後「目前已用掉的其餘球號」
         const currentSlotUsedBalls = new Set();
         const currentSlotPickedIndices = []; 
 
@@ -1479,41 +1482,44 @@ async function triggerChunkFlush() {
 
             const node = reservoirPool[i];
             
-            // 實體號碼 100% 互斥核對
+            // 核心實體互斥檢查：因為生存池內本來就都帶有用戶指定的喜愛號，我們只需要在互斥比對時將其安全跳過！
             let isCollide = false;
             for (let b = 0; b < node.comb.length; b++) {
                 const ball = node.comb[b];
-                if (safeFavBalls.includes(ball)) continue; // 喜愛號是皇家特權，直接跳過不參與碰撞
+                // 100% 直連最外層全域喜愛號，將其作為皇家特權跳過，不參與碰撞！
+                if (currentFavBallsArray.includes(ball)) continue; 
                 
                 if (currentSlotUsedBalls.has(ball)) {
                     isCollide = true;
-                    break; 
+                    break; // 其餘號碼有任何一顆重複，當場原地擊殺！
                 }
             }
 
             if (!isCollide) {
+                // 確定合規，將其餘的非喜愛號球錄入該大組的用球足跡牆
                 for (let b = 0; b < node.comb.length; b++) {
                     const ball = node.comb[b];
-                    if (!safeFavBalls.includes(ball)) {
+                    if (!currentFavBallsArray.includes(ball)) {
                         currentSlotUsedBalls.add(ball);
                     }
                 }
                 currentSlotPickedIndices.push(i); 
             }
 
+            // 完美達標，大組槽關閘
             if (currentSlotPickedIndices.length >= maxGroupLimitPerSlot) {
                 break; 
             }
         }
 
-        // 🎯 【解鎖核心】：取消任何最低組數限制（拔除流產機制）！
-        // 只要當前大組在剩下的池子裡有成功圈出組合（length > 0），一律視為合法，100% 打包錄取！
+        // 智慧自癒放行：只要當前大組能順利圈出互斥島嶼（length > 0），一律打包錄取，徹底破除 0 組空白
         if (currentSlotPickedIndices.length > 0) {
             for (let idx of currentSlotPickedIndices) {
                 usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎
                 
                 const node = reservoirPool[idx];
                 const currentNoise = Math.random() * 0.9999;
+                // 保持第一個數字自動強制換行的精緻美學
                 const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', '); 
                 
                 slotMachine[s].items.push({
@@ -1528,12 +1534,12 @@ async function triggerChunkFlush() {
         }
     }
 
-    // ─── 階段四：交卷通道（按照大組實際捕獲的「飽和飽滿度」由高到低降序重排列） ───
+    // ─── 階段四：交卷通道（大組填滿降序排列） ───
     const localLeaderBoard = [];
     try {
         const sortedSlots = slotMachine
             .filter(slot => slot && slot.items && slot.items.length > 0)
-            .sort((a, b) => b.items.length - a.items.length); // 讓最飽滿、出牌數最多的大組排在最前面吐給前端
+            .sort((a, b) => b.items.length - a.items.length); // 填得最滿的大組浮在最上面優先出牌
         
         let assignedUnitCounter = 1;
         for (let s = 0; s < sortedSlots.length; s++) {
@@ -1569,7 +1575,8 @@ async function triggerChunkFlush() {
         finalScoreDistribution: localScoreDistribution
     });
 })();
-// ========================================== 【區塊 2：終極主動圈出滿足組引擎全部結束】 ==========================================
+// ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
+
 
 }
 
