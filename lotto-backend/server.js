@@ -1467,150 +1467,125 @@ async function triggerChunkFlush() {
     // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
 
+   // ========================================== 【區塊 2-2：終極完美互斥與零重複過濾引擎】 ==========================================
+    // ─── 階段三：【終極自癒撈取引擎】200 個槽位主動進池子圈出不重複滿足組 ───
+    const WORKER_TOTAL_SLOTS = 200;
+    const slotBitmasks = new Float64Array(WORKER_TOTAL_SLOTS);
+    const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
+    
+    const pureBallsPerComb = mainPickCount - favCount; 
+    const maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
 
-// ========================================== 【第二處精準局部替換：原生隔離互斥引擎終極竣工範圍】 ==========================================
- // ─── 階段三：【原生傳遞鏈 Set 互斥引擎】200 個槽位主動撈取，排除喜愛號後其餘號碼 100% 絕對零重複 ───
- const WORKER_TOTAL_SLOTS = 200;
- const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
- 
- // 🎯 滿血合龍：直接、100% 使用最外層由 1398 萬組 DFS 認證過濾好的全域變數 favBalls（確保只認用戶點選的數字）
- const currentFavBallsArray = (typeof favBalls !== 'undefined' && Array.isArray(favBalls)) ? favBalls.map(Number) : [];
- const actualFavCount = currentFavBallsArray.length;
+    const usedNodeFlags = new Uint8Array(reservoirPool.length);
 
- const currentPureBallsPerComb = (typeof pureBallsPerComb !== 'undefined') ? pureBallsPerComb : (mainPickCount - actualFavCount);
- let maxGroupLimitPerSlot = currentPureBallsPerComb > 0 ? Math.floor((49 - actualFavCount) / currentPureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
- if (maxGroupLimitPerSlot > 12 || maxGroupLimitPerSlot <= 0) {
-     maxGroupLimitPerSlot = lottoType === "49_6" ? 8 : 7;
- }
+    for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
+        const currentSlotUsedBalls = new Set();
+        const currentSlotPickedIndices = []; 
 
- const usedNodeFlags = new Uint8Array(reservoirPool.length);
+        for (let i = 0; i < reservoirPool.length; i++) {
+            if (usedNodeFlags[i] === 1) continue; 
+            const node = reservoirPool[i];
+            
+            // 🎯 【除蟲修正】：直接調用原生 node.comb 陣列比對！徹底斷絕任何二進制除法解碼錯位與 01 綁定！
+            let isCollide = false;
+            for (let b = 0; b < node.comb.length; b++) {
+                const ball = node.comb[b];
+                
+                // 皇家特權防線：如果是您在前端輸入的喜愛號（例如 08），直接隔離跳過不參與碰撞！
+                if (safeFavBalls.includes(ball)) continue; 
+                
+                // 其餘號碼進入當前大組槽的 Set 集合比對，有重複 1 個字當場擊殺！
+                if (currentSlotUsedBalls.has(ball)) {
+                    isCollide = true;
+                    break; 
+                }
+            }
+            if (!isCollide) {
+                // 確定合規，將其餘非喜愛號彩球，正式錄入當前大組槽的 Set 用球集合中
+                for (let b = 0; b < node.comb.length; b++) {
+                    const ball = node.comb[b];
+                    if (!safeFavBalls.includes(ball)) {
+                        currentSlotUsedBalls.add(ball);
+                    }
+                }
+                currentSlotPickedIndices.push(i); 
+            }
 
- // ─── 🏆 模式 A：如果用戶選擇了【聰明包牌 (smart)】 ───
- if (cfg.vipMode === 'smart') {
-     for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
-         const currentSlotUsedBalls = new Set();
-         const currentSlotPickedIndices = []; 
 
-         for (let i = 0; i < reservoirPool.length; i++) {
-             if (usedNodeFlags[i] === 1) continue; 
+            // 完美達標組數，換下一個槽
+            if (currentSlotPickedIndices.length === maxGroupLimitPerSlot) {
+                break; 
+            }
+        }
 
-             const node = reservoirPool[i];
-             
-             // ⚡ 鐵血除蟲防線：直接調用最純淨、0 誤差的 node.comb 原生陣列，徹底斷絕任何二進制解碼錯位！
-             let isCollide = false;
-             for (let b = 0; b < node.comb.length; b++) {
-                 const ball = node.comb[b];
-                 if (currentFavBallsArray.includes(ball)) continue; // 皇家特權：喜愛號（08）直接跳過不参与碰撞，每組皆有
-                 
-                 if (currentSlotUsedBalls.has(ball)) {
-                     isCollide = true;
-                     break; // 其餘號碼有任何一顆重複，當場原地擊殺！
-                 }
-             }
+        // 🎯 智慧自癒寬容機制：大組優先滿足極限，若因號碼卡位停在 4 組以上（含）也大方承認錄取
+        if (currentSlotPickedIndices.length >= 4) {
+            for (let idx of currentSlotPickedIndices) {
+                usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎號碼
+                
+                const node = reservoirPool[idx];
+                const currentNoise = Math.random() * 0.9999;
+                // 在最前面加上 "\n"，強迫第一個數字直接從下一行開始排版
+const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
 
-             if (!isCollide) {
-                 for (let b = 0; b < node.comb.length; b++) {
-                     const ball = node.comb[b];
-                     if (!currentFavBallsArray.includes(ball)) {
-                         currentSlotUsedBalls.add(ball); // 將非喜愛號的其餘球號錄入該大組足跡牆
-                     }
-                 }
-                 currentSlotPickedIndices.push(i); 
-             }
+                
+                slotMachine[s].items.push({
+                    score: Math.max(250, node.score + 150),
+                    noise: currentNoise,
+                    finalScore: node.score + currentNoise + 150,
+                    comb: node.comb,
+                    mask: node.mask,
+                    formatted,
+                    unit: s + 1 // 物理鎖定大組
+                });
+            }
+        } else {
+            currentSlotPickedIndices.length = 0; 
+        }
+    }
 
-             if (currentSlotPickedIndices.length >= maxGroupLimitPerSlot) {
-                 break; 
-             }
-         }
+    // ─── 階段四：交卷通道（大組填滿降序排列） ───
+    const localLeaderBoard = [];
+    try {
+        const sortedSlots = slotMachine
+            .filter(slot => slot && slot.items && slot.items.length > 0)
+            .sort((a, b) => b.items.length - a.items.length);
+        
+        let assignedUnitCounter = 1;
+        for (let s = 0; s < sortedSlots.length; s++) {
+            const currentSlot = sortedSlots[s];
+            currentSlot.items.sort((a, b) => b.finalScore - a.finalScore);
+            
+            for (let j = 0; j < currentSlot.items.length; j++) {
+                const item = currentSlot.items[j];
+                item.unit = assignedUnitCounter; // 刷新賦予連續的大組標籤
+                localLeaderBoard.push(item);
+            }
+            if (currentSlot.items.length > 0) {
+                assignedUnitCounter++;
+            }
+        }
+    } catch (restoreErr) {
+        console.error("[Worker 終極安全自癒交卷異常] ", restoreErr.message);
+    }
 
-         // 智慧自癒放行：只要當前大組有成功圈出滿足名單，一律打包錄取，防堵手機空白
-         if (currentSlotPickedIndices.length > 0) {
-             for (let idx of currentSlotPickedIndices) {
-                 usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎
-                 
-                 const node = reservoirPool[idx];
-                 const currentNoise = Math.random() * 0.9999;
-                 const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', '); // 第一個數字自動換行
-                 
-                 slotMachine[s].items.push({
-                     score: Math.max(250, node.score + 150),
-                     noise: currentNoise,
-                     finalScore: node.score + currentNoise + 150,
-                     comb: node.comb,
-                     formatted,
-                     unit: s + 1 // 物理鎖定大組
-                 });
-             }
-         }
-     }
- } 
- // ─── 🏆 模式 B：如果用戶選擇了【一般隨機組合】 ───
- else {
-     let pickedTotal = 0;
-     const targetOutputLimit = (typeof pickLimit !== 'undefined') ? pickLimit : 15;
-
-     for (let i = 0; i < reservoirPool.length; i++) {
-         if (pickedTotal >= targetOutputLimit) break; 
-
-         const node = reservoirPool[i];
-         const currentNoise = Math.random() * 0.9999;
-         const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
-
-         // 一般隨機模式下，各組之間允許自然重複，且一律統一歸類在「第 1 大組」
-         slotMachine[0].items.push({
-             score: Math.max(250, node.score + 150),
-             noise: currentNoise,
-             finalScore: node.score + currentNoise + 150,
-             comb: node.comb,
-             formatted,
-             unit: 1 
-         });
-         pickedTotal++;
-     }
- }
-
- // ─── 階段四：交卷通道（大組填滿降序排列） ───
- const localLeaderBoard = [];
- try {
-     const sortedSlots = slotMachine
-         .filter(slot => slot && slot.items && slot.items.length > 0)
-         .sort((a, b) => b.items.length - a.items.length); // 填得最滿的大組優先出牌
-     
-     let assignedUnitCounter = 1;
-     for (let s = 0; s < sortedSlots.length; s++) {
-         const currentSlot = sortedSlots[s];
-         currentSlot.items.sort((a, b) => b.finalScore - a.finalScore);
-         
-         for (let j = 0; j < currentSlot.items.length; j++) {
-             const item = currentSlot.items[j];
-             item.unit = assignedUnitCounter; // 刷新連續大組標籤
-             localLeaderBoard.push(item);
-         }
-         if (currentSlot.items.length > 0) {
-             assignedUnitCounter++;
-         }
-     }
- } catch (restoreErr) {
-     console.error("[Worker 智慧自癒撈取交卷還原異常] ", restoreErr.message);
- }
-
- // 數據通道安全交卷
- parentPort.postMessage({
-     type: 'TOTAL_SCAN_PROGRESS',
-     scanned: scannedCount,
-     maxTotal: maxCombinations,
-     total: scannedCount,
-     stats: Array.from(killStats),
-     totalGen: localTotalGen
- });
- parentPort.postMessage({
-     type: 'FINAL_SURVIVE_DELIVERY',
-     leaderBoard: localLeaderBoard, 
-     finalEvaluatedCount: localEvaluatedCount,
-     finalScoreDistribution: localScoreDistribution
- });
+    // 數據通道安全交卷
+    parentPort.postMessage({
+        type: 'TOTAL_SCAN_PROGRESS',
+        scanned: scannedCount,
+        maxTotal: maxCombinations,
+        total: scannedCount,
+        stats: Array.from(killStats),
+        totalGen: localTotalGen
+    });
+    parentPort.postMessage({
+        type: 'FINAL_SURVIVE_DELIVERY',
+        leaderBoard: localLeaderBoard, 
+        finalEvaluatedCount: localEvaluatedCount,
+        finalScoreDistribution: localScoreDistribution
+    });
 })();
-// ========================================== 【分流 B 終極範圍完工結束】 ==========================================
+// ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
 
 
 }
