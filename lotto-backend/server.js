@@ -1454,18 +1454,17 @@ async function triggerChunkFlush() {
     // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
 
- // ========================================== 【區塊 2-2：原創相容 ── 喜愛號原生隔離互斥引擎】 ==========================================
-    // ─── 階段三：【原生 favBalls 隔離引擎】200 個槽位主動撈取，直接調用全量認證完成之喜愛號 ───
+// ========================================== 【區塊 2-2：原創相容 ── 喜愛號原生隔離互斥引擎（除蟲修復版）】 ==========================================
+    // ─── 階段三：【原生 favBalls 隔離引擎】200 個槽位主動撈取 ───
     const WORKER_TOTAL_SLOTS = 200;
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
     // 🎯 滿血合龍：直接、100% 老老實實使用您最外層由 1398 萬組 DFS 認證過濾好的全域變數 favBalls
     const currentFavBallsArray = (typeof favBalls !== 'undefined' && Array.isArray(favBalls)) ? favBalls : [];
-    const favCount = currentFavBallsArray.length;
 
-    const pureBallsPerComb = mainPickCount - favCount; 
-    // 由賸餘可用球數決定的精確極限上限（大樂透扣除喜愛號後動態對齊）
-    let maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
+    // 🌟 修正點：移除重複的 const 宣告，直接使用全域已經算好的 pureBallsPerComb
+    const currentPureBallsPerComb = (typeof pureBallsPerComb !== 'undefined') ? pureBallsPerComb : (mainPickCount - currentFavBallsArray.length);
+    let maxGroupLimitPerSlot = currentPureBallsPerComb > 0 ? Math.floor((49 - currentFavBallsArray.length) / currentPureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
     if (maxGroupLimitPerSlot > 12 || maxGroupLimitPerSlot <= 0) {
         maxGroupLimitPerSlot = lottoType === "49_6" ? 8 : 7;
     }
@@ -1575,6 +1574,8 @@ async function triggerChunkFlush() {
         finalScoreDistribution: localScoreDistribution
     });
 })();
+// ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
+
 // ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
 
 
