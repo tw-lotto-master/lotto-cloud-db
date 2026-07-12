@@ -1373,29 +1373,13 @@ async function triggerChunkFlush() {
     const tempCombination = new Array(mainPickCount);
 
     // 終極同步遞迴核心：0 煞車，全力衝刺 1398 萬組
-   function generateTrueRandomComb(pool, pickCount) {
-    // 每次調用，都對基礎球池進行隨機打散，確保沒有任何順序影子
-    let shuffled = [...pool];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    return shuffled.slice(0, pickCount).sort((a, b) => a - b);
-}
+    function dfsSearchSync(level, startIndex) {
+        if (scannedCount >= maxCombinations) return;
 
-// 啟動階段一：真隨機海選大水庫
-(async function runDeterministicBrain() {
-    const mainPickCount = lottoType === "49_6" ? 6 : 5;
-    const reservoirPool = [];
-    
-    // 用 loop 代替 DFS 遞迴，強迫每一組都是獨立的、全宇宙隨機的常態分佈
-    while (reservoirPool.length < MAX_POOL_SIZE && localTotalGen < maxCombinations) {
-        localTotalGen++;
-        scannedCount++; // 模擬進度計數
-        
-        // 1. 產生一組純粹隨機、無數值順序偏向的組合
-        const tempCombination = generateTrueRandomComb(basePool, mainPickCount);
-      
+        if (level === mainPickCount) {
+            scannedCount++;
+            localTotalGen++;
+
             // 16 道防線鐵血排除與健康度加權評分
             if (isGeneSurvive(tempCombination)) {
                 localEvaluatedCount++;
@@ -1459,25 +1443,51 @@ async function triggerChunkFlush() {
                     else healthScore -= 50;
                 }
 
-      if (healthScore >= 250) {
-                const pureCombs = tempCombination.filter(ball => !safeFavBalls.includes(ball));
-                let pureMask = 0;
-                for (let b = 0; b < pureCombs.length; b++) { pureMask += Math.pow(2, pureCombs[b]); }
-                
-                // 直接有序放入，因為源頭就是隨機的，不需要再做後期隨機替換
-                reservoirPool.push({ mask: pureMask, score: healthScore, comb: [...tempCombination] });
+                if (healthScore >= 250) {
+                    const floorScore = Math.floor(healthScore);
+                    localScoreDistribution[floorScore] = (localScoreDistribution[floorScore] || 0) + 1;
+
+                    const pureCombs = tempCombination.filter(ball => !safeFavBalls.includes(ball));
+                    let pureMask = 0;
+                    for (let b = 0; b < pureCombs.length; b++) { pureMask += Math.pow(2, pureCombs[b]); }
+
+                    if (reservoirPool.length < MAX_POOL_SIZE) {
+                        reservoirPool.push({ mask: pureMask, score: healthScore, comb: [...tempCombination] });
+                    } else {
+                        const replaceIndex = Math.floor(Math.random() * localEvaluatedCount);
+                        if (replaceIndex < MAX_POOL_SIZE) {
+                            reservoirPool[replaceIndex] = { mask: pureMask, score: healthScore, comb: [...tempCombination] };
+                        }
+                    }
+                }
             }
+
+            // 每隔 100 萬組，在同步的大海中向下射出一枚異步進度封包，這在多執行緒下開銷極低
+            if (scannedCount % 1000000 === 0) {
+                // 利用全域 parentPort 異步發射，絕不阻斷當前遞迴軸
+                const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 99);
+                parentPort.postMessage({
+                    type: 'TOTAL_SCAN_PROGRESS',
+                    scanned: scannedCount,
+                    maxTotal: maxCombinations,
+                    percent: currentPercent,
+                    stats: Array.from(killStats),
+                    totalGen: localTotalGen,
+                    finalEvaluatedCount: localEvaluatedCount,
+                    finalScoreDistribution: localScoreDistribution
+                });
+            }
+            return;
         }
-        
-        // 每隔 100 萬組非同步發射一次進度，維持通訊鎖
-        if (scannedCount % 1000000 === 0) {
-            parentPort.postMessage({ type: 'TOTAL_SCAN_PROGRESS', scanned: scannedCount, maxTotal: maxCombinations, stats: Array.from(killStats), totalGen: localTotalGen });
+
+        for (let i = startIndex; i < pLen; i++) {
+            tempCombination[level] = basePool[i];
+            dfsSearchSync(level + 1, i + 1); 
         }
     }
-    
-    // 因為源頭已經是真隨機，後面 200 個槽位在做足跡互斥碰撞時，就不會再發生「開頭都是 01、02 的飽和死鎖」，
-    // 每個 Slot 都能順暢撈滿、完美竣工！
-// ==================================================================================================================
+
+    // 🔥 點火！老老實實、精準呼叫「唯一一次」全量同步海選，0 重複開銷
+    dfsSearchSync(0, 0);
     
     
 
