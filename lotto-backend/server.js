@@ -575,17 +575,8 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
         }, 480000);
 
         // 🌟 核心修正：將前端傳入的歷史資料庫作為 passedHistoryDB 精確指派進去，對齊底層！
-              // ========================================== 【主執行緒修復：打包喜愛號送入子執行緒】 ==========================================
-        // 核心修正：將前端傳入的歷史資料庫與經過清洗後的 favBalls 一併塞入 workerData，對齊底層！
-        const worker = new Worker(__filename, { 
-            workerData: { 
-                cfg, 
-                passedHistoryDB: globalHistoryDB || [], 
-                favBalls: (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true') && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [],
-                threadId: 0 
-            } 
-        });
-        workers.push(worker);
+       const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
+workers.push(worker);
 
 // == ✨ 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感） ==
 try {
@@ -834,19 +825,11 @@ if (!isMainThread) {
     });
   }
   
-      // ========================================== 【子執行緒修復：防禦解碼喜愛號型態黑洞】 ==========================================
-    const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
-    const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : []);
-    
-    const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
-    
-    // 雙防線自癒：優先讀取主執行緒送進來的實體陣列，若無則從傳入的 cfg 中再度強制還原
-    let rawFav = workerData.favBalls || (vip_fav_on && cfg.vip_fav_set ? cfg.vip_fav_set : []);
-    const favBalls = Array.isArray(rawFav) ? rawFav.map(Number) : (typeof rawFav === 'string' ? rawFav.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n)) : []);
-    
-    let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
-    // ==============================================================================================================================
-
+  const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
+  const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : []);
+  const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
+  const favBalls = vip_fav_on && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
+  let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
   
   const filters = [];
 
@@ -1454,26 +1437,19 @@ async function triggerChunkFlush() {
     // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
 
-// ========================================== 【區塊 2-2：原創相容 ── 喜愛號原生隔離互斥引擎（除蟲修復版）】 ==========================================
-    // ─── 階段三：【原生 favBalls 隔離引擎】200 個槽位主動撈取 ───
+   // ========================================== 【區塊 2-2：終極完美互斥與零重複過濾引擎】 ==========================================
+    // ─── 階段三：【終極自癒撈取引擎】200 個槽位主動進池子圈出不重複滿足組 ───
     const WORKER_TOTAL_SLOTS = 200;
+    const slotBitmasks = new Float64Array(WORKER_TOTAL_SLOTS);
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
-    // 🎯 滿血合龍：直接、100% 老老實實使用您最外層由 1398 萬組 DFS 認證過濾好的全域變數 favBalls
-    const currentFavBallsArray = (typeof favBalls !== 'undefined' && Array.isArray(favBalls)) ? favBalls : [];
-
-    // 🌟 修正點：移除重複的 const 宣告，直接使用全域已經算好的 pureBallsPerComb
-    const currentPureBallsPerComb = (typeof pureBallsPerComb !== 'undefined') ? pureBallsPerComb : (mainPickCount - currentFavBallsArray.length);
-    let maxGroupLimitPerSlot = currentPureBallsPerComb > 0 ? Math.floor((49 - currentFavBallsArray.length) / currentPureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
-    if (maxGroupLimitPerSlot > 12 || maxGroupLimitPerSlot <= 0) {
-        maxGroupLimitPerSlot = lottoType === "49_6" ? 8 : 7;
-    }
+    const pureBallsPerComb = mainPickCount - favCount; 
+    const maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
 
     const usedNodeFlags = new Uint8Array(reservoirPool.length);
 
     for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
-        // 每一個大組槽建立一個獨立的彩球足跡牆，用來記錄排除喜愛號後「目前已用掉的其餘球號」
-        const currentSlotUsedBalls = new Set();
+        let currentSlotMask = 0;
         const currentSlotPickedIndices = []; 
 
         for (let i = 0; i < reservoirPool.length; i++) {
@@ -1481,55 +1457,56 @@ async function triggerChunkFlush() {
 
             const node = reservoirPool[i];
             
-            // 核心實體互斥檢查：因為生存池內本來就都帶有用戶指定的喜愛號，我們只需要在互斥比對時將其安全跳過！
+            // 核心互斥碰撞：大組內部 100% 絕對號碼隔離、0% 重複 (使用 64 位元安全浮點數碰撞)
+            // 由於 JavaScript 的 Float64Array 進行 & 運算會退回 32 位元溢出，這裡必須手寫安全大數 & 判斷
             let isCollide = false;
             for (let b = 0; b < node.comb.length; b++) {
-                const ball = node.comb[b];
-                // 100% 直連最外層全域喜愛號，將其作為皇家特權跳過，不參與碰撞！
-                if (currentFavBallsArray.includes(ball)) continue; 
-                
-                if (currentSlotUsedBalls.has(ball)) {
+                if (safeFavBalls.includes(node.comb[b])) continue; // 排除喜愛號
+                // 利用除法和取模，精確判斷當前槽位的第 bit 位是否已經被霸佔
+                if (Math.floor(currentSlotMask / Math.pow(2, node.comb[b])) % 2 === 1) {
                     isCollide = true;
-                    break; // 其餘號碼有任何一顆重複，當場原地擊殺！
+                    break;
                 }
             }
 
             if (!isCollide) {
-                // 確定合規，將其餘的非喜愛號球錄入該大組的用球足跡牆
+                // 100% 確定不重複，錄入當前大組的動態足跡牆
                 for (let b = 0; b < node.comb.length; b++) {
-                    const ball = node.comb[b];
-                    if (!currentFavBallsArray.includes(ball)) {
-                        currentSlotUsedBalls.add(ball);
-                    }
+                    if (safeFavBalls.includes(node.comb[b])) continue;
+                    currentSlotMask += Math.pow(2, node.comb[b]);
                 }
                 currentSlotPickedIndices.push(i); 
             }
 
-            // 完美達標，大組槽關閘
-            if (currentSlotPickedIndices.length >= maxGroupLimitPerSlot) {
+            // 完美達標組數，換下一個槽
+            if (currentSlotPickedIndices.length === maxGroupLimitPerSlot) {
                 break; 
             }
         }
 
-        // 智慧自癒放行：只要當前大組能順利圈出互斥島嶼（length > 0），一律打包錄取，徹底破除 0 組空白
-        if (currentSlotPickedIndices.length > 0) {
+        // 🎯 智慧自癒寬容機制：大組優先滿足極限，若因號碼卡位停在 4 組以上（含）也大方承認錄取
+        if (currentSlotPickedIndices.length >= 4) {
             for (let idx of currentSlotPickedIndices) {
-                usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎
+                usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎號碼
                 
                 const node = reservoirPool[idx];
                 const currentNoise = Math.random() * 0.9999;
-                // 保持第一個數字自動強制換行的精緻美學
-                const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', '); 
+                // 在最前面加上 "\n"，強迫第一個數字直接從下一行開始排版
+const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
+
                 
                 slotMachine[s].items.push({
                     score: Math.max(250, node.score + 150),
                     noise: currentNoise,
                     finalScore: node.score + currentNoise + 150,
                     comb: node.comb,
+                    mask: node.mask,
                     formatted,
-                    unit: s + 1 
+                    unit: s + 1 // 物理鎖定大組
                 });
             }
+        } else {
+            currentSlotPickedIndices.length = 0; 
         }
     }
 
@@ -1538,7 +1515,7 @@ async function triggerChunkFlush() {
     try {
         const sortedSlots = slotMachine
             .filter(slot => slot && slot.items && slot.items.length > 0)
-            .sort((a, b) => b.items.length - a.items.length); // 填得最滿的大組浮在最上面優先出牌
+            .sort((a, b) => b.items.length - a.items.length);
         
         let assignedUnitCounter = 1;
         for (let s = 0; s < sortedSlots.length; s++) {
@@ -1547,7 +1524,7 @@ async function triggerChunkFlush() {
             
             for (let j = 0; j < currentSlot.items.length; j++) {
                 const item = currentSlot.items[j];
-                item.unit = assignedUnitCounter; 
+                item.unit = assignedUnitCounter; // 刷新賦予連續的大組標籤
                 localLeaderBoard.push(item);
             }
             if (currentSlot.items.length > 0) {
@@ -1555,7 +1532,7 @@ async function triggerChunkFlush() {
             }
         }
     } catch (restoreErr) {
-        console.error("[Worker 智慧自癒撈取交卷還原異常] ", restoreErr.message);
+        console.error("[Worker 終極安全自癒交卷異常] ", restoreErr.message);
     }
 
     // 數據通道安全交卷
@@ -1574,8 +1551,6 @@ async function triggerChunkFlush() {
         finalScoreDistribution: localScoreDistribution
     });
 })();
-// ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
-
 // ========================================== 【區塊 2：終極完全體全部結束】 ==========================================
 
 
