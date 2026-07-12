@@ -1438,18 +1438,19 @@ async function triggerChunkFlush() {
     shuffleArray(reservoirPool);
 
    // ========================================== 【區塊 2-2：終極完美互斥與零重複過濾引擎】 ==========================================
-    // ─── 階段三：【終極自癒撈取引擎】200 個槽位主動進池子圈出不重複滿足組 ───
+       // ─── 階段三：【Set集合實體互斥引擎】200 個槽位主動撈取，完美相容條件16（喜愛號） ───
     const WORKER_TOTAL_SLOTS = 200;
-    const slotBitmasks = new Float64Array(WORKER_TOTAL_SLOTS);
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
     const pureBallsPerComb = mainPickCount - favCount; 
+    // 由剩餘球數決定的極限上限（大樂透預設8組，539預設7組）
     const maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
 
     const usedNodeFlags = new Uint8Array(reservoirPool.length);
 
     for (let s = 0; s < WORKER_TOTAL_SLOTS; s++) {
-        let currentSlotMask = 0;
+        // 每一個大組槽建立一個專屬的實體彩球 Set 集合，用來記錄該大組「目前已經用掉了哪些號碼」
+        const currentSlotUsedBalls = new Set();
         const currentSlotPickedIndices = []; 
 
         for (let i = 0; i < reservoirPool.length; i++) {
@@ -1457,23 +1458,25 @@ async function triggerChunkFlush() {
 
             const node = reservoirPool[i];
             
-            // 核心互斥碰撞：大組內部 100% 絕對號碼隔離、0% 重複 (使用 64 位元安全浮點數碰撞)
-            // 由於 JavaScript 的 Float64Array 進行 & 運算會退回 32 位元溢出，這裡必須手寫安全大數 & 判斷
+            // 核心互斥檢查：遍歷當前號碼的 6 顆球，看有沒有跟大組內已有的號碼重複（排除喜愛號）
             let isCollide = false;
             for (let b = 0; b < node.comb.length; b++) {
-                if (safeFavBalls.includes(node.comb[b])) continue; // 排除喜愛號
-                // 利用除法和取模，精確判斷當前槽位的第 bit 位是否已經被霸佔
-                if (Math.floor(currentSlotMask / Math.pow(2, node.comb[b])) % 2 === 1) {
+                const ball = node.comb[b];
+                if (safeFavBalls.includes(ball)) continue; // 喜愛號不參與互斥，直接跳過
+                
+                if (currentSlotUsedBalls.has(ball)) {
                     isCollide = true;
-                    break;
+                    break; // 踩雷重複，直接擊殺
                 }
             }
 
             if (!isCollide) {
-                // 100% 確定不重複，錄入當前大組的動態足跡牆
+                // 100% 確定不重複，將這組號碼的非喜愛號球，全部錄入該大組的用球牆
                 for (let b = 0; b < node.comb.length; b++) {
-                    if (safeFavBalls.includes(node.comb[b])) continue;
-                    currentSlotMask += Math.pow(2, node.comb[b]);
+                    const ball = node.comb[b];
+                    if (!safeFavBalls.includes(ball)) {
+                        currentSlotUsedBalls.add(ball);
+                    }
                 }
                 currentSlotPickedIndices.push(i); 
             }
@@ -1484,23 +1487,20 @@ async function triggerChunkFlush() {
             }
         }
 
-        // 🎯 智慧自癒寬容機制：大組優先滿足極限，若因號碼卡位停在 4 組以上（含）也大方承認錄取
-        if (currentSlotPickedIndices.length >= 4) {
+        // 智慧自癒寬容機制：大組優先滿足極限，若因號碼卡位（或勾選防線過多），只要湊滿 3 組以上就允許錄取
+        if (currentSlotPickedIndices.length >= 3) {
             for (let idx of currentSlotPickedIndices) {
                 usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎號碼
                 
                 const node = reservoirPool[idx];
                 const currentNoise = Math.random() * 0.9999;
-                // 在最前面加上 "\n"，強迫第一個數字直接從下一行開始排版
-const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
-
+                const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', '); // 保持第一個數字自動換行
                 
                 slotMachine[s].items.push({
                     score: Math.max(250, node.score + 150),
                     noise: currentNoise,
                     finalScore: node.score + currentNoise + 150,
                     comb: node.comb,
-                    mask: node.mask,
                     formatted,
                     unit: s + 1 // 物理鎖定大組
                 });
@@ -1532,7 +1532,7 @@ const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', 
             }
         }
     } catch (restoreErr) {
-        console.error("[Worker 終極安全自癒交卷異常] ", restoreErr.message);
+        console.error("[Worker 智慧自癒撈取交卷還原異常] ", restoreErr.message);
     }
 
     // 數據通道安全交卷
