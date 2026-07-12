@@ -492,8 +492,8 @@ if (cfg.vipMode === 'smart' && finalOutputCombs.length > 0) {
             }
         }
         
-        // 物理擊殺線：直通區不計算分數，所以只要跟已選號碼重複 3 顆球以上，直接判定長太像，原地擊殺剔除！
-        if (overlap >= 3) {
+        // 物理擊殺線：直通區不計算分數，所以只要跟已選號碼重複 1 顆球以上，直接判定長太像，原地擊殺剔除！
+        if (overlap >= 1) {
             hasTooMuchOverlap = true;
             break;
         }
