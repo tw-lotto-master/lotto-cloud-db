@@ -1277,7 +1277,7 @@ if (f13_on) {
  totalGeneratedTestCount++;
  
  // 🎯 【喜愛碼特權豁免晶片】：如果用戶開啟了條件 16，這組號碼必須「100% 內含所有喜愛號」，否則直接丟棄！
- if (typeof favBalls !== 'undefined' && Array.isArray(favBalls) && favBalls.length > 0) {
+if (cfg && (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true') && Array.isArray(favBalls) && favBalls.length > 0) {
      for (let f = 0; f < favBalls.length; f++) {
          if (!comb.includes(favBalls[f])) return false; // 沒帶喜愛號，大門口直接原地擊殺！
      }
