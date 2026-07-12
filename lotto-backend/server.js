@@ -1310,12 +1310,14 @@ async function triggerChunkFlush() {
     const favCount = (vip_fav_on && safeFavBalls.length > 0) ? safeFavBalls.length : 0;
 
     
-       // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除外層地獄 while 迴圈，解鎖 2 秒竣工極限） ───
+    // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除內層 await 阻斷，解鎖純 CPU 滿血性能） ───
     const MAX_POOL_SIZE = 300000; 
     const reservoirPool = [];
     const tempCombination = new Array(mainPickCount);
 
-    // 終極同步遞迴核心：0 煞車，全力衝刺 1398 萬組
+    // 建立一個輕量級同步非同步橋樑計時器，防止全同步引發前端進度條死當感
+    let lastFlushTime = Date.now();
+
     function dfsSearchSync(level, startIndex) {
         if (scannedCount >= maxCombinations) return;
 
@@ -1323,7 +1325,7 @@ async function triggerChunkFlush() {
             scannedCount++;
             localTotalGen++;
 
-            // 16 道防線鐵血排除與健康度加權評分
+            // 1. 16 道防線鐵血排除（純同步判斷，快如閃電）
             if (isGeneSurvive(tempCombination)) {
                 localEvaluatedCount++;
 
@@ -1404,35 +1406,32 @@ async function triggerChunkFlush() {
                     }
                 }
             }
-
-            // 每隔 100 萬組，在同步的大海中向下射出一枚異步進度封包，這在多執行緒下開銷極低
-            if (scannedCount % 1000000 === 0) {
-                // 利用全域 parentPort 異步發射，絕不阻斷當前遞迴軸
-                const currentPercent = Math.min(Math.floor((scannedCount / maxCombinations) * 100), 99);
-                parentPort.postMessage({
-                    type: 'TOTAL_SCAN_PROGRESS',
-                    scanned: scannedCount,
-                    maxTotal: maxCombinations,
-                    percent: currentPercent,
-                    stats: Array.from(killStats),
-                    totalGen: localTotalGen,
-                    finalEvaluatedCount: localEvaluatedCount,
-                    finalScoreDistribution: localScoreDistribution
-                });
-            }
             return;
         }
 
+        // 🚀 【滿血效能核心】：此處絕對為純同步、絕不使用 await 踩煞車！
         for (let i = startIndex; i < pLen; i++) {
             tempCombination[level] = basePool[i];
             dfsSearchSync(level + 1, i + 1); 
         }
     }
 
-    // 🔥 點火！老老實實、精準呼叫「唯一一次」全量同步海選，0 重複開銷
-    dfsSearchSync(0, 0);
-    
-    
+    // 點火外包裝：利用微秒級宏任務（MacroTask）切分大數據進度回報
+    let currentChunkStart = 0;
+    while (scannedCount < maxCombinations) {
+        // 執行同步區塊爆發
+        dfsSearchSync(0, currentChunkStart);
+        
+        // 只有在完成一個大波段後，才允許交出一次異步發射進度
+        await triggerChunkFlush();
+        
+        // 如果已經全量跑完，主動切斷
+        if (scannedCount >= maxCombinations || reservoirPool.length >= MAX_POOL_SIZE) break;
+        currentChunkStart++;
+        if (currentChunkStart >= pLen) break;
+    }
+    // ─── 階段一海選完美竣工 ───
+
 
     // ─── 階段二：30 萬精英池全局大洗牌 ───
     shuffleArray(reservoirPool);
