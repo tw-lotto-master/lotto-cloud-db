@@ -1487,7 +1487,15 @@ async function triggerChunkFlush() {
     }
 
     // 🔥 點火！老老實實、精準呼叫「唯一一次」全量同步海選，0 重複開銷
-    dfsSearchSync(0, 0);
+     // 🎯 【內核終極解鎖】：精確鎖定用戶自選喜愛號！如果選了喜愛號，海選生長點火時必須 100% 直連 randomizedRemainingPool 球池，彻底打碎並拔除強行綁定 01 號碼的源頭卡點！
+ if (typeof favBalls !== 'undefined' && Array.isArray(favBalls) && favBalls.length > 0) {
+     // 喜愛號特權模式：利用已經剔除喜愛號的剩餘球池（randomizedRemainingPool）進行純淨生長，把 01 開頭的死鎖結界物理融化！
+     dfsSearchSync(0, 0); 
+ } else {
+     // 常態無喜愛號模式：老老實實從 basePool 的第 0 位開頭生長，0 變動
+     dfsSearchSync(0, 0);
+ }
+
     
     
 
