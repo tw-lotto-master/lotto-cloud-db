@@ -1282,7 +1282,7 @@ if (cfg && (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true') && Array.isArr
          if (!comb.includes(favBalls[f])) return false; // 沒帶喜愛號，大門口直接原地擊殺！
      }
      // 🌟 核心自癒：建立一組「不含喜愛號」的純粹號碼，拿去讓 16 防線審查，防止被誤殺！
-     const pureTestComb = comb.filter(ball => !favBalls.includes(ball));
+     
      for (let i = 0; i < filters.length; i++) {
          if (filters[i].exec(pureTestComb)) { 
              if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; 
