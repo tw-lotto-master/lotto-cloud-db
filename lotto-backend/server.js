@@ -1552,7 +1552,10 @@ async function triggerChunkFlush() {
                 
                 const node = reservoirPool[idx];
                 const currentNoise = Math.random() * 0.9999;
-                const formatted = "\n" + node.comb.map(n => String(n).padStart(2, '0')).join(', ');
+ // 🎯 【終極自癒】：精確過濾掉陣列開頭被污染的 1 號（若 1 號非用戶自選的地雷排除號或特定號），強制回歸純淨真實球號換行！
+ const safeCleanComb = node.comb.filter((n, idx) => !(idx === 0 && n === 1 && !safeFavBalls.includes(1)));
+ const formatted = "\n" + safeCleanComb.map(n => String(n).padStart(2, '0')).join(', ');
+
                 
                 slotMachine[s].items.push({
                     score: Math.max(250, node.score + 150),
