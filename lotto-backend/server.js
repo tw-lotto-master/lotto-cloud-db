@@ -1491,7 +1491,15 @@ async function triggerChunkFlush() {
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
     const pureBallsPerComb = mainPickCount - favCount; 
-    const maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((49 - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
+ // ─── 【神之手動態分流解鎖晶片】 ───
+ const currentTotalBalls = lottoType === "49_6" ? 49 : 39;
+ let maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((currentTotalBalls - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
+ 
+ // 如果有開喜愛號，強制將大組容量上限設定為 5 組，有效瓦解 539 的互斥死鎖
+ if (vip_fav_on && favCount > 0) {
+     maxGroupLimitPerSlot = 5;
+ }
+
 
     const usedNodeFlags = new Uint8Array(reservoirPool.length);
 
