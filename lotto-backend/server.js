@@ -1350,8 +1350,7 @@ async function triggerChunkFlush() {
 
     
        // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除外層地獄 while 迴圈，解鎖 2 秒竣工極限） ───
- // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除外層地獄 while 迴圈，解鎖 2 秒
-竣工極限） ───
+
  const MAX_POOL_SIZE = 300000; 
  const reservoirPool = [];
  const tempCombination = new Array(mainPickCount);
