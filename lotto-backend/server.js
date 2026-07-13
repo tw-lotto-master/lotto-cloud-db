@@ -554,10 +554,8 @@ if (isMainThread) {
          }
      }
 
-     res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
-     let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (免死金牌直通-大組內彩球絕對完全互斥版)' : '一般隨機組合 (免死金牌直通-大組物理隔離版)';
+ res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
 
-   
  // ─── 【神之手：總結大竣工報告四國語言全對齊】 ───
  const txtTurboTitle = {
      zh: `【VIP直通大竣工】中繼站本次海選免扣點實時通過總數：\n${totalTheoreticalCombs} 組 \n \n【當前交付解鎖組合（已完美拉滿物理互斥，100%保證分散隔離！）】：\n`,
@@ -568,14 +566,16 @@ if (isMainThread) {
  }[backLang] || "【VIP直通大竣工】";
 
  const txtModeLabel = { zh: "\n【輸出模式】", cn: "\n【输出模式】", en: "\n[Output Mode] ", ko: "\n【출력 모드】", ja: "\n【出力モード】" }[backLang] || "\n【輸出模式】";
+ 
  let modeLabelText = cfg.vipMode === 'smart' 
-     ? { zh: '聰明包牌 (免死金牌直通-大組內彩球絕對完全互斥版)', cn: '聪明包牌 (免死金牌直通-大组内彩球绝对完全互斥版)', en: 'Smart Wheeling (Seamless - Absolute Mutually Exclusive)', ko: '스마트 조합 (무료 직통 - 대그룹 내 완전 배제 버전)', ja: 'スマート連番 (直通免除 - 大組内完全重複排除版)' }[backLang]
-     : { zh: '一般隨機組合 (免死金牌直通-大組物理隔離版)', cn: '一般随机组合 (免死金牌直通-大组物理隔离版)', en: 'Standard Random Set (Seamless - Physically Dispersed)', ko: '일반 무작위 조합 (무료 직통 - 대그룹 물리 격리 버전)', ja: '一般ランダム組合せ (直通免除 - 大組物理隔離版)' }[backLang];
+     ? ({ zh: '聰明包牌 (免死金牌直通-大組內彩球絕對完全互斥版)', cn: '聪明包牌 (免死金牌直通-大组内彩球绝对完全互斥版)', en: 'Smart Wheeling (Seamless - Absolute Mutually Exclusive)', ko: '스마트 조합 (무료 직통 - 대그룹 내 완전 배제 버전)', ja: 'スマート連番 (直通免除 - 大組内完全重複排除版)' }[backLang])
+     : ({ zh: '一般隨機組合 (免死金牌直通-大組物理隔離版)', cn: '一般随机组合 (免死金牌直通-大组物理隔离版)', en: 'Standard Random Set (Seamless - Physically Dispersed)', ko: '일반 무작위 조합 (무료 직통 - 대그룹 물리 격리 버전)', ja: '一般ランダム組合せ (直通免除 - 大組物理隔離版)' }[backLang]);
 
  res.write(JSON.stringify({
- success: true,
- outputText: txtTurboTitle + `-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n` + txtModeLabel + modeLabelText + `\n`
+     success: true,
+     outputText: txtTurboTitle + `-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n` + txtModeLabel + modeLabelText + `\n`
  }) + "\n");
+
 
      return res.end();
  }
