@@ -435,6 +435,7 @@ if (isMainThread) {
 
 // ========================================== 【分流 A：聰明包牌絕對互斥、一般隨機自由重複範圍】 ==========================================
  if (isNoConditions) {
+   const backLang = cfg.lang || "zh"; // 自動捕獲前端同步過來的四國語言選擇
      console.log(`[智能分流大腦] 啟動主線程隨機包牌免死金牌，0 點數消耗！`);
      if (dbUser) {
          res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
@@ -504,7 +505,12 @@ if (isMainThread) {
              const indexStr = String(pickedCount).padStart(2, '0');
              const formattedOutput = formattedArray.join(', ');
 
-             finalOutputCombs.push(`第 [${indexStr}] 組 (第 ${assignedUnitCounter} 大組) [評分: 410分] : \n${formattedOutput}\n`);
+              // ─── 【神之手：聰明包牌四國語言動態交卷晶片】 ───
+ const txtGrpHead = { zh: "第", cn: "第", en: "Set", ko: "제", ja: "第" }[backLang] || "第";
+ const txtGrpMid = { zh: "] 組 (第", cn: "] 组 (第", en: "] (Big Group", ko: "] 조합 (제", ja: "] 組 (第" }[backLang] || "] 組 (第";
+ const txtGrpEnd = { zh: "大組) [評分: 410分] :", cn: "大组) [评分: 410分] :", en: ") [Score: 410 Pts] :", ko: "대그룹) [점수: 410점] :", ja: "大組) [評価: 410点] :" }[backLang] || "大組) [評分: 410分] :";
+ finalOutputCombs.push(`${txtGrpHead} [${indexStr}${txtGrpMid} ${assignedUnitCounter} ${txtGrpEnd}\n${formattedOutput}\n`);
+
              
              currentUnitCount++;
          }
@@ -540,7 +546,11 @@ if (isMainThread) {
              const formattedOutput = formattedArray.join(', ');
 
              // 一般隨機模式依據原本邏輯，統一優雅歸類在第 1 大組
-             finalOutputCombs.push(`第 [${indexStr}] 組 (第 1 大組) [評分: 390分] : \n${formattedOutput}\n`);
+              // ─── 【神之手：一般隨機四國語言動態交卷晶片】 ───
+ const txtRandHead = { zh: "第", cn: "第", en: "Set", ko: "제", ja: "第" }[backLang] || "第";
+ const txtRandMid = { zh: "] 組 (第 1 大組) [評分: 390分] :", cn: "] 组 (第 1 大组) [评分: 390分] :", en: "] (Big Group 1) [Score: 390 Pts] :", ko: "] 조합 (제 1 대그룹) [점수: 390점] :", ja: "] 組 (第 1 大組) [評価: 390点] :" }[backLang] || "] 組 (第 1 大組) [評分: 390分] :";
+ finalOutputCombs.push(`${txtRandHead} [${indexStr}${txtRandMid}\n${formattedOutput}\n`);
+
          }
      }
 
@@ -549,8 +559,25 @@ if (isMainThread) {
      
      res.write(JSON.stringify({
          success: true,
-         outputText: `【VIP直通大竣工】中繼站本次海選免扣點實時通過總數：\n${totalTheoreticalCombs} 組 \n \n【當前交付解鎖組合（已完美拉滿物理互斥，100%保證分散隔離！）】：\n-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n【輸出模式】${modeLabel}\n`
-     }) + "\n");
+          // ─── 【神之手：總結大竣工報告四國語言全對齊】 ───
+ const txtTurboTitle = {
+     zh: `【VIP直通大竣工】中繼站本次海選免扣點實時通過總數：\n${totalTheoreticalCombs} 組 \n \n【當前交付解鎖組合（已完美拉滿物理互斥，100%保證分散隔離！）】：\n`,
+     cn: `【VIP直通大竣工】中继站本次海选免扣点实时通过总数：\n${totalTheoreticalCombs} 组 \n \n【当前交付解锁组合（已完美拉满物理互斥，100%保证分散隔离！）】：\n`,
+     en: `[VIP Turbo Completed] Total seamless matching pool options: \n${totalTheoreticalCombs} Sets \n \n[Current Unlocked Combinations (100% Mutually Exclusive & Well Dispersed)]: \n`,
+     ko: `[VIP 패스 대준공] 이번 무료 해선 실시간 통과 총 조합 수: \n${totalTheoreticalCombs} 그룹 \n \n[현재 교부된 해제 조합 (100% 완전 분산 격리 보장!)]: \n`,
+     ja: `【VIP直通大竣工】今回の無料海選リアルタイム通過総数：\n${totalTheoreticalCombs} 組 \n \n【現在交付されたロック解除組合せ（100%分散隔離を完全保証！）】：\n`
+ }[backLang] || "【VIP直通大竣工】";
+
+ const txtModeLabel = { zh: "\n【輸出模式】", cn: "\n【输出模式】", en: "\n[Output Mode] ", ko: "\n【출력 모드】", ja: "\n【出力モード】" }[backLang] || "\n【輸出模式】";
+ let modeLabelText = cfg.vipMode === 'smart' 
+     ? { zh: '聰明包牌 (免死金牌直通-大組內彩球絕對完全互斥版)', cn: '聪明包牌 (免死金牌直通-大组内彩球绝对完全互斥版)', en: 'Smart Wheeling (Seamless - Absolute Mutually Exclusive)', ko: '스마트 조합 (무료 직통 - 대그룹 내 완전 배제 버전)', ja: 'スマート連番 (直通免除 - 大組内完全重複排除版)' }[backLang]
+     : { zh: '一般隨機組合 (免死金牌直通-大組物理隔離版)', cn: '一般随机组合 (免死金牌直通-大组物理隔离版)', en: 'Standard Random Set (Seamless - Physically Dispersed)', ko: '일반 무작위 조합 (무료 직통 - 대그룹 물리 격리 버전)', ja: '一般ランダム組合せ (直通免除 - 大組物理隔離版)' }[backLang];
+
+ res.write(JSON.stringify({
+ success: true,
+ outputText: txtTurboTitle + `-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n` + txtModeLabel + modeLabelText + `\n`
+ }) + "\n");
+
      return res.end();
  }
 // ========================================== 【分流 A 完美分流結束】 ==========================================
@@ -747,7 +774,17 @@ worker.on('message', (msg) => {
  res.write(JSON.stringify({ isProgress: true, percent: 99, stage: "MUTUAL_EXCLUSION", scanned: absoluteMaxTotal, maxTotal: absoluteMaxTotal, totalGen: msg.totalGen || absoluteMaxTotal }) + "\n");
  }
  } catch (e) {}
- 
+
+// ─── 【神之手：海選大結局四國語言全對齊發射晶片】 ───
+ const backLangB = cfg.lang || "zh";
+ const txtVipTitleB = {
+     zh: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局隨機最優解鎖組合（有效瓦解死鎖，100%保證分散多樣性！）】：\n`,
+     cn: `【VIP融合大腦分選竣工】中继站本次海选实时通过总数：\n${liveScannedCount} 组 \n \n【当前交付全局随机最优解锁组合（有效瓦解死锁，100%保证分散多样性！）】：\n`,
+     en: `[VIP Core Fusion Filter Completed] Total qualified pool verified: \n${liveScannedCount} Sets \n \n[Current Unlocked Optimal Dispersed Combinations (100% Diversity Guaranteed)]: \n`,
+     ko: `[VIP 융합 브레인 분선 준공] 이번 실시간 통과 총 조합 수: \n${liveScannedCount} 그룹 \n \n[현재 교부된 글로벌 무작위 최적 해제 조합 (100% 분산 다양성 보장!)]: \n`,
+     ja: `【VIP融合頭脳選別竣工】今回の海選リアルタイム通過総数：\n${liveScannedCount} 組 \n \n【現在交付されたグローバルランダム最適ロック解除組合せ（100%分散多面性を完全保証！）】：\n`
+ }[backLangB] || "【VIP融合大腦分選竣工】";
+   
  try {
  if (!res.writableEnded) {
  res.write(JSON.stringify({
@@ -762,7 +799,7 @@ worker.on('message', (msg) => {
  fullStats: [], 
  evaluatedCount: global.monitorEvaluatedCount,
  scoreStats250: global.monitorScoreDistribution,
- outputText: "【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n" + liveScannedCount + " 組 \n \n【當前交付全局隨機最優解鎖組合（有效瓦解死鎖，100%保證分散多樣性！）】：\n-------------------------\n" + finalOutputCombs.join('') + "-------------------------\n"
+ outputText: txtVipTitleB + "-------------------------\n" + finalOutputCombs.join('') + "-------------------------\n"
  }) + "\n");
  res.end(); 
  console.log("[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。");
@@ -796,15 +833,21 @@ function compileLeaderboardToOutput() {
 
             const indexStr = String(i + 1).padStart(2, '0');
             
-            if (!isSmartMode) {
-                // 如果是一般隨機模式，一律優雅歸類在第 1 大組
-                finalOutputCombs.push("第 [" + indexStr + "] 組 (第 1 大組) [評分: " + (item.score || 0) + "分] : " + (item.formatted || "") + "\n");
-            } else {
-                // 💎 如果是智能 VIP 模式，直接調用 Worker 在線上 200 槽裡幫我們完美打好的實體大組編號 (item.unit)
-                // 100% 保持在 500 分精英狀態，且完美大組互斥，榨乾賸餘可用球數！
-                const displayUnit = item.unit !== undefined ? item.unit : 1;
-                finalOutputCombs.push("第 [" + indexStr + "] 組 (第 " + displayUnit + " 大組) [評分: " + (item.score !== undefined ? item.score : 0) + "分] : " + (item.formatted || "") + "\n");
-            }
+             // ─── 【神之手：1398萬組出牌字串四國語言全對齊】 ───
+ const backLangC = cfg.lang || "zh";
+ const txtGroupHeadC = { zh: "第", cn: "第", en: "Set", ko: "제", ja: "第" }[backLangC] || "第";
+ const txtGroupMidC = { zh: "] 組 (第", cn: "] 组 (第", en: "] (Big Group", ko: "] 조합 (제", ja: "] 組 (第" }[backLangC] || "] 組 (第";
+ const txtScoreLabelC = { zh: "分] : ", cn: "分] : ", en: " Pts] : ", ko: "점] : ", ja: "点] : " }[backLangC] || "分] : ";
+
+ if (!isSmartMode) {
+     const txtRandModeC = { zh: " 1 大組) [評分: ", cn: " 1 大组) [评分: ", en: " 1) [Score: ", ko: " 1 대그룹) [점수: ", ja: " 1 大組) [評価: " }[backLangC] || " 1 大組) [評分: ";
+     finalOutputCombs.push(txtGroupHeadC + " [" + indexStr + "]" + txtRandModeC + (item.score || 0) + txtScoreLabelC + (item.formatted || "") + "\n");
+ } else {
+     const displayUnit = item.unit !== undefined ? item.unit : 1;
+     const txtSmartModeC = { zh: "大組) [評分: ", cn: "大组) [评分: ", en: ") [Score: ", ko: "대그룹) [점수: ", ja: "大組) [評価: " }[backLangC] || "大組) [評分: ";
+     finalOutputCombs.push(txtGroupHeadC + " [" + indexStr + txtGroupMidC + " " + displayUnit + " " + txtSmartModeC + (item.score !== undefined ? item.score : 0) + txtScoreLabelC + (item.formatted || "") + "\n");
+ }
+
         }
     } catch (err) {
         console.error("[主緒直通出牌解碼器異常] ", err.message);
