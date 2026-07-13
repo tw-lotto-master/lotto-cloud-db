@@ -556,10 +556,9 @@ if (isMainThread) {
 
      res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
      let modeLabel = cfg.vipMode === 'smart' ? '聰明包牌 (免死金牌直通-大組內彩球絕對完全互斥版)' : '一般隨機組合 (免死金牌直通-大組物理隔離版)';
-     
-     res.write(JSON.stringify({
-         success: true,
-          // ─── 【神之手：總結大竣工報告四國語言全對齊】 ───
+
+   
+ // ─── 【神之手：總結大竣工報告四國語言全對齊】 ───
  const txtTurboTitle = {
      zh: `【VIP直通大竣工】中繼站本次海選免扣點實時通過總數：\n${totalTheoreticalCombs} 組 \n \n【當前交付解鎖組合（已完美拉滿物理互斥，100%保證分散隔離！）】：\n`,
      cn: `【VIP直通大竣工】中继站本次海选免扣点实时通过总数：\n${totalTheoreticalCombs} 组 \n \n【当前交付解锁组合（已完美拉满物理互斥，100%保证分散隔离！）】：\n`,
@@ -580,6 +579,7 @@ if (isMainThread) {
 
      return res.end();
  }
+
 // ========================================== 【分流 A 完美分流結束】 ==========================================
 
 
