@@ -1490,15 +1490,20 @@ async function triggerChunkFlush() {
     const slotBitmasks = new Float64Array(WORKER_TOTAL_SLOTS);
     const slotMachine = Array.from({ length: WORKER_TOTAL_SLOTS }, () => ({ items: [] }));
     
-    const pureBallsPerComb = mainPickCount - favCount; 
- // ─── 【神之手動態分流解鎖晶片】 ───
+ const pureBallsPerComb = mainPickCount - favCount; 
  const currentTotalBalls = lottoType === "49_6" ? 49 : 39;
  let maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((currentTotalBalls - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
  
- // 如果有開喜愛號，強制將大組容量上限設定為 5 組，有效瓦解 539 的互斥死鎖
+ // ─── 【神之手多碼動態解鎖晶片】 ───
+ // 喜愛號選越多，大組互斥越難湊滿，因此動態調降大組容量上限
  if (vip_fav_on && favCount > 0) {
-     maxGroupLimitPerSlot = 5;
+     if (lottoType !== "49_6") {
+         maxGroupLimitPerSlot = favCount >= 3 ? 2 : 4; // 539 模式下選 3 碼以上，大組上限降到 2 組
+     } else {
+         maxGroupLimitPerSlot = favCount >= 4 ? 2 : 5; // 大樂透選 3 碼以上，大組上限降到 4 組
+     }
  }
+
 
 
     const usedNodeFlags = new Uint8Array(reservoirPool.length);
@@ -1542,7 +1547,16 @@ async function triggerChunkFlush() {
       
                // ─── 【神之手智慧自癒寬容放行晶片】 ───
         // 如果是 539 模式且開啟喜愛號，放寬生還門檻到 2 組即可放行，避免 16 條件全開被鐵血清空
-        const survivalThreshold = (lottoType !== "49_6" && vip_fav_on) ? 2 : 4;
+                // ─── 【神之手智慧自癒多碼放行晶片】 ───
+        let survivalThreshold = 4;
+        if (vip_fav_on) {
+            if (lottoType !== "49_6") {
+                survivalThreshold = favCount >= 3 ? 1 : 2; // 539模式：選3碼以上1組就錄取，2碼時2組錄取
+            } else {
+                survivalThreshold = favCount >= 3 ? 2 : 4; // 大樂透模式：選3碼以上2組就錄取
+            }
+        }
+
 
         if (currentSlotPickedIndices.length >= survivalThreshold) {
 
