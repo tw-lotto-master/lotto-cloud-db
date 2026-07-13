@@ -422,7 +422,15 @@ if (isMainThread) {
         (cfg.f15_on !== true && cfg.f15_on !== 'true') && (cfg.vip_fav_on !== true && cfg.vip_fav_on !== 'true')
     );
     const mainLottoType = cfg.lottoType || "39_5";
-    const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
+ 
+ // ─── 【神之手全域 Worker 熔斷晶片】 ───
+ // 註冊全域執行緒追蹤防線，防止多執行緒背景殘留與日誌混疊
+ if (!global.activeWorkerRegistry) {
+     global.activeWorkerRegistry = [];
+ }
+
+ const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
+
     const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
 
 // ========================================== 【分流 A：聰明包牌絕對互斥、一般隨機自由重複範圍】 ==========================================
@@ -604,9 +612,28 @@ if (isMainThread) {
             resolve();
         }, 480000);
 
-        // 🌟 核心修正：將前端傳入的歷史資料庫作為 passedHistoryDB 精確指派進去，對齊底層！
-       const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
-workers.push(worker);
+       
+ // 1. 物理摧毀前一次點擊殘留的所有背景 Worker，防止 539 與大樂透打架
+ if (global.activeWorkerRegistry && global.activeWorkerRegistry.length > 0) {
+     console.log(`[執行緒防護晶片] 偵測到背景殘留 ${global.activeWorkerRegistry.length} 個舊任務，正在進行物理獵殺...`);
+     global.activeWorkerRegistry.forEach(w => {
+         try { w.terminate(); } catch(e) {}
+     });
+     global.activeWorkerRegistry = []; // 徹底清空
+ }
+
+ // 2. 強制物理清洗全域監控快取，杜絕上一把的殘留數據污染
+ global.monitorEvaluatedCount = 0; 
+ global.monitorScoreDistribution = {};
+ if (global.killStats) {
+     for(let k=0; k<global.killStats.length; k++) global.killStats[k] = 0;
+ }
+
+ // 3. 啟動、註冊並推進全新的純淨 Worker 
+ const worker = new Worker(__filename, { workerData: { cfg, passedHistoryDB: globalHistoryDB || [], threadId: 0 } });
+ global.activeWorkerRegistry.push(worker); 
+ workers.push(worker);
+
 
 // == ✨ 新增：後台啟動秒發初始化真進度封包（徹底擊碎前端空窗期死當感） ==
 try {
