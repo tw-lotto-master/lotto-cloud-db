@@ -855,11 +855,20 @@ if (!isMainThread) {
     });
   }
   
-  const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
-  const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 10)).filter(n => !isNaN(n))) : []);
-  const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
-  const favBalls = vip_fav_on && cfg.vip_fav_set ? Array.from(cfg.vip_fav_set).map(Number) : [];
-  let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => !f1_set.has(b));
+ const f1_on = (cfg.f1_on === true || cfg.f1_on === 'true');
+const f1_set = new Set(f1_on && cfg.f1_set ? (Array.isArray(cfg.f1_set) ? 
+cfg.f1_set.map(Number) : cfg.f1_set.split(',').map(v => parseInt(v.trim(), 
+10)).filter(n => !isNaN(n))) : []);
+const vip_fav_on = (cfg.vip_fav_on === true || cfg.vip_fav_on === 'true');
+const favBalls = vip_fav_on && cfg.vip_fav_set ? 
+Array.from(cfg.vip_fav_set).map(Number) : [];
+let basePool = Array.from({ length: maxBall }, (_, i) => i + 1).filter(b => 
+!f1_set.has(b));
+
+// ─── 【神之手精準咬合晶片】 ───
+// 從球池中分流出 DFS 專用池：排除喜愛號，避免遞迴重複抓取相同的球
+const remainingPoolForDFS = basePool.filter(b => !favBalls.includes(b));
+
   
   const filters = [];
 
@@ -1341,15 +1350,23 @@ async function triggerChunkFlush() {
 
     
        // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除外層地獄 while 迴圈，解鎖 2 秒竣工極限） ───
-    const MAX_POOL_SIZE = 300000; 
-    const reservoirPool = [];
-    const tempCombination = new Array(mainPickCount);
+ // ─── 階段一：純粹同步 DFS 極速海選（徹底拔除外層地獄 while 迴圈，解鎖 2 秒
+竣工極限） ───
+ const MAX_POOL_SIZE = 300000; 
+ const reservoirPool = [];
+ const tempCombination = new Array(mainPickCount);
+ 
+ // ─── 【神之手預埋必出喜愛號骨架】 ───
+ favBalls.forEach((ball, idx) => {
+     tempCombination[idx] = ball;
+ });
+ const startLevel = favBalls.length; // 遞迴起始層級直接跳過喜愛號位置
 
-    // 終極同步遞迴核心：0 煞車，全力衝刺 1398 萬組
-    function dfsSearchSync(level, startIndex) {
-        if (scannedCount >= maxCombinations) return;
+ // 終極同步遞迴核心：0 煞車，全力衝刺 1398 萬組
+ function dfsSearchSync(level, startIndex) {
+ if (scannedCount >= maxCombinations) return;
+ if (level === mainPickCount) {
 
-        if (level === mainPickCount) {
             scannedCount++;
             localTotalGen++;
 
@@ -1450,17 +1467,18 @@ async function triggerChunkFlush() {
                     finalScoreDistribution: localScoreDistribution
                 });
             }
-            return;
-        }
+      return;
+ }
+ // ─── 【精準對齊修正】只去遍歷排除喜愛號之後的賸餘可用球池 ───
+ const pLen = remainingPoolForDFS.length;
+ for (let i = startIndex; i < pLen; i++) {
+ tempCombination[level] = remainingPoolForDFS[i];
+ dfsSearchSync(level + 1, i + 1); 
+ }
+ }
+ // 點火！由 startLevel 安全開閘放行，天生自帶喜愛號大竣工 🔥
+ dfsSearchSync(startLevel, 0);
 
-        for (let i = startIndex; i < pLen; i++) {
-            tempCombination[level] = basePool[i];
-            dfsSearchSync(level + 1, i + 1); 
-        }
-    }
-
-    // 🔥 點火！老老實實、精準呼叫「唯一一次」全量同步海選，0 重複開銷
-    dfsSearchSync(0, 0);
     
     
 
