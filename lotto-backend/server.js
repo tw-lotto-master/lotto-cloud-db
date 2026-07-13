@@ -1539,8 +1539,13 @@ async function triggerChunkFlush() {
             }
         }
 
-        // 🎯 智慧自癒寬容機制：大組優先滿足極限，若因號碼卡位停在 4 組以上（含）也大方承認錄取
-        if (currentSlotPickedIndices.length >= 4) {
+      
+               // ─── 【神之手智慧自癒寬容放行晶片】 ───
+        // 如果是 539 模式且開啟喜愛號，放寬生還門檻到 2 組即可放行，避免 16 條件全開被鐵血清空
+        const survivalThreshold = (lottoType !== "49_6" && vip_fav_on) ? 2 : 4;
+
+        if (currentSlotPickedIndices.length >= survivalThreshold) {
+
             for (let idx of currentSlotPickedIndices) {
                 usedNodeFlags[idx] = 1; // 物理標記：整組抽離生存池，消滅雙胞胎號碼
                 
