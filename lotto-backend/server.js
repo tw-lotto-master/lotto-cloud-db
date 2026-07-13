@@ -1081,10 +1081,12 @@ if (f14_on && (cfg.f14_kill || cfg.f14_kill === 'true')) {
         if (primes.has(comb[m])) {
           pCount++;
           
-          // 🎯 滿血自癒修正：只要這組號碼內部的質數總數達到或超過 4 個（太極端了），
-          // return true 毫不留情直接封殺剔除！
-          if (pCount >= 4) {
-            return true;
+           // ─── 【神之手質合動態自癒晶片】 ───
+ // 大樂透(6碼)達到 4 個質數封殺；539(5碼)總數較少，達到 5 個全質數才封殺，防止誤殺
+ const primeLimitGate = lottoType === "49_6" ? 4 : 5;
+ if (pCount >= primeLimitGate) {
+ return true;
+
           }
         }
       }
@@ -1233,9 +1235,11 @@ if (f8_on) {
  // ⚙️ 【重型數學閘：關卡 13 ── 數字複雜度 AC 值雙重遍歷】(保留在最後：雙重迴圈開銷大)
  const f13_on = (cfg.f13_on === true || cfg.f13_on === 'true');
 if (f13_on) {
-  // 對齊變數：基本 AC 門檻值（前端填入 7，則 targetMin 計算正確對齊數學公式）
-  const userMin = Number(cfg.f13_min) || 7;
-  const targetMin = userMin + (pickCount - 1);
+  // ─── 【神之手 AC值相容性晶片】 ───
+ // 修正原創公式對 539 造成的數學降維打擊，539 的極限差值種類為 10，故門檻自動調校為 5
+ const userMin = Number(cfg.f13_min) || 7;
+ const targetMin = lottoType === "49_6" ? (userMin + (pickCount - 1)) : 5;
+
   
   filters.push({
     id: 13,
@@ -1492,17 +1496,8 @@ async function triggerChunkFlush() {
     
  const pureBallsPerComb = mainPickCount - favCount; 
  const currentTotalBalls = lottoType === "49_6" ? 49 : 39;
+ // 恢復極限上限！讓槽位能塞多少就塞多少，組數足夠時一定會以最高產量優先輸出 🚀
  let maxGroupLimitPerSlot = pureBallsPerComb > 0 ? Math.floor((currentTotalBalls - favCount) / pureBallsPerComb) : (lottoType === "49_6" ? 8 : 7);
- 
- // ─── 【神之手多碼動態解鎖晶片】 ───
- // 喜愛號選越多，大組互斥越難湊滿，因此動態調降大組容量上限
- if (vip_fav_on && favCount > 0) {
-     if (lottoType !== "49_6") {
-         maxGroupLimitPerSlot = favCount >= 3 ? 2 : 4; // 539 模式下選 3 碼以上，大組上限降到 2 組
-     } else {
-         maxGroupLimitPerSlot = favCount >= 4 ? 2 : 5; // 大樂透選 3 碼以上，大組上限降到 4 組
-     }
- }
 
 
 
@@ -1545,17 +1540,17 @@ async function triggerChunkFlush() {
         }
 
       
-               // ─── 【神之手智慧自癒寬容放行晶片】 ───
-        // 如果是 539 模式且開啟喜愛號，放寬生還門檻到 2 組即可放行，避免 16 條件全開被鐵血清空
-                // ─── 【神之手智慧自癒多碼放行晶片】 ───
+           // ─── 【神之手智慧自癒多碼放行晶片】 ───
+        // 只有在最後真的湊不滿極限組數、即將被鐵血殺光前，才啟動彈性自癒放行底線
         let survivalThreshold = 4;
         if (vip_fav_on) {
             if (lottoType !== "49_6") {
-                survivalThreshold = favCount >= 3 ? 1 : 2; // 539模式：選3碼以上1組就錄取，2碼時2組錄取
+                survivalThreshold = favCount >= 2 ? 1 : 2; // 539 勾選喜愛號且 16 條件全開時，1~2 組即時獲救放行！
             } else {
-                survivalThreshold = favCount >= 3 ? 2 : 4; // 大樂透模式：選3碼以上2組就錄取
+                survivalThreshold = favCount >= 3 ? 2 : 4; // 大樂透選 3 碼以上時，2 組即放行
             }
         }
+
 
 
         if (currentSlotPickedIndices.length >= survivalThreshold) {
