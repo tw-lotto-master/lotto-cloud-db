@@ -899,12 +899,22 @@ global.compileOutput = compileLeaderboardToOutput;
 } // 完美閉合主執行緒的完全體結構 🌟
 
 
+} // 完美閉合主執行緒的完全體結構 🌟
 if (!isMainThread) {
-  const { cfg, passedHistoryDB } = workerData;
-  const lottoType = cfg.lottoType || "39_5";
-  const maxBall = lottoType === "49_6" ? 49 : 39;
-  const pickCount = lottoType === "49_6" ? 6 : 5;
-  const historyDB = passedHistoryDB || [];
+ const { cfg, passedHistoryDB } = workerData;
+ 
+ // ─── 【神之手 Worker 內層型態強制校正晶片】 ───
+ // 確保不論主執行緒丟進來什麼污染變數，Worker 核心層一律再次鐵血校正，死鎖 5 碼輸出 🎯
+ let workerLottoType = "39_5";
+ if (cfg && cfg.lottoType && String(cfg.lottoType).trim() === "49_6") {
+     workerLottoType = "49_6";
+ }
+ const lottoType = workerLottoType;
+ 
+ const maxBall = lottoType === "49_6" ? 49 : 39;
+ const pickCount = lottoType === "49_6" ? 6 : 5;
+ const historyDB = passedHistoryDB || [];
+
   let lastPeriod = (historyDB.length > 0 && Array.isArray(historyDB[historyDB.length - 1])) 
     ? historyDB[historyDB.length - 1].map(Number) : [];
   const lastPeriodSet = new Set(lastPeriod);
