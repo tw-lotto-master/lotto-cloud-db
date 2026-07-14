@@ -315,11 +315,19 @@ async function listSavedTickets(req, res) {
 app.get('/api/tickets/list', listSavedTickets);
 app.post('/api/tickets/list', listSavedTickets);
 if (isMainThread) {
-  // 聰明包牌骨牌生牌演算法
-  function generateSmartWheelingMatrix(cfg) {
-    const is39 = cfg.lottoType === '39_5';
-    const size = is39 ? 5 : 6;
-    const totalBalls = is39 ? 39 : 49;
+ // 聰明包牌骨牌生牌演算法
+ function generateSmartWheelingMatrix(cfg) {
+ 
+ // ─── 【神之手 基礎大腦型態強制鎖定晶片】 ───
+ // 強制校正基礎分析參數，只要前端送來的配置沒對齊，一律鐵血修正為 39_5，確保基礎分析也是 5 碼 🎯
+ if (!cfg || !cfg.lottoType || String(cfg.lottoType).trim() !== "49_6") {
+     if (cfg) cfg.lottoType = "39_5";
+ }
+ 
+ const is39 = (cfg && cfg.lottoType === '39_5');
+ const size = is39 ? 5 : 6;
+ const totalBalls = is39 ? 39 : 49;
+
     let allBalls = Array.from({ length: totalBalls }, (_, i) => i + 1);
     const mineBalls = cfg.f1_set || [];
     let remainingBalls = allBalls.filter(ball => !mineBalls.includes(ball));
