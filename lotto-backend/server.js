@@ -594,18 +594,26 @@ if (isMainThread) {
 
 
 
-     if (!isVipPass) {
- // 如果沒有月費 VIP，也沒有 24 小時通行證，直接物理阻斷，引導使用者去前台點擊「單次解鎖」
- res.write(JSON.stringify({ 
- success: false, 
- status: 402, 
- message: "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (25點)』獲取憑證！" 
- }) + "\n");
-        return res.end();
-    } else {
-        // 已持有時效憑證，綠色通道直接放行，0 點數消耗！
-        res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
-    }
+    if (!isVipPass) {
+  // 🎯 【後台影子字典 ── 權限鎖定四國洗詞自癒晶片】
+  const backLangLock = cfg.lang || "zh";
+  const txtLockMsg = {
+   zh: "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (25點)』獲取憑證！",
+   en: "Access Denied: Advanced filtering requires a 24h pass. Please click 'Unlock 1 Round (25 pts)' to get access!",
+   ko: "권한 잠김: 고급 필터링은 24시간 패스가 필요합니다. 먼저 '단건 해제 (25포인트)'를 클릭하여 인증서를 획득하세요!",
+   ja: "権限ロック：高度フィルターの利用には24時間通行証が必要です。先に『単発解除 (25点)』をクリックし資格を取得してください！"
+  }[backLangLock] || "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (25點)』獲取憑證！";
+
+  res.write(JSON.stringify({ 
+   success: false, 
+   status: 402, 
+   message: txtLockMsg 
+  }) + "\n");
+  return res.end();
+ } else {
+  // 已持有時效憑證，綠色通道直接放行，0 點數消耗！
+  res.write(JSON.stringify({ isPointsUpdated: true, remainingPoints: dbUser.points, isPaidMember: dbUser.isPaidMember === true }) + "\n");
+ }
 
     global.activeRequestsCount = (global.activeRequestsCount || 0) + 1;
     console.log(`[極速全量大腦] 啟動 1398 萬組全量位元拓撲過濾引擎，目標 90 秒內大竣工！\n`);
@@ -788,13 +796,12 @@ worker.on('message', (msg) => {
 // ─── 【神之手：海選大結局四國語言全對齊發射晶片】 ───
  const backLangB = cfg.lang || "zh";
  const txtVipTitleB = {
-     zh: `【VIP融合大腦分選竣工】中繼站本次海選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局隨機最優解鎖組合（有效瓦解死鎖，100%保證分散多樣性！）】：\n`,
-     cn: `【VIP融合大腦分選竣工】中继站本次海选实时通过总数：\n${liveScannedCount} 组 \n \n【当前交付全局随机最优解锁组合（有效瓦解死锁，100%保证分散多样性！）】：\n`,
-     en: `[VIP Core Fusion Filter Completed] Total qualified pool verified: \n${liveScannedCount} Sets \n \n[Current Unlocked Optimal Dispersed Combinations (100% Diversity Guaranteed)]: \n`,
-     ko: `[VIP 융합 브레인 분선 준공] 이번 실시간 통과 총 조합 수: \n${liveScannedCount} 그룹 \n \n[현재 교부된 글로벌 무작위 최적 해제 조합 (100% 분산 다양성 보장!)]: \n`,
-     ja: `【VIP融合頭脳選別竣工】今回の海選リアルタイム通過総数：\n${liveScannedCount} 組 \n \n【現在交付されたグローバルランダム最適ロック解除組合せ（100%分散多面性を完全保証！）】：\n`
- }[backLangB] || "【VIP融合大腦分選竣工】";
-   
+  zh: `【VIP高階數據核心分析竣工】本次大數據篩選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最佳數據優化組合（100%保證分散多樣性！）】：\n`,
+  en: `[VIP Advanced Data Fusion Completed] Total qualified combination pool verified: \n${liveScannedCount} Sets \n \n[Current Unlocked Optimal Dispersed Analytics Combinations (100% Diversity Guaranteed)]: \n`,
+  ko: `【VIP 고급 데이터 핵심 분석 완료】이번 빅데이터 필터링 실시간 통과 총 세트 수: \n${liveScannedCount} 개 조합 \n \n【현재 교부된 글로벌 최적 데이터 최적화 조합 (100% 분산 다양성 보장!)】: \n`,
+  ja: `【VIP高度データ核心分析竣工】今回のビッグデータ抽出リアルタイム通過総数：\n${liveScannedCount} 組 \n \n【現在交付されたグローバル最適データ最適化組み合わせ（100%分散多面性を完全保証！）】：\n`
+ }[backLangB] || `【VIP高階數據核心分析竣工】本次大數據篩選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最佳數據優化組合】：\n`;
+ 
  try {
  if (!res.writableEnded) {
  res.write(JSON.stringify({
@@ -810,7 +817,7 @@ worker.on('message', (msg) => {
  evaluatedCount: global.monitorEvaluatedCount,
  scoreStats250: global.monitorScoreDistribution,
  outputText: txtVipTitleB + "-------------------------\n" + finalOutputCombs.join('') + "-------------------------\n"
- }) + "\n");
+  }) + "\n");
  res.end(); 
  console.log("[串流大結局] 竣工數據順利發射，HTTP Chunked 通道已優雅關閉。");
  }
@@ -843,22 +850,37 @@ function compileLeaderboardToOutput() {
 
             const indexStr = String(i + 1).padStart(2, '0');
             
-             // ─── 【神之手：1398萬組出牌字串四國語言全對齊】 ───
- const backLangC = cfg.lang || "zh";
- const txtGroupHeadC = { zh: "第", cn: "第", en: "Set", ko: "제", ja: "第" }[backLangC] || "第";
- const txtGroupMidC = { zh: "] 組 (第", cn: "] 组 (第", en: "] (Big Group", ko: "] 조합 (제", ja: "] 組 (第" }[backLangC] || "] 組 (第";
- const txtScoreLabelC = { zh: "分] : ", cn: "分] : ", en: " Pts] : ", ko: "점] : ", ja: "点] : " }[backLangC] || "分] : ";
-
- if (!isSmartMode) {
-     const txtRandModeC = { zh: " 1 大組) [評分: ", cn: " 1 大组) [评分: ", en: " 1) [Score: ", ko: " 1 대그룹) [점수: ", ja: " 1 大組) [評価: " }[backLangC] || " 1 大組) [評分: ";
-     finalOutputCombs.push(txtGroupHeadC + " [" + indexStr + "]" + txtRandModeC + (item.score || 0) + txtScoreLabelC + (item.formatted || "") + "\n");
- } else {
-     const displayUnit = item.unit !== undefined ? item.unit : 1;
-     const txtSmartModeC = { zh: "大組) [評分: ", cn: "大组) [评分: ", en: ") [Score: ", ko: "대그룹) [점수: ", ja: "大組) [評価: " }[backLangC] || "大組) [評分: ";
-     finalOutputCombs.push(txtGroupHeadC + " [" + indexStr + txtGroupMidC + " " + displayUnit + " " + txtSmartModeC + (item.score !== undefined ? item.score : 0) + txtScoreLabelC + (item.formatted || "") + "\n");
+ // ─── 🎯 【1398萬組全量出牌 ── 槽位文字 100% 四國化拆解組裝晶片】 ───
+  const backLangC = cfg.lang || "zh";
+  const txtGroupHeadC = { zh: "第", en: "Set", ko: "제 [", ja: "第" }[backLangC] || "第";
+  const txtGroupMidC  = { zh: "] 組 (第", en: "] (Big Group", ko: "] 조합 (대그룹 제", ja: "] 組 (第" }[backLangC] || "] 組 (第";
+  const txtScoreLabelC = { zh: "分] : ", en: " Pts] : ", ko: "점] : ", ja: "点] : " }[backLangC] || "分] : ";
+  
+  if (!isSmartMode) {
+   const txtRandModeC = { zh: " 1 大組) [評分: ", en: " 1) [Score: ", ko: " 1 대그룹) [점수: ", ja: " 1 大組) [評価: " }[backLangC] || " 1 大組) [評分: ";
+   
+   // 修正韓文與英文的前後綴結構咬合，杜絕半截中文殘留
+   let formattedLine = "";
+   if (backLangC === 'ko') {
+    formattedLine = `${txtGroupHeadC}${indexStr}${txtGroupMidC} 1 ${txtRandModeC}${item.score || 0}${txtScoreLabelC}${item.formatted || ""}\n`;
+   } else {
+    formattedLine = `${txtGroupHeadC} [${indexStr}${txtRandModeC}${item.score || 0}${txtScoreLabelC}${item.formatted || ""}\n`;
+   }
+   finalOutputCombs.push(formattedLine);
+   
+  } else {
+   const displayUnit = item.unit !== undefined ? item.unit : 1;
+   const txtSmartModeC = { zh: "大組) [評分: ", en: ") [Score: ", ko: "대그룹) [점수: ", ja: "大組) [評価: " }[backLangC] || "大組) [評分: ";
+   
+   let formattedLine = "";
+   if (backLangC === 'ko') {
+    formattedLine = `${txtGroupHeadC}${indexStr}${txtGroupMidC} ${displayUnit} ${txtSmartModeC}${item.score !== undefined ? item.score : 0}${txtScoreLabelC}${item.formatted || ""}\n`;
+   } else {
+    formattedLine = `${txtGroupHeadC} [${indexStr}${txtGroupMidC} ${displayUnit} ${txtSmartModeC}${item.score !== undefined ? item.score : 0}${txtScoreLabelC}${item.formatted || ""}\n`;
+   }
+   finalOutputCombs.push(formattedLine);
+  }
  }
-
-        }
     } catch (err) {
         console.error("[主緒直通出牌解碼器異常] ", err.message);
     }
