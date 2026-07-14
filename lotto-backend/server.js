@@ -379,23 +379,30 @@ if (isMainThread) {
  res.write(JSON.stringify({ success: false, message: "參數配置遺失" }) + "\n");
  return res.end();
 }
- // 🎯 滿血身分雙防線解碼：優先從中間件或 Payload 內文清洗提取最真實的 ID
+
+ // ─── 【神之手型態強制咬合加固晶片】 ───
+ // 杜絕前端空值、漏傳導致的降維邏輯漏洞，除非明確是大樂透 49_6，否則一律鐵血判定為 39_5 🎯
+ let mainLottoType = "39_5";
+ if (String(cfg.lottoType).trim() === "49_6") {
+     mainLottoType = "49_6";
+ }
+ cfg.lottoType = mainLottoType; // 強制回寫校正，確保主副緒與後續邏輯 100% 同步
+
+ // 滿血身分雙防線解碼：優先從中間件或 Payload 內文清洗提取最真實的 ID 🎯
  const sessionUserId = (req.user && req.user.userId) || extractUserIdFromPayload(req);
  if (!sessionUserId) {
  res.write(JSON.stringify({ success: false, status: 401, message: "身分驗證失效，請重新登入" }) + "\n");
  return res.end();
 }
-
- // 🎯 穿透資料庫快取死結：強制使用 lean() 清空 Mongoose 內部物件快取，100% 直連讀取當前最新儲存的 25 點通行證
+ // 穿透資料庫快取死結：強制使用 lean() 清空 Mongoose 內部物件快取，100% 直連讀取當 🎯
+前最新儲存的 25 點通行證
  const dbUser = await User.findById(sessionUserId).lean();
  if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
- 
  const nowtime = new Date();
  // 1. 驗證 30 天月費訂閱特權
  const hasActiveSubscription = dbUser.subscriptionExpiresAt && new Date(dbUser.subscriptionExpiresAt) > nowtime;
  // 2. 驗證全新的 24 小時單次解鎖通行證特權 (此處在精確直連下將滿血判定為 true)
  const hasValid24hPass = dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > nowtime;
- 
  // 彙整最高免扣點白名單權限 (完美咬合，綠色通道動態自癒放行)
  const isVipPass = (
  hasActiveSubscription || 
@@ -405,33 +412,28 @@ if (isMainThread) {
  cfg.isSingleUnlockedCurrentRound === true || cfg.isSingleUnlockedCurrentRound === 'true' || 
  cfg.isAdUnlocked === true || cfg.isAdUnlocked === 'true'
  );
-
-    
-    const limitOutput = Math.min(100, cfg.count || 5);
-    const pickLimit = parseInt(limitOutput) || 5;
-    
-    const isNoConditions = (
-
-        (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
-        (cfg.f3_on !== true && cfg.f3_on !== 'true') && (cfg.f4_on !== true && cfg.f4_on !== 'true') &&
-        (cfg.f5_on !== true && cfg.f5_on !== 'true') && (cfg.f6_on !== true && cfg.f6_on !== 'true') &&
-        (cfg.f7_on !== true && cfg.f7_on !== 'true') && (cfg.f8_on !== true && cfg.f8_on !== 'true') &&
-        (cfg.f9_on !== true && cfg.f9_on !== 'true') && (cfg.f10_on !== true && cfg.f10_on !== 'true') &&
-        (cfg.f11_on !== true && cfg.f11_on !== 'true') && (cfg.f12_on !== true && cfg.f12_on !== 'true') &&
-        (cfg.f13_on !== true && cfg.f13_on !== 'true') && (cfg.f14_on !== true && cfg.f14_on !== 'true') &&
-        (cfg.f15_on !== true && cfg.f15_on !== 'true') && (cfg.vip_fav_on !== true && cfg.vip_fav_on !== 'true')
-    );
-    const mainLottoType = cfg.lottoType || "39_5";
  
+ const limitOutput = Math.min(100, cfg.count || 5);
+ const pickLimit = parseInt(limitOutput) || 5;
+ 
+ const isNoConditions = (
+ (cfg.f1_on !== true && cfg.f1_on !== 'true') && (cfg.f2_on !== true && cfg.f2_on !== 'true') &&
+ (cfg.f3_on !== true && cfg.f3_on !== 'true') && (cfg.f4_on !== true && cfg.f4_on !== 'true') &&
+ (cfg.f5_on !== true && cfg.f5_on !== 'true') && (cfg.f6_on !== true && cfg.f6_on !== 'true') &&
+ (cfg.f7_on !== true && cfg.f7_on !== 'true') && (cfg.f8_on !== true && cfg.f8_on !== 'true') &&
+ (cfg.f9_on !== true && cfg.f9_on !== 'true') && (cfg.f10_on !== true && cfg.f10_on !== 'true') &&
+ (cfg.f11_on !== true && cfg.f11_on !== 'true') && (cfg.f12_on !== true && cfg.f12_on !== 'true') &&
+ (cfg.f13_on !== true && cfg.f13_on !== 'true') && (cfg.f14_on !== true && cfg.f14_on !== 'true') &&
+ (cfg.f15_on !== true && cfg.f15_on !== 'true') && (cfg.vip_fav_on !== true && cfg.vip_fav_on !== 'true')
+ );
+
  // ─── 【神之手全域 Worker 熔斷晶片】 ───
  // 註冊全域執行緒追蹤防線，防止多執行緒背景殘留與日誌混疊
  if (!global.activeWorkerRegistry) {
-     global.activeWorkerRegistry = [];
+ global.activeWorkerRegistry = [];
  }
-
  const mainMaxBall = mainLottoType === "49_6" ? 49 : 39;
-
-    const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
+ const mainPickCount = mainLottoType === "49_6" ? 6 : 5;
 
 // ========================================== 【分流 A：聰明包牌絕對互斥、一般隨機自由重複範圍】 ==========================================
  if (isNoConditions) {
