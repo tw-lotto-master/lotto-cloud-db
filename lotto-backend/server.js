@@ -394,8 +394,8 @@ if (isMainThread) {
  res.write(JSON.stringify({ success: false, status: 401, message: "身分驗證失效，請重新登入" }) + "\n");
  return res.end();
 }
- // 穿透資料庫快取死結：強制使用 lean() 清空 Mongoose 內部物件快取，100% 直連讀取當 🎯
-前最新儲存的 25 點通行證
+ // 穿透資料庫快取死結：強制使用 lean() 清空 Mongoose 內部物件快取，100% 直連讀取當前最新儲存的 25 點通行證 🎯
+
  const dbUser = await User.findById(sessionUserId).lean();
  if (!dbUser) return res.write(JSON.stringify({ success: false, message: "找不到操盤手帳號" }) + "\n") || res.end();
  const nowtime = new Date();
@@ -1347,16 +1347,24 @@ if (f13_on) {
     }
   });
 }
+
 // =========================================================================
 // 【2026 後端大腦生存審查總閘門 ── 100% 變數咬合、括號完全體】
 // =========================================================================
-  const killStats = new Uint32Array(16);
-  let totalGeneratedTestCount = 0;
-  function isGeneSurvive(comb) {
-    totalGeneratedTestCount++;
-    for (let i = 0; i < filters.length; i++) {
-      if (filters[i].exec(comb)) { if (filters[i].id >= 0 && filters[i].id < 16) killStats[filters[i].id]++; return false; }
-    }
+ // ─── 【神之手防禦性越界加固】將統計牆提權至 32 格，死鎖未來任意新防線的越界風險 🎯
+ const killStats = new Uint32Array(32);
+ let totalGeneratedTestCount = 0;
+ function isGeneSurvive(comb) {
+ totalGeneratedTestCount++;
+ for (let i = 0; i < filters.length; i++) {
+ if (filters[i].exec(comb)) { 
+     // 限制保護同步上調至小於 32，確保安全錄入
+     if (filters[i].id >= 0 && filters[i].id < 32) 
+         killStats[filters[i].id]++; 
+     return false; 
+ }
+ }
+
     if (f15_on) {
       const splitCount = pickCount - 1; let conflict = false;
       const checkDfs = (start, curr) => {
