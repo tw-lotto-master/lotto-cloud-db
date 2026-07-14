@@ -899,7 +899,7 @@ global.compileOutput = compileLeaderboardToOutput;
 } // 完美閉合主執行緒的完全體結構 🌟
 
 
-} // 完美閉合主執行緒的完全體結構 🌟
+
 if (!isMainThread) {
  const { cfg, passedHistoryDB } = workerData;
  
