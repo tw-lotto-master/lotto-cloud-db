@@ -970,18 +970,16 @@ global.compileOutput = compileLeaderboardToOutput;
 
 
 
+// === 🎯 點對點新舊替換範圍：精確鎖定 Page 11 最底部 if (!isMainThread) 的下一行 ===
 if (!isMainThread) {
  const { cfg, passedHistoryDB } = workerData;
  
- // ─── 【神之手 Worker 內層型態強制校正晶片】 ───
- // 確保不論主執行緒丟進來什麼污染變數，Worker 核心層一律再次鐵血校正，死鎖 5 碼輸出 🎯
- let workerLottoType = "39_5";
- if (cfg && cfg.lottoType && String(cfg.lottoType).trim() === "49_6") {
-     workerLottoType = "49_6";
- }
- const lottoType = workerLottoType;
- 
+ // ─── 🎯 【神之手：多執行緒子核彩種強行卡死自癒晶片】 ───
+ // 徹底切斷主副緒變數粘連，確保 Worker 內部所有 16 條防線在讀取 lottoType 時 100% 同步！
+ const lottoType = (cfg && cfg.lottoType && String(cfg.lottoType).trim() === "49_6") ? "49_6" : "39_5";
  const maxBall = lottoType === "49_6" ? 49 : 39;
+// === 以下繼續接您原本的 const pickCount = ... 舊代碼，完全維持原樣不變 ===
+
  const pickCount = lottoType === "49_6" ? 6 : 5;
  const historyDB = passedHistoryDB || [];
 
@@ -1051,91 +1049,62 @@ const remainingPoolForDFS = basePool.filter(b => !favBalls.includes(b));
  // ⚙️ 【極速最前線：關卡 06 ── 號碼總和範圍】(提權理由: 純加法運算極快, 一鍵封殺大批極端數字)
 const f6_on = (cfg.f6_on === true || cfg.f6_on === 'true');
 if (f6_on) {
-  const defaultLow = lottoType === "49_6" ? 110 : 70;
-  const defaultHigh = lottoType === "49_6" ? 210 : 130;
-  const f6_low = Number(cfg.f6_low) || defaultLow;
-  const f6_high = Number(cfg.f6_high) || defaultHigh;
-  
-  filters.push({
-    id: 6,
-    exec: (comb) => {
-      const sumvalue = comb.reduce((a, b) => a + b, 0);
-      
-      // 🎯 滿血自癒修正：只要總和低於下限 或 高於上限， return true 毫不留情直接封殺！
-      if (sumvalue < f6_low || sumvalue > f6_high) {
-        return true;
-      }
-      
-      return false; // 落在黃金區間內，判定為健康組合，允許生還放行
-    }
-  });
+ // ─── 🎯 【動態彩種總和牆解鎖閘門】 ───
+ // 539 模式下強制回歸 70 ~ 130，大樂透強制回歸 110 ~ 210
+ const defaultLow = lottoType === "49_6" ? 110 : 70;
+ const defaultHigh = lottoType === "49_6" ? 210 : 130;
+ const f6_low = Number(cfg.f6_low) || defaultLow;
+ const f6_high = Number(cfg.f6_high) || defaultHigh;
+ 
+ filters.push({
+  id: 6,
+  exec: (comb) => {
+   const sumvalue = comb.reduce((a, b) => a + b, 0);
+   if (sumvalue < f6_low || sumvalue > f6_high) return true; 
+   return false;
+  }
+ });
 }
- // ⚙️ 【中階防線：關卡 11 ── 大小數比例分流】
+// 【中階防線：關卡 11 ── 大小數比例分流自癒晶片】
 const f11_on = (cfg.f11_on === true || cfg.f11_on === 'true');
 if (f11_on && (cfg.f11_kill || cfg.f11_kill === 'true')) {
-  const midPoint = lottoType === "49_6" ? 25 : 20;
-  
-  filters.push({
-    id: 11,
-    exec: (comb) => {
-      // 🎯 滿血自癒晶片：直接統計這組號碼內「大數」的真實總個數
-      let bigCount = 0;
-      const len = comb.length;
-      
-      for (let i = 0; i < len; i++) {
-        if (comb[i] >= midPoint) {
-          bigCount++;
-        }
-      }
-      
-      const smallCount = len - bigCount;
-      
-      // 🎯 核心判定：如果「全大數 (bigCount === len)」、「全小數 (smallCount === len)」
-      // 或是極端失衡的「只有1碼大 (bigCount === 1)」或「只有1碼小 (smallCount === 1)」
-      // return true 毫不留情直接封殺剔除！
-      if (bigCount === len || smallCount === len || bigCount === 1 || smallCount === 1) {
-        return true;
-      }
-      
-      return false; // 大小數比例均衡常態，判定為健康組合，允許生還放行
-    }
-  });
+ // 🎯 大樂透切分點為 25，539 切分點自動降維對齊 20
+ const midPoint = lottoType === "49_6" ? 25 : 20;
+ filters.push({
+  id: 11,
+  exec: (comb) => {
+   let bigCount = 0; const len = comb.length;
+   for (let i = 0; i < len; i++) { if (comb[i] >= midPoint) bigCount++; }
+   const smallCount = len - bigCount;
+   if (bigCount === len || smallCount === len || bigCount === 1 || smallCount === 1) return true;
+   return false;
+  }
+ });
 }
 
- // ⚙️ 【中階防線：關卡 05 ── 奇偶比例動態防禦】
+
+// 【中階防線：關卡 05 ── 奇偶比例動態防禦對齊晶片】
 const f5_on = (cfg.f5_on === true || cfg.f5_on === 'true');
 if (f5_on) {
-  const isLotto = lottoType === "49_6";
-  const killAll = isLotto ? (cfg.f5_lotto_60 || false) : (cfg.f5_539_50 || false);
-  const killOneElement = isLotto ? (cfg.f5_lotto_51 || false) : (cfg.f5_539_41 || false);
-  const limit = isLotto ? 5 : 4; // 大樂透極端為 5:1/1:5，539極端為 4:1/1:4
-  
-  filters.push({
-    id: 5,
-    exec: (comb) => {
-      let odds = 0, evens = 0;
-      const len = comb.length;
-      
-      // 🎯 滿血自癒計數器：精確統計這組組合的奇偶數實體
-      for (let m = 0; m < len; m++) {
-        if ((comb[m] & 1) === 1) odds++; 
-        else evens++;
-      }
-      
-      // 🎯 滿血修正一：勾選排除全奇全偶，且真的踩雷（全奇或全偶）， return true 封殺！
-      if (killAll && (odds === len || evens === len)) {
-        return true;
-      }
-      
-      // 🎯 滿血修正二：勾選排除極端失衡，且真的踩雷（僅1碼奇或1碼偶）， return true 封殺！
-      if (killOneElement && (odds === limit || evens === limit)) {
-        return true;
-      }
-      
-      return false; // 奇偶比例分佈在健康常態區間，允許生還放行
-    }
-  });
+ const isLotto = lottoType === "49_6";
+ const killAll = isLotto ? (cfg.f5_lotto_60 || false) : (cfg.f5_539_50 || false);
+ const killOneElement = isLotto ? (cfg.f5_lotto_51 || false) : (cfg.f5_539_41 || false);
+ // 🎯 大樂透極端上限為 5（5:1/1:5），539 極端上限全自動鎖死為 4（4:1/1:4）
+ const limit = isLotto ? 5 : 4; 
+ 
+ filters.push({
+  id: 5,
+  exec: (comb) => {
+   let odds = 0; const len = comb.length;
+   for (let m = 0; m < len; m++) { if ((comb[m] & 1) === 1) odds++; }
+   const evens = len - odds;
+   if (killAll && (odds === len || evens === len)) return true;
+   if (killOneElement && (odds === limit || evens === limit)) return true;
+   return false;
+  }
+ });
 }
+
 
  // ⚙️ 【結構防線：關卡 12 ── 除三餘數 012 路】
  const f12_on = (cfg.f12_on === true || cfg.f12_on === 'true');
@@ -1226,35 +1195,27 @@ if (f7_on) {
   });
 }
 
- // ⚙️ 【結構防線：關卡 14 ── 質數合數過濾】
- const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
+// 【結構防線：關卡 14 ── 質數合數過濾門檻對齊】
+const f14_on = (cfg.f14_on === true || cfg.f14_on === 'true');
 if (f14_on && (cfg.f14_kill || cfg.f14_kill === 'true')) {
-  const primes = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
-  
-  filters.push({
-    id: 14,
-    exec: (comb) => {
-      let pCount = 0;
-      const len = comb.length;
-      
-      for (let m = 0; m < len; m++) {
-        if (primes.has(comb[m])) {
-          pCount++;
-          
-           // ─── 【神之手質合動態自癒晶片】 ───
- // 大樂透(6碼)達到 4 個質數封殺；539(5碼)總數較少，達到 5 個全質數才封殺，防止誤殺
- const primeLimitGate = lottoType === "49_6" ? 4 : 5;
- if (pCount >= primeLimitGate) {
- return true;
-
-          }
-        }
-      }
-      
-      return false; // 質數數量在 1~3 個常態安全區間，判定為健康組合，允許生還放行
+ const primes = new Set([2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47]);
+ filters.push({
+  id: 14,
+  exec: (comb) => {
+   let pCount = 0; const len = comb.length;
+   for (let m = 0; m < len; m++) {
+    if (primes.has(comb[m])) {
+     pCount++;
+     // 🎯 大樂透(6碼)達到 4 個質數封殺；539(5碼)總數較少，達到 5 個全質數才封殺，防止誤殺
+     const primeLimitGate = lottoType === "49_6" ? 4 : 5;
+     if (pCount >= primeLimitGate) return true;
     }
-  });
+   }
+   return false;
+  }
+ });
 }
+
 
   
  // Filter 03: reject combinations concentrated inside any N physical zones.
