@@ -151,110 +151,90 @@ app.post('/api/auth/google-sync', async (req, res) => {
 // ====== 【四大自癒金流晶片 API - 加入 24H 到期主動物理擦除防線】 ======
 app.post('/api/user/profile-v2', async (req, res) => {
  try {
-     // 1. 滿血身分提取：優先從 Payload 中清洗出使用者實體 ID 🎯
-     const sessionUserId = extractUserIdFromPayload(req);
-     if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證失效" });
-     
-     // 2. 直連讀取：先不排除密碼，因為我們要取得完整物件進行欄位動態修改與儲存
-     const dbUser = await User.findById(sessionUserId);
-     if (!dbUser) return res.status(404).json({ success: false, message: "找不到該會員資料" });
-     
-     // 3. 啟動時間物理對決：抓取當下最精確的伺服器時間 ⚙️
-     const now = new Date();
-     let isDataChanged = false; // 用來標記資料庫是否有被改動
-     
-     // ✨【核心自癒加入：24小時單次通行證主動擦除器】
-     if (dbUser.singleUnlockExpiresAt) {
-         const expireTime = new Date(dbUser.singleUnlockExpiresAt);
-         
-         // 如果當前時間已經「大於或等於」過期時間，代表通行證正式壽終正寢
-         if (now >= expireTime) {
-             dbUser.singleUnlockExpiresAt = null; // 物理擦除重設為 null
-             dbUser.markModified('singleUnlockExpiresAt'); // 強制引信標記
-             isDataChanged = true;
-             console.log(`[時效自癒攔截] 操盤手 ${dbUser.username} 的 24 小時單次通行證已到期，系統已主動將欄位擦拭為 null！`);
-         }
-     }
-     
-     // ✨【加固擴充：30天月費 VIP 到期主動自癒重鎖】（順手幫您的月費也做物理同步自癒）
-     if (dbUser.subscriptionExpiresAt) {
-         const vipExpireTime = new Date(dbUser.subscriptionExpiresAt);
-         if (now >= vipExpireTime) {
-             dbUser.subscriptionExpiresAt = null; // 物理擦除時間
-             dbUser.isPaidMember = false;         // 權限降階降級
-             dbUser.markModified('subscriptionExpiresAt');
-             dbUser.markModified('isPaidMember');
-             isDataChanged = true;
-             console.log(`[月費時效攔截] 操盤手 ${dbUser.username} 的鑽石會員訂閱已到期，系統已主動清空欄位並重鎖高階特權！`);
-         }
-     }
-     
-     // 4. 如果有發生任何權限過期擦除，立刻回寫儲存至 MongoDB 資料庫
-     if (isDataChanged) {
-         await dbUser.save();
-     }
-     
-     // 5. 安全淨化：回傳前將敏感的 password 物理蒸發，確保客戶端資安
-     const safeUserObj = dbUser.toObject();
-     delete safeUserObj.password;
-     
-     return res.json({ success: true, user: safeUserObj });
-     
+  const sessionUserId = extractUserIdFromPayload(req);
+  if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證失效" });
+ 
+  const dbUser = await User.findById(sessionUserId);
+  if (!dbUser) return res.status(404).json({ success: false, message: "找不到該會員資料" });
+ 
+  const now = new Date();
+  let isDataChanged = false;
+ 
+  if (dbUser.singleUnlockExpiresAt) {
+   const expireTime = new Date(dbUser.singleUnlockExpiresAt);
+   if (now >= expireTime) {
+    dbUser.singleUnlockExpiresAt = null;
+    dbUser.markModified('singleUnlockExpiresAt');
+    isDataChanged = true;
+    console.log(`[時效自癒攔截] 操盤手 ${dbUser.username} 的 24 小時單次通行證已到期，系統已主動將欄位擦拭為 null！`);
+   }
+  }
+ 
+  if (dbUser.subscriptionExpiresAt) {
+   const vipExpireTime = new Date(dbUser.subscriptionExpiresAt);
+   if (now >= vipExpireTime) {
+    dbUser.subscriptionExpiresAt = null;
+    dbUser.isPaidMember = false;
+    dbUser.markModified('subscriptionExpiresAt');
+    dbUser.markModified('isPaidMember');
+    isDataChanged = true;
+    console.log(`[月費時效攔截] 操盤手 ${dbUser.username} 的鑽石會員訂閱已到期，系統已主動清空欄位並重鎖高階特權！`);
+   }
+  }
+ 
+  if (isDataChanged) {
+   await dbUser.save();
+  }
+ 
+  const safeUserObj = dbUser.toObject();
+  delete safeUserObj.password;
+  return res.json({ success: true, user: safeUserObj });
  } catch (err) { 
-     console.error("[Profile自癒阻斷異常] 執行時間軸巡檢時發生突發攔截: ", err.message);
-     return res.status(500).json({ success: false, message: "資產讀取異常" }); 
+  console.error("[Profile自癒阻斷異常] 執行時間軸巡檢時發生突發攔截: ", err.message);
+  return res.status(500).json({ success: false, message: "資產讀取異常" }); 
  }
 });
 
 app.post('/api/user/cancel-vip', async (req, res) => {
-  try {
-    const sessionUserId = extractUserIdFromPayload(req);
-    if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-    const dbUser = await User.findById(sessionUserId);
-    if (!dbUser) return res.status(404).json({ success: false, message: "雲端資料庫找不到該帳戶" });
-    dbUser.subscriptionExpiresAt = null;
-    dbUser.isPaidMember = false;
-    await dbUser.save();
-    return res.json({ success: true, message: "訂閱已成功終止，特權重鎖" });
-  } catch (err) { return res.status(500).json({ success: false, message: "伺服器底層內核阻斷錯誤" }); }
+ try {
+  const sessionUserId = extractUserIdFromPayload(req);
+  if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+  const dbUser = await User.findById(sessionUserId);
+  if (!dbUser) return res.status(404).json({ success: false, message: "雲端資料庫找不到該帳戶" });
+  dbUser.subscriptionExpiresAt = null;
+  dbUser.isPaidMember = false;
+  await dbUser.save();
+  return res.json({ success: true, message: "訂閱已成功終止，特權重鎖" });
+ } catch (err) { return res.status(500).json({ success: false, message: "伺服器底層內核阻斷錯誤" }); }
 });
 
 app.post('/api/user/single-unlock', async (req, res) => {
  try {
- // 採用自癒晶片優先從 headers 或 body 解析出使用者 ID，雙防線防止空憑證阻斷
- const sessionUserId = extractUserIdFromPayload(req);
- if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證失效，請重新登入" });
- const dbUser = await User.findById(sessionUserId);
- if (!dbUser) return res.status(404).json({ success: false, message: "操盤手帳戶不存在" });
- 
- const now = new Date();
- if (dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > now) {
- return res.json({ success: true, message: "您已擁有 24 小時免扣點通行特權！", newPoints: dbUser.points });
- }
- 
- // 【升級核心】單次解鎖扣除點數由 10 點精準調升至 25 點
- const UNLOCK_COST = 25;
- if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
- return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階過濾防線需消耗 ${UNLOCK_COST} 點，請先儲值。` });
- }
- 
- // 安全扣除 25 點資產，並注入 24 小時白名單截止線
- dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
- const expireTime = new Date();
- expireTime.setHours(expireTime.getHours() + 24); 
- dbUser.singleUnlockExpiresAt = expireTime;
- 
- dbUser.markModified('points');
- dbUser.markModified('singleUnlockExpiresAt');
- await dbUser.save();
- 
- console.log(`[通行證發放] 操盤手 ${dbUser.username} 成功扣除 25 點，24小時高階防線通道全線放行！`);
- return res.json({ success: true, newPoints: dbUser.points, singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt });
+  const sessionUserId = extractUserIdFromPayload(req);
+  if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證失效，請重新登入" });
+  const dbUser = await User.findById(sessionUserId);
+  if (!dbUser) return res.status(404).json({ success: false, message: "操盤手帳戶不存在" });
+  const now = new Date();
+  if (dbUser.singleUnlockExpiresAt && new Date(dbUser.singleUnlockExpiresAt) > now) {
+   return res.json({ success: true, message: "您已擁有 24 小時免扣點通行特權！", newPoints: dbUser.points });
+  }
+  const UNLOCK_COST = 25;
+  if ((Number(dbUser.points) || 0) < UNLOCK_COST) {
+   return res.status(400).json({ success: false, message: `解鎖失敗！單次解鎖高階過濾防線需消耗 ${UNLOCK_COST} 點，請先儲值。` });
+  }
+  dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - UNLOCK_COST);
+  const expireTime = new Date();
+  expireTime.setHours(expireTime.getHours() + 24); 
+  dbUser.singleUnlockExpiresAt = expireTime;
+  dbUser.markModified('points');
+  dbUser.markModified('singleUnlockExpiresAt');
+  await dbUser.save();
+  console.log(`[通行證發放] 操盤手 ${dbUser.username} 成功扣除 25 點，24小時高階防線通道全線放行！`);
+  return res.json({ success: true, newPoints: dbUser.points, singleUnlockExpiresAt: dbUser.singleUnlockExpiresAt });
  } catch (err) { 
-     return res.status(500).json({ success: false, message: "雲端授權通道異常" }); 
+  return res.status(500).json({ success: false, message: "雲端授權通道專屬異常" }); 
  }
 });
-
 // =========================================================================
 // 【四大自癒金流晶片補強 ── 1. 儲值點數 API (完美咬合 buy-points2)】
 // =========================================================================
@@ -262,15 +242,14 @@ app.post('/api/user/buy-points2', async (req, res) => {
  try {
   const sessionUserId = extractUserIdFromPayload(req);
   if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-  
+ 
   const dbUser = await User.findById(sessionUserId);
   if (!dbUser) return res.status(404).json({ success: false, message: "雲端資料庫找不到該帳戶" });
-  
-  // 模擬商用儲值：每次強制灌入 100 點數資產
+ 
   dbUser.points = (Number(dbUser.points) || 0) + 100;
   dbUser.markModified('points');
   await dbUser.save();
-  
+ 
   console.log(`[金流充值大成功] 操盤手 ${dbUser.username} 成功儲值 100 點，最新餘額：${dbUser.points}`);
   return res.json({ success: true, newPoints: dbUser.points });
  } catch (err) {
@@ -285,11 +264,10 @@ app.post('/api/user/subscribe-vip2', async (req, res) => {
  try {
   const sessionUserId = extractUserIdFromPayload(req);
   if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
-  
+ 
   const dbUser = await User.findById(sessionUserId);
   if (!dbUser) return res.status(404).json({ success: false, message: "雲端資料庫找不到該帳戶" });
-  
-  // 🎯 【後台影子字典 ── 月費扣點不足四國語言阻斷器】
+ 
   const backLangSub = req.body.cfg?.lang || "zh";
   const txtSubPointsEmpty = {
    zh: "續約失敗！訂閱 VIP 需消耗 150 點，您的帳戶點數不足，請先進行儲值！🪙",
@@ -302,29 +280,29 @@ app.post('/api/user/subscribe-vip2', async (req, res) => {
   if ((Number(dbUser.points) || 0) < SUB_COST) {
    return res.status(400).json({ success: false, message: txtSubPointsEmpty });
   }
-  
-  // 扣除 150 點資產，並利用 Date 物件將 VIP 到期截止線往後順延 30 天
+ 
   dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - SUB_COST);
-  
+ 
   const now = new Date();
   let currentExpiry = dbUser.subscriptionExpiresAt ? new Date(dbUser.subscriptionExpiresAt) : now;
-  if (currentExpiry < now) currentExpiry = now; // 如果過期了，從當天開始算起
-  
+  if (currentExpiry < now) currentExpiry = now;
+ 
   currentExpiry.setDate(currentExpiry.getDate() + 30);
   dbUser.subscriptionExpiresAt = currentExpiry;
-  dbUser.isPaidMember = true; // 開啟鑽石會員白名單權限
-  
+  dbUser.isPaidMember = true;
+ 
   dbUser.markModified('points');
   dbUser.markModified('subscriptionExpiresAt');
   dbUser.markModified('isPaidMember');
   await dbUser.save();
-  
+ 
   console.log(`[鑽石特權續約成功] 操盤手 ${dbUser.username} 扣除 150 點，VIP時效已延展至：${dbUser.subscriptionExpiresAt}`);
   return res.json({ success: true, newPoints: dbUser.points });
- catch (err) {
+ } catch (err) {
   return res.status(500).json({ success: false, message: "雲端訂閱通道連線異常" });
  }
-});
+}); // 👈 完美配對並正確閉合所有的大括號！
+
 
 
 // ─── 雲端收藏夾儲存 API：全面重構為「100% 物理擦除覆蓋」 ───
