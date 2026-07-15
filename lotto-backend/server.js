@@ -866,17 +866,20 @@ worker.on('message', (msg) => {
  }
  } catch (e) {}
 
-// ─── 【神之手：海選大結局四國語言全對齊發射晶片】 ───
- const backLangB = cfg.lang || "zh";
-  // ─── 🎯 【後台最高階海選大結局報告 ── 抬頭標題 100% 越南語物理咬合】 ───
-  const txtVipTitle8 = {
+// ─── 🛠️ 鋼鐵防線：將變數名稱完全對齊 cfg.lang，徹底消滅所有未定義變數 ───
+ const currentBackendLang = cfg.lang || "zh";
+ 
+ const txtVipTitleOutputPool = {
    zh: `【VIP高階數據核心分析竣工】 本次大數據篩選實時通過總數: \n\${liveScannedCount} 組 \n \n 【當前交付全局最佳數據優化組合 (100%保證分散多樣性！)】: \n`,
-   en: `[VIP Advanced Data Fusion Completed] Total qualified combination pool verified: \n\${liveScannedCount} Sets \n \n [Current Unlocked Optimal Dispersed Analytics Combinations (100% Diversity Guaranteed)]: \n`,
-   ko: `【VIP 고급 데이터 핵심 분석 완료】 이번 빅데이터 필터링 실시간 통과 총 세트 수: \n\${liveScannedCount} 개 조합 \n \n 【현재 교부된 글로벌 최적 데이터 최적화 조합 (100% 분산 다양성 보장!)】: \n`,
+   en: `[VIP Advanced Data Fusion Completed] Total qualified combination pool verified:\n\${liveScannedCount} Sets \n \n [Current Unlocked Optimal Dispersed Analytics Combinations (100% Diversity Guaranteed)]: \n`,
+   ko: `【VIP 고급 데이터 핵심 분석 완료】 이번 빅데이터 필터링 실시간 통과 총 세트 수:\n\${liveScannedCount} 개 조합 \n \n 【현재 교부된 글로벌 최적 데이터 최적화 조합 (100% 분산 다양성 보장!)】: \n`,
    ja: `【VIP高度データ核心分析竣工】 今回のビッグデータ抽出リアルタイム通過総数: \n\${liveScannedCount} 組 \n \n 【現在交付されたグローバル最適データ最適化組み合わせ (100%分散多面性を完全保証!)】: \n`,
-   // 🎯 點對點修復：精確補上越南語最高階大竣工抬頭，徹底火化最後一個中文穿幫死角！
    vi: `【Hoàn Thành Sàng Lọc Đại Dữ Liệu VIP】 Tổng số tổ hợp vượt qua kiểm tra thực tế: \n\${liveScannedCount} Bộ \n \n 【Danh sách tổ hợp tối ưu hóa toàn cục tốt nhất hiện tại (Đảm bảo phân tán vật lý 100%!)】: \n`
-  }[backLang8] || "【VIP高階數據核心分析竣工】";
+ };
+
+ // 🟢 物理修正：使用剛剛宣告對齊的變數，防截斷、防報錯
+ const finalVipTitleString = txtVipTitleOutputPool[currentBackendLang] || "【VIP高階數據核心分析竣工】";
+
 
  try {
  if (!res.writableEnded) {
