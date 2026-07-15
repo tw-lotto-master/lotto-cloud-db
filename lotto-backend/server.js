@@ -273,7 +273,9 @@ app.post('/api/user/subscribe-vip2', async (req, res) => {
    zh: "續約失敗！訂閱 VIP 需消耗 150 點，您的帳戶點數不足，請先進行儲值！🪙",
    en: "Renewal failed! Subscribing to VIP costs 150 points. Insufficient balance, please top up!🪙",
    ko: "만료 연장 실패! VIP 구독에는 150 포인트가 소모됩니다. 잔액이 부족하니 먼저 충전해 주세요!🪙",
-   ja: "更新失敗！VIP購読には 150 ポイント必要です。残高が不足しています。チャージしてください！🪙"
+  ja: "更新失敗！VIP購読には 150 ポイント必要です。残高が不足しています。チャージしてください！🪙",
+   // 🎯 點對點精確解鎖：讓越南用戶點數不足時，看見 100% 純正的越南母語金流警報！
+   vi: "Gia hạn thất bại! Đăng ký VIP cần tiêu hao 150 điểm, số điểm tài khoản của bạn không đủ, vui lòng nạp tiền trước!🪙"
   }[backLangSub] || "續約失敗！訂閱 VIP 需消耗 150 點，您的帳戶點數不足，請先進行儲值！";
 
   const SUB_COST = 150;
@@ -564,9 +566,9 @@ if (isMainThread) {
              const formattedOutput = formattedArray.join(', ');
 
               // ─── 【神之手：聰明包牌四國語言動態交卷晶片】 ───
- const txtGrpHead = { zh: "第", cn: "第", en: "Set", ko: "제", ja: "第" }[backLang] || "第";
- const txtGrpMid = { zh: "] 組 (第", cn: "] 组 (第", en: "] (Big Group", ko: "] 조합 (제", ja: "] 組 (第" }[backLang] || "] 組 (第";
- const txtGrpEnd = { zh: "大組) [評分: 410分] :", cn: "大组) [评分: 410分] :", en: ") [Score: 410 Pts] :", ko: "대그룹) [점수: 410점] :", ja: "大組) [評価: 410点] :" }[backLang] || "大組) [評分: 410分] :";
+  const txtGrpHead = { zh: "第", cn: "第", en: "Set", ko: "제", ja: "第", vi: "Bộ [" }[backLang] || "第";
+ const txtGrpMid  = { zh: "] 組 (第", cn: "] 组 (第", en: "] (Big Group", ko: "] 조합 (제", ja: "] 組 (第", vi: "] (Nhóm " }[backLang] || "] 組 (第";
+ const txtGrpEnd  = { zh: "大組) [評分: 410分] : ", cn: "大组) [评分: 410分] : ", en: ") [Score: 410 Pts] : ", ko: "대그룹) [점수: 410점] : ", ja: "大組) [評価: 410点] : ", vi: " Nhóm lớn) [Điểm: 410] : " }[backLang] || "大組) [評分: 410分] : ";
  finalOutputCombs.push(`${txtGrpHead} [${indexStr}${txtGrpMid} ${assignedUnitCounter} ${txtGrpEnd}\n${formattedOutput}\n`);
 
              
@@ -604,9 +606,9 @@ if (isMainThread) {
              const formattedOutput = formattedArray.join(', ');
 
              // 一般隨機模式依據原本邏輯，統一優雅歸類在第 1 大組
-              // ─── 【神之手：一般隨機四國語言動態交卷晶片】 ───
- const txtRandHead = { zh: "第", cn: "第", en: "Set", ko: "제", ja: "第" }[backLang] || "第";
- const txtRandMid = { zh: "] 組 (第 1 大組) [評分: 390分] :", cn: "] 组 (第 1 大组) [评分: 390分] :", en: "] (Big Group 1) [Score: 390 Pts] :", ko: "] 조합 (제 1 대그룹) [점수: 390점] :", ja: "] 組 (第 1 大組) [評価: 390点] :" }[backLang] || "] 組 (第 1 大組) [評分: 390分] :";
+               // ─── 🎯 【後台基礎專區出牌 ── 槽位文字越南語 100% 物理咬合】 ───
+ const txtRandHead = { zh: "第", cn: "第", en: "Set", ko: "제", ja: "第", vi: "Bộ [" }[backLang] || "第";
+ const txtRandMid  = { zh: "] 組 (第 1 大組) [評分: 390分] : ", cn: "] 组 (第 1 大组) [评分: 390分] : ", en: "] (Big Group 1) [Score: 390 Pts] : ", ko: "] 조합 (제 1 대그룹) [점수: 390점] : ", ja: "] 組 (第 1 大組) [評価: 390点] : ", vi: "] (Nhóm lớn 1) [Điểm: 390] : " }[backLang] || "] 組 (第 1 大組) [評分: 390分] : ";
  finalOutputCombs.push(`${txtRandHead} [${indexStr}${txtRandMid}\n${formattedOutput}\n`);
 
          }
@@ -614,21 +616,40 @@ if (isMainThread) {
 
  res.write(JSON.stringify({ isProgress: true, percent: 100, currentMatch: finalOutputCombs.length }) + "\n");
 
- // ─── 【神之手：總結大竣工報告四國語言全對齊】 ───
+  // ─── 🎯 【後台大結局報告 ── 抬頭標題 100% 越南語物理咬合】 ───
  const txtTurboTitle = {
-     zh: `【VIP直通大竣工】中繼站本次海選免扣點實時通過總數：\n${totalTheoreticalCombs} 組 \n \n【當前交付解鎖組合（已完美拉滿物理互斥，100%保證分散隔離！）】：\n`,
-     cn: `【VIP直通大竣工】中继站本次海选免扣点实时通过总数：\n${totalTheoreticalCombs} 组 \n \n【当前交付解锁组合（已完美拉满物理互斥，100%保证分散隔离！）】：\n`,
-     en: `[VIP Turbo Completed] Total seamless matching pool options: \n${totalTheoreticalCombs} Sets \n \n[Current Unlocked Combinations (100% Mutually Exclusive & Well Dispersed)]: \n`,
-     ko: `[VIP 패스 대준공] 이번 무료 해선 실시간 통과 총 조합 수: \n${totalTheoreticalCombs} 그룹 \n \n[현재 교부된 해제 조합 (100% 완전 분산 격리 보장!)]: \n`,
-     ja: `【VIP直通大竣工】今回の無料海選リアルタイム通過総数：\n${totalTheoreticalCombs} 組 \n \n【現在交付されたロック解除組合せ（100%分散隔離を完全保証！）】：\n`
+  zh: `【VIP直通大竣工】 中階站本交海選免扣點實時通過總數: \n\${totalTheoreticalCombs} 組 \n \n 【當前交付解鎖組合 (已完美拉滿物理互斥，100%保證分散隔離！)】: \n`,
+  cn: `【VIP直通大竣工】 中継站本交海選免扣点实时通过总数: \n\${totalTheoreticalCombs} 组 \n \n 【当前交付解锁组合 (已完美拉满物理互斥，100%保证分散隔离！)】: \n`,
+  en: `【VIP Turbo Completed】 Total seamless matching pool options: \n\${totalTheoreticalCombs} Sets \n \n 【Current Unlocked Combinations (100% Mutually Exclusive & Well Dispersed)】: \n`,
+  ko: `【VIP 패스 대준공】 이번 무료 해선 실시간 통과 총 조합 수: \n\${totalTheoreticalCombs} 그룹 \n \n 【현재 교부된 해제 조합 (100% 완전 분산 격리 보장!)】: \n`,
+  ja: `【VIP直通大竣工】 今回の無料海選リアルタイム通過総数: \n\${totalTheoreticalCombs} 組 \n \n 【現在交付されたロック解除組合せ (100%分散隔離を完全保証!)】: \n`,
+  // 🎯 點對點修復：精確補上越南語大竣工抬頭，徹底抹除中文殘留
+  vi: `【Hoàn Thành Sàng Lọc VIP】 Tổng số tổ hợp đại dữ liệu vượt qua kiểm tra thực tế: \n\${totalTheoreticalCombs} Bộ \n \n 【Danh sách tổ hợp tối ưu hóa mở khóa hiện tại (Đảm bảo phân tán vật lý 100%!)】: \n`
  }[backLang] || "【VIP直通大竣工】";
 
- const txtModeLabel = { zh: "\n【輸出模式】", cn: "\n【输出模式】", en: "\n[Output Mode] ", ko: "\n【출력 모드】", ja: "\n【出力モード】" }[backLang] || "\n【輸出模式】";
- 
- let modeLabelText = cfg.vipMode === 'smart' 
-     ? ({ zh: '聰明包牌 (免死金牌直通-大組內彩球絕對完全互斥版)', cn: '聪明包牌 (免死金牌直通-大组内彩球绝对完全互斥版)', en: 'Smart Wheeling (Seamless - Absolute Mutually Exclusive)', ko: '스마트 조합 (무료 직통 - 대그룹 내 완전 배제 버전)', ja: 'スマート連番 (直通免除 - 大組内完全重複排除版)' }[backLang])
-     : ({ zh: '一般隨機組合 (免死金牌直通-大組物理隔離版)', cn: '一般随机组合 (免死金牌直通-大组物理隔离版)', en: 'Standard Random Set (Seamless - Physically Dispersed)', ko: '일반 무작위 조합 (무료 직통 - 대그룹 물리 격리 버전)', ja: '一般ランダム組合せ (直通免除 - 大組物理隔離版)' }[backLang]);
+ const txtModeLabel = { zh: "\n 【輸出模式】", cn: "\n 【输出模式】", en: "\n [Output Mode]", ko: "\n [출력 모드]", ja: "\n 【出力モード】", vi: "\n 【Chế độ xuất】" }[backLang] || "\n 【輸出模式】";
 
+ 
+ let modeLabelText = cfg.vipMode === 'smart'
+  ? {
+     zh: '聰明包牌 (免死金牌直通-大組內影球絕對完全互斥版)',
+     cn: '聪明包牌 (免死金牌直通-大组内影球绝对完全互斥版)',
+     en: 'Smart Wheeling (Seamless - Absolute Mutually Exclusive)',
+     ko: '스마트 조합 (무료 직통 - 대그룹 내 완전 배제 버전)',
+     ja: 'スマート包牌 (免死金牌直通-大組内シャドウボール絶対完全互斥版)',
+     // 🎯 點對點修復：越南語生活化聰明包牌黑話完全體
+     vi: 'Bao lô thông minh (Luồng dữ liệu tối ưu hóa - Tuyệt đối loại trừ trùng lặp nội bộ Nhóm lớn)'
+    }[backLang] || '聰明包牌'
+  : {
+     zh: '一般隨機組合 (免死金牌直通-大組物理隔離版)',
+     cn: '一般随机组合 (免死金牌直通-大组物理隔离版)',
+     en: 'Standard Random Set (Seamless - Physically Dispersed)',
+     ko: '일반 무작위 조합 (무료 직통 - 대그룹 물리 격리 버전)',
+     ja: '一般ランダム組合せ (免死金牌直通-大組物理隔離版)',
+     // 🎯 點對點修復：越南語生活化一般隨機組合黑話完全體
+     vi: 'Tổ hợp ngẫu nhiên thông thường (Luồng dữ liệu - Cách ly vật lý Nhóm lớn)'
+    }[backLang] || '一般隨機組合';
+   
  res.write(JSON.stringify({
      success: true,
      outputText: txtTurboTitle + `-------------------------\n` + finalOutputCombs.join('') + `-------------------------\n` + txtModeLabel + modeLabelText + `\n`
@@ -645,12 +666,16 @@ if (isMainThread) {
     if (!isVipPass) {
   // 🎯 【後台影子字典 ── 權限鎖定四國洗詞自癒晶片】
   const backLangLock = cfg.lang || "zh";
+    // ─── 🎯 【後台高階防線阻斷牆 ── 25點扣點提示 100% 越南語咬合】 ───
   const txtLockMsg = {
    zh: "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (25點)』獲取憑證！",
    en: "Access Denied: Advanced filtering requires a 24h pass. Please click 'Unlock 1 Round (25 pts)' to get access!",
-   ko: "권한 잠김: 고급 필터링은 24시간 패스가 필요합니다. 먼저 '단건 해제 (25포인트)'를 클릭하여 인증서를 획득하세요!",
-   ja: "権限ロック：高度フィルターの利用には24時間通行証が必要です。先に『単発解除 (25点)』をクリックし資格を取得してください！"
+   ko: "권한 잠금: 고급 필터링은 24시간 패스가 필요합니다. 먼저 '단건 해제 (25포인트)'를 클릭하여 인증서를 획득하세요!",
+   ja: "権限ロック：高度フィルターの利用には24時間通行証が必要です。先に『単発解除 (25点)』をクリックし資格を取得してください！",
+   // 🎯 點對點修復：精確補上越南語 25點 阻斷提示，徹底火化中文穿幫死角！
+   vi: "Truy cập bị từ chối: Lọc nâng cao yêu cầu thẻ thông hành 24h. Vui lòng nhấp 'Mở khóa 1 lần (25 điểm)' để nhận quyền truy cập!"
   }[backLangLock] || "權限鎖定：高階篩選需持有 24 小時通行證，請先點擊『單次解鎖 (25點)』獲取憑證！";
+
 
   res.write(JSON.stringify({ 
    success: false, 
@@ -843,13 +868,16 @@ worker.on('message', (msg) => {
 
 // ─── 【神之手：海選大結局四國語言全對齊發射晶片】 ───
  const backLangB = cfg.lang || "zh";
- const txtVipTitleB = {
-  zh: `【VIP高階數據核心分析竣工】本次大數據篩選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最佳數據優化組合（100%保證分散多樣性！）】：\n`,
-  en: `[VIP Advanced Data Fusion Completed] Total qualified combination pool verified: \n${liveScannedCount} Sets \n \n[Current Unlocked Optimal Dispersed Analytics Combinations (100% Diversity Guaranteed)]: \n`,
-  ko: `【VIP 고급 데이터 핵심 분석 완료】이번 빅데이터 필터링 실시간 통과 총 세트 수: \n${liveScannedCount} 개 조합 \n \n【현재 교부된 글로벌 최적 데이터 최적화 조합 (100% 분산 다양성 보장!)】: \n`,
-  ja: `【VIP高度データ核心分析竣工】今回のビッグデータ抽出リアルタイム通過総数：\n${liveScannedCount} 組 \n \n【現在交付されたグローバル最適データ最適化組み合わせ（100%分散多面性を完全保証！）】：\n`
- }[backLangB] || `【VIP高階數據核心分析竣工】本次大數據篩選實時通過總數：\n${liveScannedCount} 組 \n \n【當前交付全局最佳數據優化組合】：\n`;
- 
+  // ─── 🎯 【後台最高階海選大結局報告 ── 抬頭標題 100% 越南語物理咬合】 ───
+  const txtVipTitle8 = {
+   zh: `【VIP高階數據核心分析竣工】 本次大數據篩選實時通過總數: \n\${liveScannedCount} 組 \n \n 【當前交付全局最佳數據優化組合 (100%保證分散多樣性！)】: \n`,
+   en: `[VIP Advanced Data Fusion Completed] Total qualified combination pool verified: \n\${liveScannedCount} Sets \n \n [Current Unlocked Optimal Dispersed Analytics Combinations (100% Diversity Guaranteed)]: \n`,
+   ko: `【VIP 고급 데이터 핵심 분석 완료】 이번 빅데이터 필터링 실시간 통과 총 세트 수: \n\${liveScannedCount} 개 조합 \n \n 【현재 교부된 글로벌 최적 데이터 최적화 조합 (100% 분산 다양성 보장!)】: \n`,
+   ja: `【VIP高度データ核心分析竣工】 今回のビッグデータ抽出リアルタイム通過総数: \n\${liveScannedCount} 組 \n \n 【現在交付されたグローバル最適データ最適化組み合わせ (100%分散多面性を完全保証!)】: \n`,
+   // 🎯 點對點修復：精確補上越南語最高階大竣工抬頭，徹底火化最後一個中文穿幫死角！
+   vi: `【Hoàn Thành Sàng Lọc Đại Dữ Liệu VIP】 Tổng số tổ hợp vượt qua kiểm tra thực tế: \n\${liveScannedCount} Bộ \n \n 【Danh sách tổ hợp tối ưu hóa toàn cục tốt nhất hiện tại (Đảm bảo phân tán vật lý 100%!)】: \n`
+  }[backLang8] || "【VIP高階數據核心分析竣工】";
+
  try {
  if (!res.writableEnded) {
  res.write(JSON.stringify({
@@ -898,14 +926,16 @@ function compileLeaderboardToOutput() {
 
             const indexStr = String(i + 1).padStart(2, '0');
             
- // ─── 🎯 【1398萬組全量出牌 ── 槽位文字 100% 四國化拆解組裝晶片】 ───
-  const backLangC = cfg.lang || "zh";
-  const txtGroupHeadC = { zh: "第", en: "Set", ko: "제 [", ja: "第" }[backLangC] || "第";
-  const txtGroupMidC  = { zh: "] 組 (第", en: "] (Big Group", ko: "] 조합 (대그룹 제", ja: "] 組 (第" }[backLangC] || "] 組 (第";
-  const txtScoreLabelC = { zh: "分] : ", en: " Pts] : ", ko: "점] : ", ja: "点] : " }[backLangC] || "分] : ";
-  
-  if (!isSmartMode) {
-   const txtRandModeC = { zh: " 1 大組) [評分: ", en: " 1) [Score: ", ko: " 1 대그룹) [점수: ", ja: " 1 大組) [評価: " }[backLangC] || " 1 大組) [評分: ";
+ 
+  // ─── 🎯 【後台 1398萬組流式出牌 ── 槽位組裝文字越南語 100% 物理咬合】 ───
+ const backLangC = cfg.lang || "zh";
+ const txtGroupHeadC  = { zh: "第", en: "Set", ko: "제 [", ja: "第", vi: "Bộ [" }[backLangC] || "第";
+ const txtGroupMidC   = { zh: "] 組 (第", en: "] (Big Group", ko: "] 조합 (대그룹 제", ja: "] 組 (第", vi: "] (Nhóm " }[backLangC] || "] 組 (第";
+ const txtScoreLabelC = { zh: "分] : ", en: " Pts] : ", ko: "점] : ", ja: "点] : ", vi: " Điểm] : " }[backLangC] || "分] : ";
+
+ if (!isSmartMode) {
+  const txtRandModeC = { zh: " 1 大組) [評分: ", cn: " 1 大组) [评分: ", en: " 1) [Score: ", ko: " 1 대그룹) [점수: ", ja: " 1 大組) [評価: ", vi: " 1 Nhóm lớn) [Điểm: " }[backLangC] || " 1 大組) [評分: ";
+
    
    // 修正韓文與英文的前後綴結構咬合，杜絕半截中文殘留
    let formattedLine = "";
@@ -918,7 +948,7 @@ function compileLeaderboardToOutput() {
    
   } else {
    const displayUnit = item.unit !== undefined ? item.unit : 1;
-   const txtSmartModeC = { zh: "大組) [評分: ", en: ") [Score: ", ko: "대그룹) [점수: ", ja: "大組) [評価: " }[backLangC] || "大組) [評分: ";
+   const txtSmartModeC = { zh: "大組) [評分: ", en: ") [Score: ", ko: "대그룹) [점수: ", ja: "大組) [評価: ", vi: " Nhóm lớn) [Điểm: " }[backLangC] || "大組) [評分: ";
    
    let formattedLine = "";
    if (backLangC === 'ko') {
@@ -1471,7 +1501,6 @@ async function triggerChunkFlush() {
         await new Promise(res => { if (typeof setImmediate !== 'undefined') setImmediate(res); else setTimeout(res, 1); });
     }
 }
-// ========================================== 【區塊 2-2：完全體槽位主動撈取與秒級極速過濾引擎】 ==========================================
 // ========================================== 【區塊 2-2：記憶體安全回歸、全量極速海選與主動撈取引擎】 ==========================================
 (async function runDeterministicBrain() {
  const pLen = basePool.length; 
