@@ -255,6 +255,76 @@ app.post('/api/user/single-unlock', async (req, res) => {
  }
 });
 
+// =========================================================================
+// 【四大自癒金流晶片補強 ── 1. 儲值點數 API (完美咬合 buy-points2)】
+// =========================================================================
+app.post('/api/user/buy-points2', async (req, res) => {
+ try {
+  const sessionUserId = extractUserIdFromPayload(req);
+  if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+  
+  const dbUser = await User.findById(sessionUserId);
+  if (!dbUser) return res.status(404).json({ success: false, message: "雲端資料庫找不到該帳戶" });
+  
+  // 模擬商用儲值：每次強制灌入 100 點數資產
+  dbUser.points = (Number(dbUser.points) || 0) + 100;
+  dbUser.markModified('points');
+  await dbUser.save();
+  
+  console.log(`[金流充值大成功] 操盤手 ${dbUser.username} 成功儲值 100 點，最新餘額：${dbUser.points}`);
+  return res.json({ success: true, newPoints: dbUser.points });
+ } catch (err) {
+  return res.status(500).json({ success: false, message: "儲值處理通道突發攔截" });
+ }
+});
+
+// =========================================================================
+// 【四大自癒金流晶片補強 ── 2. VIP月費續約 API (完美咬合 subscribe-vip2)】
+// =========================================================================
+app.post('/api/user/subscribe-vip2', async (req, res) => {
+ try {
+  const sessionUserId = extractUserIdFromPayload(req);
+  if (!sessionUserId) return res.status(401).json({ success: false, message: "身分驗證憑證已失效" });
+  
+  const dbUser = await User.findById(sessionUserId);
+  if (!dbUser) return res.status(404).json({ success: false, message: "雲端資料庫找不到該帳戶" });
+  
+  // 🎯 【後台影子字典 ── 月費扣點不足四國語言阻斷器】
+  const backLangSub = req.body.cfg?.lang || "zh";
+  const txtSubPointsEmpty = {
+   zh: "續約失敗！訂閱 VIP 需消耗 150 點，您的帳戶點數不足，請先進行儲值！🪙",
+   en: "Renewal failed! Subscribing to VIP costs 150 points. Insufficient balance, please top up!🪙",
+   ko: "만료 연장 실패! VIP 구독에는 150 포인트가 소모됩니다. 잔액이 부족하니 먼저 충전해 주세요!🪙",
+   ja: "更新失敗！VIP購読には 150 ポイント必要です。残高が不足しています。チャージしてください！🪙"
+  }[backLangSub] || "續約失敗！訂閱 VIP 需消耗 150 點，您的帳戶點數不足，請先進行儲值！";
+
+  const SUB_COST = 150;
+  if ((Number(dbUser.points) || 0) < SUB_COST) {
+   return res.status(400).json({ success: false, message: txtSubPointsEmpty });
+  }
+  
+  // 扣除 150 點資產，並利用 Date 物件將 VIP 到期截止線往後順延 30 天
+  dbUser.points = Math.max(0, (Number(dbUser.points) || 0) - SUB_COST);
+  
+  const now = new Date();
+  let currentExpiry = dbUser.subscriptionExpiresAt ? new Date(dbUser.subscriptionExpiresAt) : now;
+  if (currentExpiry < now) currentExpiry = now; // 如果過期了，從當天開始算起
+  
+  currentExpiry.setDate(currentExpiry.getDate() + 30);
+  dbUser.subscriptionExpiresAt = currentExpiry;
+  dbUser.isPaidMember = true; // 開啟鑽石會員白名單權限
+  
+  dbUser.markModified('points');
+  dbUser.markModified('subscriptionExpiresAt');
+  dbUser.markModified('isPaidMember');
+  await dbUser.save();
+  
+  console.log(`[鑽石特權續約成功] 操盤手 ${dbUser.username} 扣除 150 點，VIP時效已延展至：${dbUser.subscriptionExpiresAt}`);
+  return res.json({ success: true, newPoints: dbUser.points });
+ catch (err) {
+  return res.status(500).json({ success: false, message: "雲端訂閱通道連線異常" });
+ }
+});
 
 
 // ─── 雲端收藏夾儲存 API：全面重構為「100% 物理擦除覆蓋」 ───
