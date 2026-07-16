@@ -81,7 +81,7 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
-    await new User({ username, password: hashedPassword, points: 100, isPaidMember: false }).save();
+    await new User({ username, password: hashedPassword, points: 0, isPaidMember: false }).save();
     res.json({ success: true, message: '註冊成功！' });
   } catch { res.status(500).json({ success: false, message: '註冊失敗，帳號可能已存在' }); }
 });
@@ -104,7 +104,7 @@ app.post('/api/auth/google-sync', async (req, res) => {
     if (!googleId) return res.status(400).json({ success: false, message: '無效的 Google 憑證' });
     let user = await User.findOne({ googleId });
     if (!user) {
-      user = new User({ username: username || `Google操盤手_${Math.floor(1000 + Math.random()*9000)}`, googleId, isPaidMember: false, points: 100 });
+      user = new User({ username: username || `Google操盤手_${Math.floor(1000 + Math.random()*9000)}`, googleId, isPaidMember: false, points: 0 });
       await user.save();
     }
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '30d' });
