@@ -75,7 +75,7 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   googleId: { type: String, default: null },
   isPaidMember: { type: Boolean, default: false },
-  points: { type: Number, default: 100 }, 
+  points: { type: Number, default: 0 }, 
   subscriptionExpiresAt: { type: Date, default: null },
   singleUnlockExpiresAt: { type: Date, default: null },
   savedTickets: { type: Array, default: [] } 
@@ -120,7 +120,7 @@ app.post('/api/auth/register', async (req, res) => {
   try {
     const { username, password } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
-    await new User({ username, password: hashedPassword, points: 100, isPaidMember: false }).save();
+    await new User({ username, password: hashedPassword, points: 0, isPaidMember: false }).save();
     res.json({ success: true, message: '註冊成功！' });
   } catch { res.status(500).json({ success: false, message: '註冊失敗，帳號可能已存在' }); }
 });
@@ -140,16 +140,43 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/google-sync', async (req, res) => {
   try {
     const { username, googleId } = req.body;
-    if (!googleId) return res.status(400).json({ success: false, message: '無效的 Google 憑證' });
+    
+    if (!googleId) {
+      return res.status(400).json({ success: false, message: '無效的 Google 憑證' });
+    }
+    
     let user = await User.findOne({ googleId });
+    
     if (!user) {
-      user = new User({ username: username || `Google操盤手_${Math.floor(1000 + Math.random()*9000)}`, googleId, isPaidMember: false, points: 100 });
+      // 🎯 核心修復：使用最標準、絕不吃字的一般單引號與字串拼接，保證百分之百安全！
+      const randomNum = Math.floor(1000 + Math.random() * 9000);
+      const defaultName = 'Google操盤手_' + randomNum;
+      
+      user = new User({ 
+        username: username || defaultName, 
+        googleId: googleId, 
+        isPaidMember: false, 
+        points: 0 
+      });
+      
       await user.save();
     }
+    
     const token = jwt.sign({ userId: user._id }, JWT_SECRET, { expiresIn: '30d' });
-    res.json({ success: true, token, username: user.username, isPaidMember: user.isPaidMember });
-  } catch { res.status(500).json({ success: false, message: 'Google 雲端同步異常' }); }
+    
+    res.json({ 
+      success: true, 
+      token: token, 
+      username: user.username, 
+      isPaidMember: user.isPaidMember 
+    });
+    
+  } catch (error) {
+    console.error("【後端資料庫寫入崩潰原因】", error);
+    res.status(500).json({ success: false, message: 'Google 雲端同步異常' });
+  }
 });
+
 
 // ─── 四大自癒金流晶片 API ───
 // ====== 【四大自癒金流晶片 API - 加入 24H 到期主動物理擦除防線】 ======
