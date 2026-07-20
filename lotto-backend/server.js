@@ -148,15 +148,19 @@ app.post('/api/auth/google-sync', async (req, res) => {
     let user = await User.findOne({ googleId });
     
     if (!user) {
-      // 🎯 核心修復：使用最標準、絕不吃字的一般單引號與字串拼接，保證百分之百安全！
       const randomNum = Math.floor(1000 + Math.random() * 9000);
       const defaultName = 'Google操盤手_' + randomNum;
+      
+      // 🎯 核心自癒晶片：因為 Schema 規定 password 是必填(required)，
+      // 這裡自動幫 Google 新會員隨機生成一串 32 位的安全隨機密鑰塞入，完美通關！
+      const secureFakePassword = require('crypto').randomBytes(16).toString('hex');
       
       user = new User({ 
         username: username || defaultName, 
         googleId: googleId, 
+        password: secureFakePassword, // ⚡ 補上這一行，徹底擊殺 'password is required' 錯誤！
         isPaidMember: false, 
-        points: 0 
+        points: 0 // 已經遵照您的指示，確認開局為 0 點
       });
       
       await user.save();
@@ -176,6 +180,7 @@ app.post('/api/auth/google-sync', async (req, res) => {
     res.status(500).json({ success: false, message: 'Google 雲端同步異常' });
   }
 });
+
 
 
 // ─── 四大自癒金流晶片 API ───
